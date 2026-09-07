@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《大 AI 时代》视觉风格选型对比（讨论样例）</title>
+<!--
+  ═══════════════════════════════════════════════════════════════
+  风格选型对比样例（throwaway）——回答的问题：
+  "Dashboard 视觉皮肤选哪个方向？"
+  布局 = R3 定稿的 A 工作台骨架（资源栏/周条/竞对胶囊/工作区/Dock）
+  + 迷雾科技树 / 决策卡 / 周报 三个高频弹层。
+  三套皮肤（右上切换）：A 深色金 · B 开罗像素 · C 纸感办公。
+  只评【视觉基调】，布局与信息架构不在本次讨论范围。
+  数据沿用讨论期虚构资产。无持久化，关页即弃。
+  ═══════════════════════════════════════════════════════════════
+-->
+<style>
+/* ── 皮肤 token 层：三套皮肤只换 token，组件样式共用 ── */
+body.skin-dark{
+  --bg:#14171c; --panel:#1d222a; --panel2:#242b36; --line:#31394a;
+  --ink:#e8ecf2; --ink2:#9aa6b8; --ink3:#5d6b80;
+  --accent:#e8b34b; --accent-ink:#1a1408;
+  --green:#5fc06c; --red:#e06a5a; --blue:#5b9bd5; --purple:#a17fd4;
+  --r:12px; --bw:1px; --shadow:none; --fs:14px; --h-unit:48px;
+  --font:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --panel-alpha:rgba(29,34,42,.94);
+}
+body.skin-kairo{
+  --bg:#8fd3e8; --panel:#fffef5; --panel2:#f0ede0; --line:#3a3226;
+  --ink:#3a3226; --ink2:#6b5d48; --ink3:#a09478;
+  --accent:#f0a03c; --accent-ink:#3a3226;
+  --green:#7ab648; --red:#e06050; --blue:#4a90c8; --purple:#9a6ac8;
+  --r:2px; --bw:2px; --shadow:none; --fs:14px; --h-unit:48px;
+  --font:"Courier New","PingFang SC","Microsoft YaHei",monospace;
+  --panel-alpha:rgba(255,254,245,.96);
+}
+body.skin-paper{
+  --bg:#f4f1ea; --panel:#ffffff; --panel2:#efece4; --line:#d8d2c4;
+  --ink:#2a2c30; --ink2:#6a6d74; --ink3:#a0a3aa;
+  --accent:#9c6b1f; --accent-ink:#ffffff;
+  --green:#3e7d46; --red:#b5483c; --blue:#3a6ea5; --purple:#7a5aa8;
+  --r:8px; --bw:1px; --shadow:0 1px 3px rgba(40,35,20,.10); --fs:14px; --h-unit:48px;
+  --font:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --panel-alpha:rgba(255,255,255,.96);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#0b0d11;color:var(--ink);font:var(--fs)/1.55 var(--font);
+  display:flex;flex-direction:column;align-items:center}
+/* 顶部声明+切换条（样例工具，非游戏 UI） */
+.topbar{width:100%;max-width:860px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  background:#000c;padding:8px 12px;border-bottom:1px solid #4a5568}
+.topbar .note{color:#e8b34b;font-size:12px;flex:1;min-width:200px}
+.topbar button{min-height:36px;min-width:44px;border-radius:6px;border:1px solid #4a5568;
+  background:#2d3748;color:#fff;font-size:13px;cursor:pointer;padding:4px 10px}
+.topbar button.on{background:#e8b34b;color:#1a1408;font-weight:700;border-color:#e8b34b}
+/* 手机框（竖屏预览） */
+.frame{width:100%;max-width:860px;height:calc(100vh - 96px);min-height:520px;overflow:hidden;
+  position:relative;background:var(--bg);display:flex;flex-direction:column;
+  border:var(--bw) solid var(--line)}
+body.portrait .frame{max-width:390px}
+.scroll{flex:1;overflow-y:auto;min-height:0}
+.pad{padding:12px}
+
+/* ── 共享元件（全部走 token） ── */
+.res{display:flex;gap:8px;align-items:stretch;background:var(--panel);padding:8px 12px;
+  border-bottom:var(--bw) solid var(--line)}
+.res .r{flex:1;min-width:0}
+.res .k{font-size:11px;color:var(--ink2)}
+.res .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.res .d{font-size:11px;color:var(--ink3)}
+.week{display:flex;align-items:center;gap:6px;background:var(--panel2);padding:6px 12px;
+  border-bottom:var(--bw) solid var(--line)}
+.week b{font-size:15px}
+.week .cal{color:var(--ink3);font-size:12px}
+.speed{margin-left:auto;display:flex;gap:4px}
+.spd{width:var(--h-unit);height:34px;border:var(--bw) solid var(--line);border-radius:var(--r);
+  background:var(--panel);color:var(--ink2);font-size:13px;cursor:pointer;font-family:var(--font)}
+.spd.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.card{background:var(--panel);border:var(--bw) solid var(--line);border-radius:var(--r);
+  padding:12px;margin-bottom:10px;box-shadow:var(--shadow)}
+.card h4{font-size:13px;color:var(--ink2);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.tag{font-size:11px;padding:1px 8px;border-radius:20px;border:var(--bw) solid var(--line);color:var(--ink2)}
+.tag.gold{color:var(--accent);border-color:var(--accent)}
+.tag.green{color:var(--green);border-color:var(--green)}
+.tag.purple{color:var(--purple);border-color:var(--purple)}
+.bar{height:8px;background:var(--panel2);border-radius:6px;overflow:hidden;border:var(--bw) solid var(--line)}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.bar.rival i{background:var(--red)}
+.bar.blue i{background:var(--blue)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.btn{min-width:var(--h-unit);min-height:var(--h-unit);border-radius:var(--r);
+  border:var(--bw) solid var(--line);background:var(--panel2);color:var(--ink);
+  font-size:14px;padding:10px 14px;cursor:pointer;font-family:var(--font)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--line);font-weight:700}
+.btn.ghost{background:transparent}
+.dock{display:flex;border-top:var(--bw) solid var(--line);background:var(--panel)}
+.dock button{flex:1;min-height:var(--h-unit);background:none;border:none;color:var(--ink2);
+  font-size:13px;cursor:pointer;padding:8px 2px;font-family:var(--font)}
+.dock button b{display:block;font-size:16px}
+.dock button.on{color:var(--accent)}
+
+/* toast 流 */
+.toast{background:var(--panel2);border-left:3px solid var(--blue);border-radius:var(--r);
+  padding:8px 10px;font-size:13px;color:var(--ink2);margin-bottom:6px}
+.toast.important{border-left-color:var(--accent);color:var(--ink)}
+.toast .t{color:var(--ink3);font-size:11px}
+
+/* 研究员卡 */
+.staff{display:flex;align-items:center;gap:10px;background:var(--panel2);
+  border:var(--bw) solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:8px;cursor:pointer}
+.avatar{width:var(--h-unit);height:var(--h-unit);border-radius:var(--r);background:var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.staff .nm{font-weight:700;font-size:14px}
+.staff .task{font-size:12px;color:var(--ink2)}
+.staff .bar{margin-top:6px;width:120px}
+
+/* 竞对胶囊 */
+.rival-pill{display:flex;align-items:center;gap:8px;margin:8px 12px;background:var(--panel);
+  border:var(--bw) solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;color:var(--ink2);
+  box-shadow:var(--shadow)}
+.rival-pill b{color:var(--ink)}
+.rival-pill .bar{flex:1}
+
+/* ── 面板栈弹层 ── */
+.overlay{position:absolute;inset:0;display:none;align-items:flex-end;justify-content:center;
+  background:rgba(6,8,12,.62);z-index:40}
+.overlay.on{display:flex}
+.sheet{background:var(--panel);border:var(--bw) solid var(--line);border-radius:16px 16px 0 0;
+  width:100%;max-height:82%;overflow-y:auto;padding:16px}
+.sheet h3{font-size:16px;margin-bottom:2px}
+.sheet .sub{font-size:12px;color:var(--ink2);margin-bottom:12px}
+.fog-domain{margin-bottom:12px}
+.fog-domain .dh{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px}
+.fog-domain .dh span{color:var(--ink3);font-weight:400;font-size:12px}
+.node{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);
+  border:var(--bw) solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:6px;font-size:13px}
+.node .st{font-size:11px}
+.node.lit{border-color:var(--green)} .node.lit .st{color:var(--green)}
+.node.ready{border-color:var(--accent)} .node.ready .st{color:var(--accent)}
+.node.seeing .st{color:var(--blue)}
+.node.fog{color:var(--ink3);border-style:dashed}
+.node.locked{color:var(--ink3);opacity:.6}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.opt{border:var(--bw) solid var(--line);background:var(--panel2);border-radius:var(--r);
+  padding:10px 12px;cursor:pointer}
+.opt b{font-size:14px}
+.opt .hint{font-size:12px;color:var(--accent);margin-top:2px}
+.opt.disabled{opacity:.45;cursor:not-allowed}
+.opt.disabled .hint{color:var(--red)}
+.opt.selected{border-color:var(--accent);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--accent)}
+
+/* 竖屏折叠第一折：资源栏副行收起 */
+body.portrait .res .d{display:none}
+</style>
+</head>
+<body class="skin-dark">
+
+<div class="topbar">
+  <span class="note">风格选型对比样例 · 布局=R3 定稿 A 工作台 · 只评视觉基调 · 数据虚构</span>
+  <button id="b-dark" class="on" onclick="setSkin('dark')">A 深色金</button>
+  <button id="b-kairo" onclick="setSkin('kairo')">B 开罗像素</button>
+  <button id="b-paper" onclick="setSkin('paper')">C 纸感办公</button>
+  <button onclick="toggleShape()" id="shapeBtn">📱 竖屏</button>
+</div>
+
+<div class="frame" id="frame">
+
+  <!-- ══════════ A 工作台（R3 定稿骨架） ══════════ -->
+  <div class="res">
+    <div class="r"><div class="k">资金</div><div class="v">¥12.5万</div><div class="d">周净 -1.2k</div></div>
+    <div class="r"><div class="k">算力</div><div class="v">840 卡时</div><div class="d">占用 62%</div></div>
+    <div class="r"><div class="k">声誉</div><div class="v">47</div><div class="d">本周 +2</div></div>
+  </div>
+  <div class="week"><b>第 14 周</b><span class="cal">2023-03</span>
+    <div class="speed"><button class="spd">⏸</button><button class="spd on">1x</button><button class="spd">2x</button><button class="spd">4x</button></div>
+  </div>
+  <div class="rival-pill">🔴 <b>深巷科技</b> 71% <div class="bar rival"><i style="width:71%"></i></div> 上周：巷灯 L2</div>
+  <div class="scroll pad">
+    <div class="card">
+      <h4>训练中 · 项目 A-3 <span class="tag gold">出分预计 3 周</span></h4>
+      <div class="row"><span>璞石 1b → 冲击 <b style="color:var(--accent)">GKP</b> 榜</span><span style="font-size:12px;color:var(--ink2)">62%</span></div>
+      <div class="bar" style="margin-top:6px"><i style="width:62%"></i></div>
+      <div class="row" style="margin-top:8px;font-size:12px;color:var(--ink2)">
+        <span>阶段：损失下降中（距 SOTA 线还差 ~9 分）</span>
+        <button class="btn ghost" style="min-height:34px" onclick="openPanel('tech')">详情</button>
+      </div>
+    </div>
+    <div class="card"><h4>研究员 <span class="tag">点卡进详情分配</span></h4>
+      <div class="staff" onclick="openPanel('staff')"><div class="avatar">🧑‍🔬</div>
+        <div><div class="nm">林望舒</div><div class="task">复现 · 灵犀通识评测（剩余 2 周）</div><div class="bar"><i style="width:78%"></i></div></div>
+      </div>
+      <div class="staff" onclick="openPanel('staff')"><div class="avatar">👩‍💻</div>
+        <div><div class="nm">陈北辰</div><div class="task">研究 · 长记忆线（喂 RP）</div><div class="bar blue" style="width:120px"><i style="width:45%"></i></div></div>
+      </div>
+      <div class="staff" onclick="openPanel('staff')"><div class="avatar">🧑‍💻</div>
+        <div><div class="nm">周霁明</div><div class="task">支援训练 · 项目 A-3</div><div class="bar" style="width:120px"><i style="width:62%"></i></div></div>
+      </div>
+    </div>
+    <div class="card"><h4>通知 <span class="tag">≤3 条 · 暂停即冻结</span></h4>
+      <div class="toast important">💡 灵感闪现：蒸馏也许能把大模型压进小卡 <span class="t">第 14 周</span></div>
+      <div class="toast">深巷科技 发布「巷灯 L2」，通识试金石榜首位易主 <span class="t">第 13 周</span></div>
+      <div class="toast">课题结项：西麓大学横向，¥6.4万 已入账 <span class="t">第 13 周</span></div>
+    </div>
+  </div>
+  <div class="dock">
+    <button class="on" onclick="openPanel('tech')"><b>🌫</b>科技 <span style="font-size:10px">8/14</span></button>
+    <button onclick="openPanel('report')"><b>📊</b>周报</button>
+    <button onclick="openPanel('card')"><b>⚡</b>事件</button>
+    <button><b>≡</b>暂停</button>
+  </div>
+
+  <!-- ══════════ 弹层：迷雾科技树 ══════════ -->
+  <div class="overlay" id="p-tech">
+    <div class="sheet">
+      <h3>科技方向 <span class="tag purple" style="margin-left:6px">已探明 8/14</span></h3>
+      <div class="sub">翻雾靠：投入研究 / 竞对论文外溢 / 灵感 —— 他者道路以传闻形式存在</div>
+      <div class="fog-domain"><div class="dh">🧠 深思线 <span>已探明 3/4</span></div>
+        <div class="node lit"><span>✔ 规模律</span><span class="st">已点亮 · 算法 +</span></div>
+        <div class="node ready"><span>提示思维链</span><span class="st">可研 · RP 62%</span></div>
+        <div class="node seeing"><span>偏好对齐</span><span class="st">可见 · 需 深思线+开放权重线</span></div>
+      </div>
+      <div class="fog-domain"><div class="dh">📖 开放权重线 <span>已探明 2/3</span></div>
+        <div class="node lit"><span>✔ 蒲公英式权重流出</span><span class="st">已点亮</span></div>
+        <div class="node seeing"><span>蒸馏小型化</span><span class="st">可见 · 灵感已触发</span></div>
+      </div>
+      <div class="fog-domain"><div class="dh">🧷 长记忆线 <span>已探明 3/4</span></div>
+        <div class="node ready"><span>长上下文</span><span class="st">可研 · RP 31%</span></div>
+        <div class="node fog"><span>？？？</span><span class="st">传闻 · 深巷论文里提过"外脑"</span></div>
+      </div>
+      <div class="fog-domain"><div class="dh">🚪 他者道路 <span>3 条 · 均未开域</span></div>
+        <div class="node locked"><span>世界推演？</span><span class="st">传闻：有人想教模型理解世界</span></div>
+        <div class="node locked"><span>袖珍智能？</span><span class="st">传闻：把模型塞进你口袋</span></div>
+      </div>
+      <button class="btn primary" style="width:100%" onclick="closePanels()">返回</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 弹层：决策卡（阻塞层） ══════════ -->
+  <div class="overlay" id="p-card">
+    <div class="sheet">
+      <h3>⚡ 算力租金暴涨 <span class="tag" style="margin-left:6px">决定后世界继续流淌</span></h3>
+      <div class="sub">云厂商例行调价，卡时单价本周上涨 35%。训练排期不动的话，下周资金将多支出 ¥3.6万。——去会议室碰一下？</div>
+      <div class="opts">
+        <div class="opt selected"><b>锁价长约</b><div class="hint">资金 -¥12万 · 锁 8 周</div></div>
+        <div class="opt"><b>随行就市</b><div class="hint">资金 -¥3.6万 · 赌降价</div></div>
+        <div class="opt disabled"><b>暂停训练一周</b><div class="hint">资金不足，无法执行</div></div>
+      </div>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="closePanels()">稍后处理（本周结前必须选择）</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 弹层：员工详情 ══════════ -->
+  <div class="overlay" id="p-staff">
+    <div class="sheet">
+      <h3>🧑‍🔬 林望舒 <span class="tag green" style="margin-left:6px">研究力 84</span></h3>
+      <div class="sub">当前：复现 · 灵犀通识评测（剩余 2 周 · 中途改派将损失进度）</div>
+      <div class="card"><div class="row"><span>复现进度</span><b>78%</b></div><div class="bar" style="margin-top:6px"><i style="width:78%"></i></div></div>
+      <h4 style="font-size:13px;color:var(--ink2);margin:10px 0 8px">改派至（改派确认前先预览）</h4>
+      <div class="opts">
+        <div class="opt"><b>继续复现</b><div class="hint">2 周后完成 · 声誉 +1</div></div>
+        <div class="opt"><b>研究 · 长上下文</b><div class="hint">喂 RP · 长记忆线还差 1 节点点亮</div></div>
+        <div class="opt"><b>支援训练 · 项目 A-3</b><div class="hint">出分预计提前 ~0.5 周</div></div>
+      </div>
+      <button class="btn primary" style="width:100%;margin-top:12px" onclick="closePanels()">取消（返回 Dashboard）</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 弹层：周报 ══════════ -->
+  <div class="overlay" id="p-report">
+    <div class="sheet">
+      <h3>📊 第 13 周 · 周报</h3>
+      <div class="sub">显著变化周 · 已自动暂停</div>
+      <div class="card">收入 <b style="color:var(--green)">+¥6.4万</b>（课题结项）· 支出 <b style="color:var(--red)">-¥5.2万</b></div>
+      <div class="card">声誉 +2（林望舒论文进入玄冬会议评审）</div>
+      <div class="card">⚠ 深巷科技 发布「巷灯 L2」，GKP 榜首位易主（81.2 分）</div>
+      <div class="card">项目 A-3 推进 62% · 距榜首 ~9 分</div>
+      <button class="btn primary" style="width:100%" onclick="closePanels()">继续（恢复流淌）</button>
+    </div>
+  </div>
+
+</div><!-- /frame -->
+
+<script>
+// 皮肤切换（URL ?skin= 可分享、刷新稳定）
+const SKINS=['dark','kairo','paper'];
+let cur=(new URLSearchParams(location.search).get('skin')||'dark');
+if(!SKINS.includes(cur))cur='dark';
+function setSkin(s){cur=s;document.body.className='skin-'+s;
+  for(const k of SKINS){document.getElementById('b-'+k).classList.toggle('on',k===cur)}
+  history.replaceState(null,'','?skin='+cur);}
+// 竖屏框预览
+let portrait=false;
+function toggleShape(){portrait=!portrait;document.body.classList.toggle('portrait',portrait);
+  document.getElementById('shapeBtn').textContent=portrait?'🖥 横屏':'📱 竖屏'}
+// 面板栈演示：同层互斥 + 阻塞层压暗
+function openPanel(id){closePanels();document.getElementById('p-'+id).classList.add('on')}
+function closePanels(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('on'))}
+setSkin(cur);
+</script>
+</body>
+</html>
