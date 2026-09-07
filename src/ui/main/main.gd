@@ -19,6 +19,7 @@ var _layout_mgr: ResponsiveLayoutManager
 var _stack: PanelStack
 var _active_modals: Dictionary = {}
 var _mask_overlay: ColorRect
+var _debug_beacon_enabled: bool = false
 
 @onready var resource_bar: PanelContainer = %ResourceBar
 @onready var resource_subrow: HBoxContainer = %ResourceSubrow
@@ -78,6 +79,8 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	if _driver != null and _world != null:
 		_driver.feed_frame(delta)
+	if _debug_beacon_enabled:
+		_update_debug_beacon()
 
 
 func _notification(what: int) -> void:
@@ -86,18 +89,19 @@ func _notification(what: int) -> void:
 		_on_viewport_resized.call_deferred()
 
 
-## 截图/试玩自动化驱动（仅 Web 且显式 ?shot=<id> 时激活，正常游玩零影响）：
-## home=主工作台 tech=科技树 report=周报归档 gameover=终局结算；同时冻结时钟。
+## 截图/试玩自动化驱动（仅 Web 且显式查询参数时激活，正常游玩零影响）：
+## ?shot=<id>：合成指定弹层截图（home/tech/report/gameover）+ 就绪标志；
+## ?selftest=1：仅启用面板栈信标供交互自测断言。两者均冻结时钟、丢弃挂起决策卡。
 func _setup_debug_shot_driver() -> void:
 	if OS.has_feature("web") == false:
 		return
-	var shot: String = str(
-		JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('shot') || ''", true)
-	)
-	if shot.is_empty():
+	var params: String = "new URLSearchParams(window.location.search)"
+	var shot: String = str(JavaScriptBridge.eval("%s.get('shot') || ''" % params, true))
+	var selftest: String = str(JavaScriptBridge.eval("%s.get('selftest') || ''" % params, true))
+	if shot.is_empty() and selftest.is_empty():
 		return
 	_world.set_paused(true)
-	# 防御：若开局/推进已挂起决策卡，截图合成模式丢弃之，避免叠层污染证据
+	# 防御：若开局/推进已挂起决策卡，调试模式丢弃之，避免叠层污染证据
 	if not _world.pending_decision.is_empty():
 		_world.set_pending_decision({})
 	# 注意：类内不可裸调 get_stack()——与 GDScript 内置全局函数（返回调试栈 Array）撞名
@@ -114,8 +118,26 @@ func _setup_debug_shot_driver() -> void:
 		"gameover":
 			# 终局弹层为合成布局证据（world 并未真破产），保持暂停避免 tick 污染画面
 			stack.push_panel(PanelStack.PANEL_GAME_OVER)
-	# 精确就绪信号：截图脚本轮询此标志，避免盲等延时
-	JavaScriptBridge.eval("window.__DSH_SHOT_READY__ = true;", true)
+	# 面板栈信标：截图与自测脚本共用（_process 每帧同步）
+	_debug_beacon_enabled = true
+	_update_debug_beacon()
+	# 精确就绪信号：仅截图模式使用（自测模式以信标出现为就绪判定）
+	if not shot.is_empty():
+		JavaScriptBridge.eval("window.__DSH_SHOT_READY__ = true;", true)
+
+
+## 自测信标：把面板栈状态同步给 JS 侧（仅调试驱动激活时），供交互自测确定性断言
+func _update_debug_beacon() -> void:
+	if _stack == null:
+		return
+	var depth: int = _stack.get_z2_stack().size() + (1 if _stack.get_z1_panel() != "" else 0)
+	JavaScriptBridge.eval(
+		(
+			"window.__DSH_PANEL_STATE__ = { depth: %d, blocking: %s };"
+			% [depth, "true" if _stack.has_blocking_panel() else "false"]
+		),
+		true
+	)
 
 
 func get_world() -> GameWorld:
