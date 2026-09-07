@@ -1,0 +1,9 @@
+{
+	"bench_gkp": {
+		"name": "通识试金石·五十七（GKP）",
+		"theta": 95.0,
+		"k": 13.0,
+		"baseline": 24.0,
+		"rival_model": "灵犀 Chat"
+	}
+}
