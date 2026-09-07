@@ -1,0 +1,71 @@
+{
+	"rival_id": "shenxiang",
+	"name": "深巷科技",
+	"spill_fields": ["dandelion", "deep_thought"],
+	"spill_rp_gate": 300,
+	"jitter_pct": 0.15,
+	"timeline": [
+		{
+			"id": "rv_paper_1",
+			"type": "paper",
+			"week": 6,
+			"name": "论文《多步推演初探》",
+			"target_tech": "distill_garden",
+			"target_state": "visible"
+		},
+		{
+			"id": "rv_launch_l1",
+			"type": "launch",
+			"week": 12,
+			"model": "深巷·小寒 1b",
+			"score": 35.0,
+			"warn_weeks": 6
+		},
+		{
+			"id": "rv_price_1",
+			"type": "price_hike",
+			"week": 24,
+			"name": "深巷 API 涨价公告",
+			"hike_pct": 0.2
+		},
+		{
+			"id": "rv_paper_2",
+			"type": "paper",
+			"week": 40,
+			"name": "论文《析津别院开源权重说明》",
+			"target_tech": "distill_garden",
+			"target_state": "visible"
+		},
+		{
+			"id": "rv_launch_l2",
+			"type": "launch",
+			"week": 54,
+			"model": "深巷·惊蛰 7b",
+			"score": 58.0,
+			"warn_weeks": 9
+		},
+		{
+			"id": "rv_launch_l3",
+			"type": "launch",
+			"week": 68,
+			"model": "深巷·芒种 13b",
+			"score": 75.0,
+			"warn_weeks": 11
+		},
+		{
+			"id": "rv_price_2",
+			"type": "price_hike",
+			"week": 75,
+			"name": "深巷高并发调用配额收紧",
+			"hike_pct": 0.3
+		},
+		{
+			"id": "rv_launch_l4",
+			"type": "launch",
+			"week": 82,
+			"model": "深巷·大暑 70b",
+			"score": 92.0,
+			"warn_weeks": 13
+		}
+	]
+}

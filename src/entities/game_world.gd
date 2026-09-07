@@ -74,6 +74,7 @@ var stages: Stages
 var training: TrainingProject
 var sota_board: SotaBoard
 var rng_stream: RngStream
+var rival_track: RivalTrack
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
@@ -104,6 +105,7 @@ func _init() -> void:
 	training = TrainingProject.new()
 	sota_board = SotaBoard.new()
 	rng_stream = RngStream.new()
+	rival_track = RivalTrack.new()
 	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
 	tech_fog.setup(techs_cfg)
 	tech_tree.setup(techs_cfg, tech_fog)
@@ -173,6 +175,7 @@ func start_new_game(seed: int = 0) -> void:
 	sota_board.setup(opening, DataLoader.load_json("res://src/data/benchmarks.json"))
 	sota_best = sota_board.get_best_score()
 	rival_best = sota_board.get_rival_best()
+	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream)
 	_income_roll_seed = rng_seed
 	_named_ids.clear()
 	_last_signal_report = {}
@@ -330,6 +333,9 @@ func restore(data: Dictionary) -> void:
 	rng_stream.restore(rng_data)
 	var training_data: Dictionary = data.get("training", {})
 	training.restore(training_data)
+	var rivals_data: Dictionary = data.get("rivals", {})
+	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream)
+	rival_track.restore(rivals_data)
 	var staff_data: Dictionary = data.get("staff", {})
 	var opening := DataLoader.load_json("res://src/data/opening.json")
 	var staff_table := DataLoader.load_json("res://src/data/staff.json")
@@ -450,6 +456,16 @@ func settle_week() -> void:
 		if broken:
 			sota_best = sota_board.get_best_score()
 			sota_updated.emit({"model": current_name, "score": sota_best, "rival": false})
+	# 周结第 6 步竞对推进（8 动作剧本 + 论文外溢 + 发版播报）
+	var rival_actions := rival_track.settle_week(week, tech_fog)
+	for r_act: Dictionary in rival_actions:
+		if str(r_act.get("type", "")) == "launch":
+			var r_model: String = str(r_act.get("model", "深巷模型"))
+			var r_score: float = float(r_act.get("score", 0.0))
+			if sota_board.submit_score(r_model, r_score):
+				sota_best = sota_board.get_best_score()
+				rival_best = r_score
+				sota_updated.emit({"model": r_model, "score": r_score, "rival": true})
 	# 周结第 7 步迷雾翻雾推进与第 10 步阶段软门重评
 	tech_fog.advance(get_influence())
 	var stage_context := {
