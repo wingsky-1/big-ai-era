@@ -308,6 +308,18 @@ func set_paused(on: bool) -> void:
 	user_paused = clock.user_paused
 
 
+## 生成 Game Over 总结字典（周数/最高分/SOTA 纪录/破产原因）
+func get_game_over_summary() -> Dictionary:
+	return {
+		"week": week,
+		"best_score": sota_best,
+		"rival_best": rival_best,
+		"model_name": model_name,
+		"cum_income": cum_income,
+		"reason": "bankruptcy",
+	}
+
+
 ## 手动/退出/切后台存档触发（PR8 三保险时机；经 SaveSystem 唯一写入口）。
 func request_save(reason: String = "manual") -> bool:
 	var payload := SnapshotCodec.to_save(self)
@@ -450,6 +462,17 @@ func settle_week() -> void:
 	var weekly_income: int = int(ledger.get("income", 0))
 	if weekly_income > 0:
 		cum_income += weekly_income
+
+	# 步序 2: Game Over 短路判定（写死在收支后，B3 / DR-021）
+	if economy.check_lines() == Economy.WARNED_BANKRUPT:
+		game_over_flag = true
+		var summary: Dictionary = get_game_over_summary()
+		# 终局档落盘（三保险之一，经 SaveSystem 唯一写入口）
+		request_save("game_over")
+		game_over.emit(summary)
+		# 短路：跳过出分/SOTA/竞对/迷雾/事件/阶段/周报，直接返回
+		return
+
 	var task_settle := task_queue.settle_week()
 	if task_settle.get("completed", false):
 		var rp := int(task_settle.get("rp_output", 0))
@@ -526,6 +549,8 @@ func settle_week() -> void:
 	_last_signal_report = report
 	_emit_resources()
 	week_settled.emit(report)
+	# 步序 11: 周界自动存档（三保险之一）
+	request_save("weekly_auto")
 
 
 ## 收入脉冲确定性随机源（PR7 前 MVP 占位：随机源接口与 rng_stream 对齐，
