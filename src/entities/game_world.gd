@@ -1,0 +1,292 @@
+class_name GameWorld
+extends RefCounted
+
+## 唯一门面（L2，v1.1 §B 单向数据流契约）：收命令/发信号/组装子系统。
+## 强持有子系统（单向树，子系统不回指）；快照与存档字典经 SnapshotCodec
+## 唯一映射；周结管线 v2.1 步序在此定型，子系统逐 PR 填充（本 PR：骨架 +
+## start_new_game/get_ui_snapshot/set_paused/request_save/simulate_weeks +
+## GW3 决策策略同帧应答钩子）。
+## 命令 11 / 信号 11（DR-026），测试按 CONTRACT_COMMANDS/CONTRACT_SIGNALS 对账。
+
+signal resources_changed(money: int, compute_hours: float, influence: int)
+signal week_settled(report: Dictionary)
+signal decision_pending(card: Dictionary)
+signal sota_updated(entry: Dictionary)
+signal fog_changed(revealed_ids: PackedStringArray)
+signal task_state_changed(task_id: String, state: String)
+signal stage_advanced(stage_id: int)
+signal model_named(model_name: String)
+signal game_over(summary: Dictionary)
+signal toast_queued(payload: Dictionary)
+signal progress_ticked(progress: Dictionary)
+
+## 契约对账清单（v1.1 §B；加命令/信号须同步此处+测试）
+const CONTRACT_COMMANDS: PackedStringArray = [
+	"start_new_game",
+	"get_ui_snapshot",
+	"assign_staff",
+	"unassign_staff",
+	"enqueue_task",
+	"start_research",
+	"start_training",
+	"choose_decision",
+	"submit_model_name",
+	"set_paused",
+	"request_save",
+]
+const CONTRACT_SIGNALS: PackedStringArray = [
+	"resources_changed",
+	"week_settled",
+	"decision_pending",
+	"sota_updated",
+	"fog_changed",
+	"task_state_changed",
+	"stage_advanced",
+	"model_named",
+	"game_over",
+	"toast_queued",
+	"progress_ticked",
+]
+const SCHEMA_VERSION: int = 1
+const DECISION_POLICY_META: StringName = &"decision_policy"
+
+var week: int = 0  # 权威周数（游戏状态口径；clock.week 仅触发器内部计数，一致性由测试锁定）
+var money: int = 0
+var compute_tier: int = 0
+var compute_hours_remaining: float = 0.0
+var influence: int = 0
+var research_eff: int = 0
+var tech_bonus: float = 0.0
+var user_paused: bool = false
+var game_over_flag: bool = false
+var model_name: String = ""
+var staff: Dictionary = {}
+var rng_seed: int = 0
+var sota_best: float = 0.0
+var rival_best: float = 0.0
+
+var clock: GameClock
+var pending_decision: Dictionary = {}
+
+var _named_ids: Dictionary = {}
+var _named_cursor: int = 0
+var _last_signal_report: Dictionary = {}
+
+
+## 组装子系统（GameClock 强持有+参数注入节拍；不回指）。
+func _init() -> void:
+	clock = GameClock.new()
+	clock.setup(DataLoader.load_json("res://src/data/clock.json"), self)
+	clock.week_boundary_reached.connect(_on_week_boundary)
+
+
+## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
+func get_clock() -> GameClock:
+	return clock
+
+
+## ============ 命令面（11）============
+
+
+## 建档（B1/GW8）：seed 定格开局态（灵犀 Chat 已发布+三研究员+W0 态）。
+func start_new_game(seed: int = 0) -> void:
+	rng_seed = seed
+	week = 0
+	money = 0
+	influence = 0
+	compute_tier = 0
+	compute_hours_remaining = 0.0
+	research_eff = 0
+	tech_bonus = 0.0
+	user_paused = false
+	game_over_flag = false
+	model_name = ""
+	pending_decision = {}
+	_named_ids = {}
+	_named_cursor = 0
+	sota_best = 0.0
+	staff = {}
+	var opening := DataLoader.load_json("res://src/data/opening.json")
+	money = int(opening.get("money", money))
+	influence = int(opening.get("influence", influence))
+	var compute: Dictionary = opening.get("compute", {})
+	compute_tier = int(compute.get("tier", compute_tier))
+	compute_hours_remaining = float(compute.get("hours_remaining", compute_hours_remaining))
+	rival_best = float(opening.get("rival_best", rival_best))
+	var staff_table := DataLoader.load_json("res://src/data/staff.json")
+	for staff_id: String in opening.get("staff_ids", []):
+		var row: Dictionary = staff_table.get(staff_id, {})
+		if not row.is_empty():
+			staff[staff_id] = {
+				"name": str(row.get("name", staff_id)),
+				"research": int(row.get("research", 0)),
+				"engineering": int(row.get("engineering", 0)),
+				"wage": int(row.get("wage", 0)),
+				"assigned": "",
+			}
+	_last_signal_report = {}
+	_recalculate_research_eff()
+	_sync_card_block()
+	resources_changed.emit(money, compute_hours_remaining, influence)
+	# W0 假头条：灵犀 Chat 已发布（竞对榜基线，非玩家纪录）
+	sota_updated.emit(
+		{"model": str(opening.get("rival_model_name", "")), "score": rival_best, "rival": true}
+	)
+
+
+## 全量 UI 快照（B1）：reload/读档/回菜单重进的初始渲染唯一来源。
+func get_ui_snapshot() -> Dictionary:
+	return SnapshotCodec.ui_snapshot(self)
+
+
+func assign_staff(_staff_id: String, _slot_id: String) -> void:
+	_not_implemented_yet("assign_staff")
+
+
+func unassign_staff(_staff_id: String) -> void:
+	_not_implemented_yet("unassign_staff")
+
+
+func enqueue_task(_task_id: String) -> void:
+	_not_implemented_yet("enqueue_task")
+
+
+func start_research(_tech_id: String) -> void:
+	_not_implemented_yet("start_research")
+
+
+func start_training(_base_id: String) -> void:
+	_not_implemented_yet("start_training")
+
+
+func choose_decision(_pending_id: String, _option_idx: int) -> void:
+	_not_implemented_yet("choose_decision")
+
+
+## 命名（⚠️② 预览路径，PR6 接入长度/敏感词校验+名池轮转；骨架接受合法名）。
+func submit_model_name(raw: String) -> void:
+	if game_over_flag or raw.is_empty():
+		return
+	model_name = raw
+	_named_ids[raw] = true
+	model_named.emit(raw)
+
+
+## 暂停键（Q4 防御第一半：blocked 期间解除请求被拒；GameClock 持第二半）。
+func set_paused(on: bool) -> void:
+	if not on and not pending_decision.is_empty():
+		return  # 带卡期间 UI 解除暂停无效（DR-022① 卡优先）
+	clock.set_user_paused(on)
+	user_paused = clock.user_paused
+
+
+## 手动/退出/切后台存档触发（PR8 三保险时机；经 SaveSystem 唯一写入口）。
+func request_save(reason: String = "manual") -> bool:
+	var payload := SnapshotCodec.to_save(self)
+	payload["save_reason"] = reason
+	return SaveSystem.save_game(payload)
+
+
+## 从存档字典恢复世界（读档流程：load_game→restore→get_ui_snapshot 首渲染；
+## 非 11 命令面，引擎装配层调用；业务字段随 PR 扩展）。
+func restore(data: Dictionary) -> void:
+	week = int(data.get("week", 0))
+	var resources: Dictionary = data.get("resources", {})
+	money = int(resources.get("money", 0))
+	influence = int(resources.get("influence", 0))
+	var compute: Dictionary = resources.get("compute", {})
+	compute_tier = int(compute.get("tier", 0))
+	compute_hours_remaining = float(compute.get("hours_remaining", 0.0))
+	var sota: Dictionary = data.get("sota", {})
+	sota_best = float(sota.get("best", 0.0))
+	rival_best = float(sota.get("rival_best", 0.0))
+	var flags: Dictionary = data.get("flags", {})
+	game_over_flag = bool(flags.get("game_over", false))
+	_named_cursor = int(flags.get("name_cursor", 0))
+	var names: Array = data.get("player_model_names", [])
+	model_name = str(names.back()) if not names.is_empty() else ""
+	_named_ids.clear()
+	for name_entry: String in names:
+		_named_ids[name_entry] = true
+	pending_decision = {}
+	_last_signal_report = {}
+	_recalculate_research_eff()
+	_sync_card_block()
+
+
+## ============ 模拟与测试入口 ============
+
+
+## headless 推进 n 周（decision_policy 注入同帧应答，GW3），返回逐周报告。
+## 带 pending 卡且策略应答 -1（或无策略）时停止模拟（防死循环）。
+func simulate_weeks(n: int, policy: Object = null, _seed: int = 0) -> Array[Dictionary]:
+	if policy != null:
+		set_meta(DECISION_POLICY_META, policy)
+	var reports: Array[Dictionary] = []
+	for i in n:
+		_resolve_pending_same_frame()
+		if not pending_decision.is_empty():
+			break  # 带卡不结周：无可用应答，模拟停在此周
+		var before := week
+		_advance_one_week()
+		if week == before:
+			break
+		if not _last_signal_report.is_empty():
+			reports.append(_last_signal_report.duplicate(true))
+		if game_over_flag:
+			break
+	return reports
+
+
+## ============ 内部：周结管线 v2.1 骨架（步序定型，子系统逐 PR 填充）============
+
+
+func _advance_one_week() -> void:
+	_sync_card_block()
+	clock.advance(clock.tick_seconds * GameClock.TICKS_PER_WEEK)
+
+
+## GW3 同帧应答钩子：有 pending 卡且注入了策略 → 同帧选择，不跨帧不丢拍。
+func _resolve_pending_same_frame() -> void:
+	if pending_decision.is_empty() or not has_meta(DECISION_POLICY_META):
+		return
+	var policy: Object = get_meta(DECISION_POLICY_META)
+	var options: Array = pending_decision.get("options", [])
+	var idx: int = int(policy.pick(pending_decision, options))
+	if idx >= 0:
+		set_pending_decision({})  # 效果经 apply_delta 过账归 PR7；骨架仅消费卡
+
+
+## 挂起决策卡登记（事件引擎 PR7 与装配层使用；同步带卡阻塞态，UI 不调用）。
+func set_pending_decision(card: Dictionary) -> void:
+	pending_decision = card.duplicate(true)
+	_sync_card_block()
+
+
+## 带卡不结周（M1/DR-022①）：pending 非空 → clock 第二暂停源置位。
+func _sync_card_block() -> void:
+	clock.set_blocked_by_card(not pending_decision.is_empty())
+
+
+## GameClock 周界回调（DR-007 周结序）：
+## PR4 起 1 收支(economy/apply_delta)→PR8 Game Over 短路；PR6 出分；PR7 竞对/
+## 迷雾/灵感/事件；PR5 阶段重评。骨架仅产出周报骨架帧。
+func settle_week() -> void:
+	week += 1
+	var report := {"week": week}
+	_last_signal_report = report
+	week_settled.emit(report)
+
+
+func _recalculate_research_eff() -> void:
+	# DR-005R：research_eff=Σ 已分配研究力（PR4 接入分配系统；骨架=0）。
+	research_eff = 0
+
+
+func _on_week_boundary(_new_week: int) -> void:
+	pass  # 周结统一走 settle_week；保留接线点供刻级回调扩展
+
+
+func _not_implemented_yet(command: String) -> void:
+	push_warning("GameWorld: 命令 %s 将在后续 PR 接入" % command)
+	toast_queued.emit({"text_key": "sys_save_hint", "command": command})
