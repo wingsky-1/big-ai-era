@@ -27,10 +27,9 @@ static func ui_snapshot(world: GameWorld) -> Dictionary:
 		"week": world.week,
 		"resources":
 		{
-			"money": world.money,
-			"compute":
-			{"tier": world.compute_tier, "hours_remaining": world.compute_hours_remaining},
-			"influence": world.influence,
+			"money": world.get_money(),
+			"compute": world.get_compute(),
+			"influence": world.get_influence(),
 		},
 		"research_eff": world.research_eff,
 		"tech_bonus": world.tech_bonus,
@@ -58,10 +57,9 @@ static func to_save(world: GameWorld) -> Dictionary:
 		"week": world.week,
 		"resources":
 		{
-			"money": world.money,
-			"compute":
-			{"tier": world.compute_tier, "hours_remaining": world.compute_hours_remaining},
-			"influence": world.influence,
+			"money": world.get_money(),
+			"compute": world.get_compute(),
+			"influence": world.get_influence(),
 		},
 		"rng": {},
 		"techs": {"lit": [], "fog_visibility": {}, "crossover_progress": 0, "pity": 0},

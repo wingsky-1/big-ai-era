@@ -1,0 +1,22 @@
+{
+	"wage_per_staff": 2000,
+	"warn_line": -30000,
+	"bankruptcy_line": -200000,
+	"reproduce": {"amount_min": 5000, "amount_max": 12000, "duration_min": 3, "duration_max": 5},
+	"grant": {"amount_min": 30000, "amount_max": 80000, "duration_min": 4, "duration_max": 8},
+	"stage_depr": {"reproduce_factor": 1.0, "grant_interval_add_weeks": 0},
+	"training_cost_per_compute_hour": 150,
+	"compute_tiers": [
+		{"tier": 1, "price": 0, "capacity": 40},
+		{"tier": 2, "price": 19000, "capacity": 80},
+		{"tier": 3, "price": 38000, "capacity": 160},
+		{"tier": 4, "price": 77000, "capacity": 320}
+	],
+	"sources": {
+		"wage": {"enabled": true},
+		"reproduce": {"enabled": true},
+		"grant": {"enabled": true},
+		"financing": {"enabled": false},
+		"api": {"enabled": false}
+	}
+}
