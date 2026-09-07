@@ -63,25 +63,32 @@ var rival_best: float = 0.0
 
 var clock: GameClock
 var economy: Economy
+var roster: StaffRoster
+var task_queue: TaskQueue
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
 var _named_cursor: int = 0
 var _last_signal_report: Dictionary = {}
 var _income_roll_seed: int = 0
+var _last_emitted_progress: Dictionary = {}
 
 
-## 组装子系统（GameClock/Economy 强持有+参数注入；不回指）。
+## 组装子系统（GameClock/Economy/StaffRoster/TaskQueue 强持有+参数注入；不回指）。
 func _init() -> void:
 	clock = GameClock.new()
 	clock.setup(DataLoader.load_json("res://src/data/clock.json"), self)
 	clock.week_boundary_reached.connect(_on_week_boundary)
+	clock.tick_advanced.connect(_on_clock_tick)
 	economy = Economy.new()
 	economy.setup(DataLoader.load_json("res://src/data/economy.json"))
 	economy.warned.connect(
 		func(amount: int) -> void:
 			toast_queued.emit({"text_key": "sys_save_hint", "warned": amount})
 	)
+	roster = StaffRoster.new()
+	task_queue = TaskQueue.new()
+	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
 
 
 ## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
@@ -131,16 +138,9 @@ func start_new_game(seed: int = 0) -> void:
 	)
 	rival_best = float(opening.get("rival_best", rival_best))
 	var staff_table := DataLoader.load_json("res://src/data/staff.json")
-	for staff_id: String in opening.get("staff_ids", []):
-		var row: Dictionary = staff_table.get(staff_id, {})
-		if not row.is_empty():
-			staff[staff_id] = {
-				"name": str(row.get("name", staff_id)),
-				"research": int(row.get("research", 0)),
-				"engineering": int(row.get("engineering", 0)),
-				"wage": int(row.get("wage", 0)),
-				"assigned": "",
-			}
+	roster.setup(staff_table, opening)
+	staff = roster.get_all_staff()
+	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
 	_last_signal_report = {}
 	_recalculate_research_eff()
 	_sync_card_block()
@@ -164,16 +164,39 @@ func get_ui_snapshot() -> Dictionary:
 	return SnapshotCodec.ui_snapshot(self)
 
 
-func assign_staff(_staff_id: String, _slot_id: String) -> void:
-	_not_implemented_yet("assign_staff")
+func assign_staff(staff_id: String, slot_id: String) -> void:
+	if roster.assign_staff(staff_id, slot_id):
+		staff = roster.get_all_staff()
+		_recalculate_research_eff()
 
 
-func unassign_staff(_staff_id: String) -> void:
-	_not_implemented_yet("unassign_staff")
+func unassign_staff(staff_id: String) -> void:
+	if roster.unassign_staff(staff_id):
+		staff = roster.get_all_staff()
+		_recalculate_research_eff()
 
 
-func enqueue_task(_task_id: String) -> void:
-	_not_implemented_yet("enqueue_task")
+func enqueue_task(task_id: String) -> void:
+	var context := {
+		"money": get_money(),
+		"lit_techs": [],
+	}
+	var check := task_queue.can_enqueue(task_id, context)
+	if not check.get("ok", false):
+		return
+	var tasks_config: Dictionary = DataLoader.load_json("res://src/data/tasks.json")
+	var task_cfg: Dictionary = tasks_config.get(task_id, {})
+	var cost := int(task_cfg.get("cost", 0))
+	if cost > 0:
+		if not economy.apply_delta("money", -cost, "task_cost"):
+			return
+		_emit_resources()
+	if task_queue.enqueue(task_id, context):
+		var active := task_queue.get_active_task()
+		if not active.is_empty() and active.get("task_id", "") == task_id:
+			task_state_changed.emit(task_id, "active")
+		else:
+			task_state_changed.emit(task_id, "enqueued")
 
 
 func start_research(_tech_id: String) -> void:
@@ -228,6 +251,15 @@ func restore(data: Dictionary) -> void:
 	var sota: Dictionary = data.get("sota", {})
 	sota_best = float(sota.get("best", 0.0))
 	rival_best = float(sota.get("rival_best", 0.0))
+	var staff_data: Dictionary = data.get("staff", {})
+	var opening := DataLoader.load_json("res://src/data/opening.json")
+	var staff_table := DataLoader.load_json("res://src/data/staff.json")
+	roster.setup(staff_table, opening)
+	roster.restore(staff_data)
+	staff = roster.get_all_staff()
+	var tasks_data: Dictionary = data.get("tasks", {})
+	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
+	task_queue.restore(tasks_data)
 	var flags: Dictionary = data.get("flags", {})
 	game_over_flag = bool(flags.get("game_over", false))
 	_named_cursor = int(flags.get("name_cursor", 0))
@@ -305,6 +337,18 @@ func settle_week() -> void:
 	roll.seed = hash(str(_income_roll_seed, ":", week))
 	var headcount := staff.size()
 	var ledger := economy.accrue_week(headcount, _DeterministicRoll.new(roll))
+	var task_settle := task_queue.settle_week()
+	if task_settle.get("completed", false):
+		var rp := int(task_settle.get("rp_output", 0))
+		var income := int(task_settle.get("income", 0))
+		if income > 0:
+			economy.apply_delta("money", income, "task_reward")
+		if rp > 0:
+			economy.apply_delta("influence", rp, "task_rp")
+		task_state_changed.emit(str(task_settle.get("task_id", "")), "completed")
+		var next_active := task_queue.get_active_task()
+		if not next_active.is_empty():
+			task_state_changed.emit(str(next_active.get("task_id", "")), "active")
 	var report := {
 		"week": week,
 		"money_row":
@@ -335,8 +379,32 @@ class _DeterministicRoll:
 
 
 func _recalculate_research_eff() -> void:
-	# DR-005R：research_eff=Σ 已分配研究力（PR4 接入分配系统；骨架=0）。
-	research_eff = 0
+	# DR-005R：research_eff=Σ 已分配研究力（求和版）。
+	if roster != null:
+		research_eff = roster.get_research_eff(StaffRoster.SLOT_TRAINING)
+	else:
+		research_eff = 0
+
+
+func _on_clock_tick(week_ticks: int) -> void:
+	# progress_ticked 刻级信号（M7）：值变才发，防高频无意义广播
+	var active := task_queue.get_active_task()
+	var current_progress: Dictionary = {}
+	if not active.is_empty():
+		var task_id := str(active.get("task_id", ""))
+		var weeks_left := int(active.get("weeks_left", 0))
+		var duration := int(active.get("duration_weeks", 1))
+		var week_progress: float = float(week_ticks) / float(GameClock.TICKS_PER_WEEK)
+		var total_weeks_done: float = float(duration - weeks_left) + week_progress
+		var percent: float = clampf(total_weeks_done / float(maxi(duration, 1)), 0.0, 1.0)
+		current_progress = {
+			"task_id": task_id,
+			"weeks_left": weeks_left,
+			"progress_pct": int(percent * 100),
+		}
+	if current_progress != _last_emitted_progress and not current_progress.is_empty():
+		_last_emitted_progress = current_progress.duplicate()
+		progress_ticked.emit(current_progress)
 
 
 func _on_week_boundary(_new_week: int) -> void:
