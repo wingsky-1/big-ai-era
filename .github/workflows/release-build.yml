@@ -1,0 +1,150 @@
+name: Release Build
+
+# 打 v* tag 或手动触发时：三平台构建 + GitHub Release + Pages 部署
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: 4.7.2-stable
+
+permissions:
+  contents: write # 创建 Release 与上传产物
+  pages: write # 部署 GitHub Pages
+  id-token: write # Pages 部署的 OIDC
+
+jobs:
+  build:
+    name: 构建 (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            preset: "Windows Desktop"
+            exe_name: big-ai-era.exe
+            artifact: big-ai-era-windows.zip
+          - platform: linux
+            preset: "Linux"
+            exe_name: big-ai-era.x86_64
+            artifact: big-ai-era-linux.zip
+          - platform: web
+            preset: "Web"
+            exe_name: index.html
+            artifact: big-ai-era-web.zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 缓存 Godot 引擎
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: 安装 Godot headless
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          ARCHIVE="Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl -fL --retry 3 -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${ARCHIVE}"
+          python3 -c 'import zipfile; zipfile.ZipFile("godot.zip").extractall(".")'
+          chmod +x "Godot_v${GODOT_VERSION}_linux.x86_64"
+          sudo mv "Godot_v${GODOT_VERSION}_linux.x86_64" /usr/local/bin/godot
+
+      - name: 安装导出模板（带缓存）
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}
+
+      - name: 下载导出模板
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          TPZ="Godot_v${GODOT_VERSION}_export_templates.tpz"
+          curl -fL --retry 3 -o templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${TPZ}"
+          python3 -c 'import zipfile; zipfile.ZipFile("templates.tpz").extractall(".")'
+          # tpz 解压出 templates/ 目录；引擎查找的模板目录名把 - 换为 .
+          # （如 4.7.2-stable -> 4.7.2.stable，与 export_all.sh 解析逻辑一致）
+          TEMPLATE_DIR="${HOME}/.local/share/godot/export_templates"
+          mkdir -p "$TEMPLATE_DIR"
+          mv templates "${TEMPLATE_DIR}/${GODOT_VERSION/-/.}"
+          ls "$TEMPLATE_DIR"
+
+      - name: 导入资源
+        run: godot --headless --import --quit
+
+      - name: 导出 ${{ matrix.preset }}
+        run: |
+          mkdir -p "build/${{ matrix.platform }}"
+          godot --headless --export-release "${{ matrix.preset }}" \
+            "build/${{ matrix.platform }}/${{ matrix.exe_name }}"
+
+      - name: 打包产物
+        run: |
+          cd build/${{ matrix.platform }}
+          zip -qr "../${{ matrix.artifact }}" .
+          cd ../..
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: build/${{ matrix.artifact }}
+
+      - name: 上传 Pages 产物（仅 Web）
+        if: matrix.platform == 'web'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  release:
+    name: 发布 GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+
+      - name: 创建 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # download-artifact 后的目录不是 git 仓库，gh 需要 -R 显式定位仓库
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/*.zip \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REPOSITORY} ${GITHUB_REF_NAME}" \
+            --generate-notes
+
+  deploy-pages:
+    name: 部署 Web 试玩 (GitHub Pages)
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # 自动启用 Pages（Source=GitHub Actions）。
+      # 注意：个人仓库的 GITHUB_TOKEN 可能无权创建 Pages 站点（报
+      # "Resource not accessible by integration"）；此时请手动到
+      # Settings -> Pages -> Source 选 "GitHub Actions" 后重跑本 job。
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

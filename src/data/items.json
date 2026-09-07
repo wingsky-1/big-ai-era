@@ -1,0 +1,12 @@
+{
+	"potion_small": {
+		"name": "小治疗药水",
+		"heal": 30,
+		"price": 10
+	},
+	"potion_large": {
+		"name": "大治疗药水",
+		"heal": 80,
+		"price": 25
+	}
+}

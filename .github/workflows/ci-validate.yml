@@ -1,0 +1,52 @@
+name: CI Validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 同分支新推送自动取消旧跑，节省配额
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2-stable
+
+jobs:
+  verify:
+    name: 本地同一命令自验证 (verify.sh)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 固定版本安装 gdtoolkit（与 setup_env.sh 同版本，保证本地=CI）
+      - name: 安装 gdtoolkit
+        run: pip install "gdtoolkit==4.3.4"
+
+      - name: 缓存 Godot 引擎
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: 安装 Godot headless
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          ARCHIVE="Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl -fL --retry 3 -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${ARCHIVE}"
+          unzip -q godot.zip
+          chmod +x "Godot_v${GODOT_VERSION}_linux.x86_64"
+          sudo mv "Godot_v${GODOT_VERSION}_linux.x86_64" /usr/local/bin/godot
+
+      # 红线"本地与 CI 同一命令"的兑现：CI 只跑 verify.sh，不重写任何步骤
+      - name: 运行 verify.sh（lint + import 校验 + GUT）
+        run: bash scripts/verify.sh

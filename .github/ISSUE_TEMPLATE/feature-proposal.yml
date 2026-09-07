@@ -1,0 +1,45 @@
+name: "玩法提案 (Feature Proposal)"
+description: "新的玩法想法/机制提案——由人类输入意图，Agent 拆解为方案与任务"
+title: "[Proposal] "
+labels: ["proposal", "design"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: "想法描述"
+      placeholder: "想加什么玩法/机制？一句话概括 + 展开讲讲"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "想解决什么问题 / 想制造什么体验"
+      placeholder: "现在哪里无聊/缺失？加了这个之后玩家会获得什么感受？"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dod
+    attributes:
+      label: "怎样算做完了（验收标准）"
+      placeholder: "列出可验证的具体表现，例如：按住 shift 时移速 x1.5 且有视觉反馈"
+      description: "这些标准会直接转成 GUT 单元测试与试玩验收项"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: "预期规模（制作人视角预估）"
+      options:
+        - "S：半天内可验证的小改动"
+        - "M：1-3 天的独立系统"
+        - "L：多系统联动的大特性（需拆里程碑）"
+        - "不确定，先讨论"
+
+  - type: textarea
+    id: refs
+    attributes:
+      label: "参考（可选）"
+      placeholder: "某游戏的类似机制、截图、视频链接"

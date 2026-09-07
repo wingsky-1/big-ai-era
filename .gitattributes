@@ -1,0 +1,37 @@
+# ===== 文本资产：强制 LF，保证 diff 可读 =====
+# 注意：故意不给 .tscn/.tres 设置 merge=union——union 合并可能静默产生
+# 损坏的资源文件，冲突时手动解决才是安全做法（见 docs/standards/scene-asset.md）。
+*.gd         text eol=lf
+*.tscn       text eol=lf
+*.tres       text eol=lf
+*.godot      text eol=lf
+*.import     text eol=lf
+*.uid        text eol=lf
+*.md         text eol=lf
+*.json       text eol=lf
+*.csv        text eol=lf
+*.cfg        text eol=lf
+*.svg        text eol=lf
+*.sh         text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+
+# shell 脚本保留可执行位提示
+*.sh         text eol=lf
+
+# ===== 二进制资产：Git LFS（首次有资产入库前执行 `git lfs install`）=====
+*.png        filter=lfs diff=lfs merge=lfs -text
+*.jpg        filter=lfs diff=lfs merge=lfs -text
+*.jpeg       filter=lfs diff=lfs merge=lfs -text
+*.webp       filter=lfs diff=lfs merge=lfs -text
+*.gif        filter=lfs diff=lfs merge=lfs -text
+*.ogg        filter=lfs diff=lfs merge=lfs -text
+*.wav        filter=lfs diff=lfs merge=lfs -text
+*.mp3        filter=lfs diff=lfs merge=lfs -text
+*.ttf        filter=lfs diff=lfs merge=lfs -text
+*.otf        filter=lfs diff=lfs merge=lfs -text
+*.blend      filter=lfs diff=lfs merge=lfs -text
+*.glb        filter=lfs diff=lfs merge=lfs -text
+*.gltf       filter=lfs diff=lfs merge=lfs -text
+*.fbx        filter=lfs diff=lfs merge=lfs -text
+*.aseprite   filter=lfs diff=lfs merge=lfs -text

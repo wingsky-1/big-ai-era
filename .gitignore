@@ -1,0 +1,25 @@
+# ===== Godot 4 忽略清单 =====
+# 引擎生成的缓存与导入产物（.import 元数据文件需提交，此目录不需要）
+.godot/
+
+# Android 构建产物
+/android/
+
+# 导出产物（统一输出到 build/，全部忽略）
+build/
+
+# Godot 导出凭据（含签名密钥路径等敏感信息，严禁入库）
+export_credentials.cfg
+
+# ===== 个人本地配置（不入库）=====
+# DSH 项目级私有指令覆盖层（个人偏好，如本地 Godot 路径）
+AGENTS.local.md
+# 个人编辑器/工具配置
+.vscode/
+.idea/
+*.swp
+*~
+
+# ===== 系统杂项 =====
+.DS_Store
+Thumbs.db

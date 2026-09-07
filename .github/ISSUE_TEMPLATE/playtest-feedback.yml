@@ -1,0 +1,69 @@
+name: "试玩反馈 (Playtest Feedback)"
+description: "试玩最新构建后的体验反馈——手感、节奏、难度、审美（人类专属通道）"
+title: "[Playtest] "
+labels: ["playtest", "feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢试玩！这份反馈会直接驱动下一轮迭代。越具体越好：哪里爽、哪里难受、哪里看不懂。
+
+  - type: dropdown
+    id: build-source
+    attributes:
+      label: "试玩渠道"
+      options:
+        - "GitHub Pages (Web)"
+        - "Windows exe (Release)"
+        - "Linux (Release)"
+        - "本地构建"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: "设备环境"
+      options:
+        - "桌面浏览器"
+        - "手机浏览器"
+        - "Windows 桌面"
+        - "Linux 桌面"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: rating
+    attributes:
+      label: "整体感受"
+      options:
+        - "😄 很好玩，继续这个方向"
+        - "🙂 有点意思，但需要打磨"
+        - "😐 一般，感觉不对劲"
+        - "🙁 不行，建议推翻"
+    validations:
+      required: true
+
+  - type: textarea
+    id: highlights
+    attributes:
+      label: "亮点（哪里好玩/有感觉）"
+      placeholder: "具体到某个瞬间/某个操作/某个数值感受"
+
+  - type: textarea
+    id: issues
+    attributes:
+      label: "槽点（哪里难受/看不懂/想跳过）"
+      placeholder: "手感、节奏、难度、信息呈现……越具体越好"
+
+  - type: textarea
+    id: ideas
+    attributes:
+      label: "突发想法（灵感记录）"
+      placeholder: "如果……会不会更爽？"
+
+  - type: textarea
+    id: bugs
+    attributes:
+      label: "疑似 Bug（可选）"
+      placeholder: "做了什么 → 发生了什么 → 期望什么；有截图/录屏请附链接"

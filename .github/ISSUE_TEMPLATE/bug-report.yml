@@ -1,0 +1,47 @@
+name: "Bug 汇报 (Bug Report)"
+description: "游戏行为不符合预期——崩溃、逻辑错误、表现异常"
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: "复现步骤"
+      placeholder: |
+        1. 打开游戏
+        2. 按 X 键
+        3. 观察到……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "期望行为"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "实际行为"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build-source
+    attributes:
+      label: "发生渠道"
+      options:
+        - "GitHub Pages (Web)"
+        - "Windows exe (Release)"
+        - "Linux (Release)"
+        - "本地构建"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "补充材料（截图/录屏/控制台报错）"
+      placeholder: "Web 端可按 F12 打开控制台截图报错信息"
