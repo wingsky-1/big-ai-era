@@ -60,6 +60,9 @@ var staff: Dictionary = {}
 var rng_seed: int = 0
 var sota_best: float = 0.0
 var rival_best: float = 0.0
+var cum_income: int = 0
+var tutorial_step: int = 0
+var tutorial_done: bool = false
 
 var clock: GameClock
 var economy: Economy
@@ -127,6 +130,9 @@ func start_new_game(seed: int = 0) -> void:
 	rng_seed = seed
 	_income_roll_seed = seed + 1  # 收入脉冲随机源种子（PR7 换 rng_stream）
 	week = 0
+	cum_income = 0
+	tutorial_step = 0
+	tutorial_done = false
 	research_eff = 0
 	tech_bonus = 0.0
 	user_paused = false
@@ -264,6 +270,10 @@ func request_save(reason: String = "manual") -> bool:
 ## 非 11 命令面，引擎装配层调用；业务字段随 PR 扩展）。
 func restore(data: Dictionary) -> void:
 	week = int(data.get("week", 0))
+	cum_income = int(data.get("cum_income", 0))
+	var tut_data: Dictionary = data.get("tutorial", {})
+	tutorial_step = int(tut_data.get("step", 0))
+	tutorial_done = bool(tut_data.get("done", false))
 	economy.setup(DataLoader.load_json("res://src/data/economy.json"))
 	var resources: Dictionary = data.get("resources", {})
 	var compute: Dictionary = resources.get("compute", {})
@@ -370,12 +380,17 @@ func settle_week() -> void:
 	roll.seed = hash(str(_income_roll_seed, ":", week))
 	var headcount := staff.size()
 	var ledger := economy.accrue_week(headcount, _DeterministicRoll.new(roll))
+	# cum_income 经营性收入累计（课题+复现等经营性净收入，融资/IPO 不计）
+	var weekly_income: int = int(ledger.get("income", 0))
+	if weekly_income > 0:
+		cum_income += weekly_income
 	var task_settle := task_queue.settle_week()
 	if task_settle.get("completed", false):
 		var rp := int(task_settle.get("rp_output", 0))
 		var income := int(task_settle.get("income", 0))
 		if income > 0:
 			economy.apply_delta("money", income, "task_reward")
+			cum_income += income
 		if rp > 0:
 			economy.apply_delta("influence", rp, "task_rp")
 		task_state_changed.emit(str(task_settle.get("task_id", "")), "completed")

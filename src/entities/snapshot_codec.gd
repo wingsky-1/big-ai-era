@@ -25,6 +25,7 @@ static func ui_snapshot(world: GameWorld) -> Dictionary:
 		)
 	return {
 		"week": world.week,
+		"cum_income": world.cum_income,
 		"resources":
 		{
 			"money": world.get_money(),
@@ -49,6 +50,7 @@ static func ui_snapshot(world: GameWorld) -> Dictionary:
 		"game_over": world.game_over_flag,
 		"model_name": world.model_name,
 		"sota": {"best": world.sota_best, "rival_best": world.rival_best, "by_key": {}},
+		"tutorial": {"step": world.tutorial_step, "done": world.tutorial_done},
 	}
 
 
@@ -61,6 +63,7 @@ static func to_save(world: GameWorld) -> Dictionary:
 	return {
 		"schema_version": GameWorld.SCHEMA_VERSION,
 		"week": world.week,
+		"cum_income": world.cum_income,
 		"resources":
 		{
 			"money": world.get_money(),
@@ -83,6 +86,7 @@ static func to_save(world: GameWorld) -> Dictionary:
 		"player_model_names": model_names,
 		"stages": world.stages.to_save(),
 		"sota": {"best": world.sota_best, "rival_best": world.rival_best, "by_key": {}},
+		"tutorial": {"step": world.tutorial_step, "done": world.tutorial_done},
 		"flags": {"game_over": world.game_over_flag, "name_cursor": world._named_cursor},
 	}
 
