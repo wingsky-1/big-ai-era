@@ -2,7 +2,10 @@
 
 > 你是 2022 年某高校 AI 实验室的博导：复现论文、点亮 LLM 科技树、训练新模型、
 > 在竞对夹击中把实验室带成上市公司。
-> 状态：**设计讨论阶段**（GDD 见 [docs/gdd/gdd.md](docs/gdd/gdd.md)），尚未进入游戏实现。
+> 状态：**v0.1.0 MVP 完整版本已发布**，已开放网页端直接试玩与全平台发行包下载。
+
+🎮 **在线试玩地址（GitHub Pages）**：[https://wingsky-1.github.io/big-ai-era/](https://wingsky-1.github.io/big-ai-era/)
+📦 **多端发行包下载（GitHub Release）**：[Release v0.1.0](https://github.com/wingsky-1/big-ai-era/releases/tag/v0.1.0)（含 Windows / Linux / Web 离线包）
 
 ## 工程底盘（继承自 godot-scaffold）
 
@@ -35,10 +38,12 @@ bash scripts/verify.sh                  # 自验证：lint + import + GUT（须�
 bash scripts/export_all.sh all build    # 三端导出到 build/
 ```
 
-## 设计文档
+## 设计与交付文档
 
-- [GDD 设计讨论稿 v2](docs/gdd/gdd.md) — 核心循环 / 六大系统骨架 / MVP 切片 / 未决议程
-- [ADR](docs/adr/) — 引擎选型、分层架构、存档迁移、Windows 导出等已定决策
+- [GDD 设计真源 (v3)](docs/gdd/gdd.md) — 核心循环 / 六大系统定稿 / MVP 范围
+- [v0.1.0 竣工交接文档](docs/discussion/handoffs/2026-09-07-v010-to-v020-handoff.md) — PR1~PR10 完整交付物与 v0.2 开工交接
+- [决策日志 (DR-000~029)](docs/discussion/decision-log.md) — 架构与核心数值裁决纪录
+- [ADR (0001~0009)](docs/adr/) — 引擎选型、分层架构、存档迁移、确定性随机、状态机等决策
 - [五大规范](docs/standards/) — 代码 / 测试 / Git / 资产 / 文档
 
 ## 版本配对（升级必读）
