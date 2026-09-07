@@ -70,7 +70,7 @@ static func to_save(world: GameWorld) -> Dictionary:
 			"compute": world.get_compute(),
 			"influence": world.get_influence(),
 		},
-		"rng": {},
+		"rng": world.rng_stream.to_save(),
 		"techs":
 		{
 			"lit": world.tech_fog.get_lit_techs(),

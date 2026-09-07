@@ -73,6 +73,7 @@ var tech_tree: TechTree
 var stages: Stages
 var training: TrainingProject
 var sota_board: SotaBoard
+var rng_stream: RngStream
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
@@ -102,6 +103,7 @@ func _init() -> void:
 	stages = Stages.new()
 	training = TrainingProject.new()
 	sota_board = SotaBoard.new()
+	rng_stream = RngStream.new()
 	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
 	tech_fog.setup(techs_cfg)
 	tech_tree.setup(techs_cfg, tech_fog)
@@ -134,6 +136,7 @@ func get_compute() -> Dictionary:
 func start_new_game(seed: int = 0) -> void:
 	rng_seed = seed
 	_income_roll_seed = seed + 1  # 收入脉冲随机源种子（PR7 换 rng_stream）
+	rng_stream.setup(seed)
 	week = 0
 	cum_income = 0
 	tutorial_step = 0
@@ -323,6 +326,8 @@ func restore(data: Dictionary) -> void:
 	sota_board.restore(sota)
 	sota_best = sota_board.get_best_score()
 	rival_best = sota_board.get_rival_best()
+	var rng_data: Dictionary = data.get("rng", {})
+	rng_stream.restore(rng_data)
 	var training_data: Dictionary = data.get("training", {})
 	training.restore(training_data)
 	var staff_data: Dictionary = data.get("staff", {})
