@@ -1,0 +1,56 @@
+[gd_scene load_steps=3 format=3 uid="uid://dmv7k1x49w8e2"]
+
+[ext_resource type="Theme" path="res://src/ui/theme/dark_gold_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://src/ui/modals/game_over_dialog.gd" id="2_script"]
+
+[node name="GameOverDialog" type="PanelContainer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -140.0
+offset_right = 180.0
+offset_bottom = 140.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="MainVBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="GameOverTitle" type="Label" parent="MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "实验室破产 (Game Over)"
+horizontal_alignment = 1
+
+[node name="SummaryVBox" type="VBoxContainer" parent="MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="WeekSummaryLabel" type="Label" parent="MainVBox/SummaryVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "存续周数: 0 周"
+
+[node name="BestScoreLabel" type="Label" parent="MainVBox/SummaryVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "最佳模型分: 0.0"
+
+[node name="RivalBestLabel" type="Label" parent="MainVBox/SummaryVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "竞对最佳分: 0.0"
+
+[node name="RestartBtn" type="Button" parent="MainVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+text = "重新开局"
