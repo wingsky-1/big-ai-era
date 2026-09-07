@@ -65,6 +65,9 @@ var clock: GameClock
 var economy: Economy
 var roster: StaffRoster
 var task_queue: TaskQueue
+var tech_fog: TechFog
+var tech_tree: TechTree
+var stages: Stages
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
@@ -74,7 +77,7 @@ var _income_roll_seed: int = 0
 var _last_emitted_progress: Dictionary = {}
 
 
-## 组装子系统（GameClock/Economy/StaffRoster/TaskQueue 强持有+参数注入；不回指）。
+## 组装子系统（GameClock/Economy/StaffRoster/TaskQueue/TechTree/Stages 强持有+参数注入；不回指）。
 func _init() -> void:
 	clock = GameClock.new()
 	clock.setup(DataLoader.load_json("res://src/data/clock.json"), self)
@@ -89,6 +92,13 @@ func _init() -> void:
 	roster = StaffRoster.new()
 	task_queue = TaskQueue.new()
 	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
+	tech_fog = TechFog.new()
+	tech_tree = TechTree.new()
+	stages = Stages.new()
+	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
+	tech_fog.setup(techs_cfg)
+	tech_tree.setup(techs_cfg, tech_fog)
+	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
 
 
 ## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
@@ -141,8 +151,15 @@ func start_new_game(seed: int = 0) -> void:
 	roster.setup(staff_table, opening)
 	staff = roster.get_all_staff()
 	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
+	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
+	tech_fog.setup(techs_cfg)
+	tech_tree.setup(techs_cfg, tech_fog)
+	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
+	_income_roll_seed = rng_seed
+	_named_ids.clear()
 	_last_signal_report = {}
 	_recalculate_research_eff()
+	_recalculate_tech_bonus()
 	_sync_card_block()
 	_emit_resources()
 	# W0 假头条：灵犀 Chat 已发布（竞对榜基线，非玩家纪录）
@@ -199,8 +216,16 @@ func enqueue_task(task_id: String) -> void:
 			task_state_changed.emit(task_id, "enqueued")
 
 
-func start_research(_tech_id: String) -> void:
-	_not_implemented_yet("start_research")
+func start_research(tech_id: String) -> void:
+	var context := {
+		"influence": get_influence(),
+		"money": get_money(),
+		"economy": economy,
+	}
+	var res := tech_tree.start_research(tech_id, context)
+	if res.get("ok", false):
+		_recalculate_tech_bonus()
+		_emit_resources()
 
 
 func start_training(_base_id: String) -> void:
@@ -260,6 +285,14 @@ func restore(data: Dictionary) -> void:
 	var tasks_data: Dictionary = data.get("tasks", {})
 	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
 	task_queue.restore(tasks_data)
+	var techs_data: Dictionary = data.get("techs", {})
+	tech_fog.setup(DataLoader.load_json("res://src/data/techs.json"))
+	tech_fog.restore(techs_data)
+	tech_tree.setup(DataLoader.load_json("res://src/data/techs.json"), tech_fog)
+	tech_tree.restore(techs_data)
+	var stages_data: Dictionary = data.get("stages", {})
+	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
+	stages.restore(stages_data)
 	var flags: Dictionary = data.get("flags", {})
 	game_over_flag = bool(flags.get("game_over", false))
 	_named_cursor = int(flags.get("name_cursor", 0))
@@ -349,6 +382,19 @@ func settle_week() -> void:
 		var next_active := task_queue.get_active_task()
 		if not next_active.is_empty():
 			task_state_changed.emit(str(next_active.get("task_id", "")), "active")
+	# 周结第 7 步迷雾翻雾推进与第 10 步阶段软门重评
+	tech_fog.advance(get_influence())
+	var stage_context := {
+		"crossover_count": tech_fog.get_crossover_progress(),
+		"lit_techs": tech_fog.get_lit_techs(),
+		"money": get_money(),
+	}
+	var stage_adv := stages.reevaluate(stage_context)
+	if stage_adv.get("advanced", false):
+		var mod: Dictionary = stage_adv.get("economy_mod", {})
+		economy.set_stage_depr(
+			float(mod.get("reproduce_factor", 1.0)), int(mod.get("grant_interval_add_weeks", 0))
+		)
 	var report := {
 		"week": week,
 		"money_row":
@@ -376,6 +422,13 @@ class _DeterministicRoll:
 
 	func randi_in_range(low: int, high: int) -> int:
 		return _rng.randi_range(low, high)
+
+
+func _recalculate_tech_bonus() -> void:
+	if tech_tree != null:
+		tech_bonus = tech_tree.get_tech_bonus()
+	else:
+		tech_bonus = 0.0
 
 
 func _recalculate_research_eff() -> void:

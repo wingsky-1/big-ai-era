@@ -1,0 +1,49 @@
+{
+	"stages": {
+		"stage_0": {
+			"name": "实验室期",
+			"enabled": true,
+			"gate": [],
+			"expected_p50": 50,
+			"_comment_expected_p50": "出处：基线 P50 阶段设定",
+			"economy_mod": {
+				"reproduce_factor": 1.0,
+				"grant_interval_add_weeks": 0
+			}
+		},
+		"stage_1": {
+			"name": "自由探索期",
+			"enabled": true,
+			"gate": [
+				{
+					"predicate": "crossover_count",
+					"params": {
+						"required_lit_count": 3
+					}
+				}
+			],
+			"expected_p50": 80,
+			"_comment_expected_p50": "依据 DR-029 C-4 纪律：p50+30 写进注释（=P90 断言带 +15 的 2 倍，防祖传神秘数字）",
+			"economy_mod": {
+				"reproduce_factor": 0.85,
+				"grant_interval_add_weeks": 1
+			}
+		},
+		"stage_2": {
+			"name": "扩张期",
+			"enabled": false,
+			"gate": [
+				{
+					"predicate": "never",
+					"params": {}
+				}
+			],
+			"expected_p50": 120,
+			"_comment_expected_p50": "出处：v0.2 上市扩张期预留占位",
+			"economy_mod": {
+				"reproduce_factor": 0.7,
+				"grant_interval_add_weeks": 2
+			}
+		}
+	}
+}

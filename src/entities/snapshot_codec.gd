@@ -33,7 +33,13 @@ static func ui_snapshot(world: GameWorld) -> Dictionary:
 		},
 		"research_eff": world.research_eff,
 		"tech_bonus": world.tech_bonus,
-		"techs": {"lit": [], "fog": {}, "crossover_progress": 0, "pity": 0},
+		"techs":
+		{
+			"lit": world.tech_fog.get_lit_techs(),
+			"fog": world.tech_fog.to_snapshot().get("fog_states", {}),
+			"crossover_progress": world.tech_fog.get_crossover_progress(),
+			"pity": world.tech_fog.get_pity(),
+		},
 		"tasks": world.task_queue.to_snapshot(),
 		"staff": world.roster.to_snapshot(),
 		"training": {"base_id": "", "weeks_left": 0},
@@ -62,14 +68,20 @@ static func to_save(world: GameWorld) -> Dictionary:
 			"influence": world.get_influence(),
 		},
 		"rng": {},
-		"techs": {"lit": [], "fog_visibility": {}, "crossover_progress": 0, "pity": 0},
+		"techs":
+		{
+			"lit": world.tech_fog.get_lit_techs(),
+			"fog_visibility": world.tech_fog.to_save().get("fog_visibility", {}),
+			"crossover_progress": world.tech_fog.get_crossover_progress(),
+			"pity": world.tech_fog.get_pity(),
+		},
 		"tasks": world.task_queue.to_save(),
 		"staff": world.roster.to_save(),
 		"training": {"base": "", "weeks_left": 0},
 		"rivals": {"cursor": 0, "jitter_state": 0},
 		"events": {"fired": [], "pending": [], "effects_pending": []},
 		"player_model_names": model_names,
-		"stages": {"current": 0},
+		"stages": world.stages.to_save(),
 		"sota": {"best": world.sota_best, "rival_best": world.rival_best, "by_key": {}},
 		"flags": {"game_over": world.game_over_flag, "name_cursor": world._named_cursor},
 	}
