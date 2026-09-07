@@ -16,8 +16,6 @@ offset_bottom = 0.0
 custom_minimum_size = Vector2(520, 440)
 grow_horizontal = 2
 grow_vertical = 2
-shrink_center = true
-shrink_end = true
 theme = ExtResource("1_theme")
 script = ExtResource("2_script")
 

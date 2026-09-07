@@ -16,6 +16,9 @@ func test_theme_default_font_is_cjk_capable() -> void:
 	# 覆盖面抽查：常用界面汉字必须全部有字形，缺字即豆腐
 	for codepoint: int in [0x4E2D, ord("资"), ord("算"), ord("誉"), ord("研"), ord("科")]:
 		assert_true(font_file.has_char(codepoint), "字体应含字形 U+%04X" % codepoint)
+	# UI 符号抽查：✓✕●○‖ 等界面在用符号（⏸/⏳ 已实证缺字形，禁用清单见 ADR-0010）
+	for codepoint: int in [0x2713, 0x2715, 0x25CF, 0x25CB, 0x2016]:
+		assert_true(font_file.has_char(codepoint), "字体应含 UI 符号 U+%04X" % codepoint)
 
 
 func test_project_custom_theme_fallback() -> void:

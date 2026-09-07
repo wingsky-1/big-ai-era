@@ -97,6 +97,9 @@ func _setup_debug_shot_driver() -> void:
 	if shot.is_empty():
 		return
 	_world.set_paused(true)
+	# 防御：若开局/推进已挂起决策卡，截图合成模式丢弃之，避免叠层污染证据
+	if not _world.pending_decision.is_empty():
+		_world.set_pending_decision({})
 	# 注意：类内不可裸调 get_stack()——与 GDScript 内置全局函数（返回调试栈 Array）撞名
 	var stack: PanelStack = _stack
 	if stack == null:
@@ -109,7 +112,7 @@ func _setup_debug_shot_driver() -> void:
 		"report":
 			stack.push_panel(PanelStack.PANEL_REPORT_ARCHIVE)
 		"gameover":
-			_world.set_paused(false)
+			# 终局弹层为合成布局证据（world 并未真破产），保持暂停避免 tick 污染画面
 			stack.push_panel(PanelStack.PANEL_GAME_OVER)
 	# 精确就绪信号：截图脚本轮询此标志，避免盲等延时
 	JavaScriptBridge.eval("window.__DSH_SHOT_READY__ = true;", true)

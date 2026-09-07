@@ -9,13 +9,17 @@ extends RefCounted
 const VIEWPORT_MARGIN: int = 24
 ## 预留 Dock 之上的纵向安全边距（竖屏下顶部条区更高）
 const VERTICAL_MARGIN: int = 96
+## 收敛下限：极小视口（如 headless 64x64 测试窗）下弹层不完全塌缩
+const MIN_MODAL_SIZE: Vector2 = Vector2(280, 200)
 
+# 键 = 弹层脚本文件名（蛇形）——与 resource_path 派生键严格一致，
+# 禁止改用类名键（v0.1.2 评审 P0：键不匹配会让全部弹层静默落 fallback）。
 const DESIGN_SIZES: Dictionary = {
-	"DecisionCardDialog": Vector2(360, 280),
-	"WeeklyReportDialog": Vector2(360, 320),
-	"TechTreeDialog": Vector2(520, 440),
-	"StaffRosterDialog": Vector2(440, 400),
-	"GameOverDialog": Vector2(360, 280),
+	"decision_card_dialog": Vector2(360, 280),
+	"weekly_report_dialog": Vector2(360, 320),
+	"tech_tree_dialog": Vector2(520, 440),
+	"staff_roster_dialog": Vector2(440, 400),
+	"game_over_dialog": Vector2(360, 280),
 }
 
 
@@ -23,7 +27,10 @@ const DESIGN_SIZES: Dictionary = {
 static func resolve_min_size(viewport_size: Vector2, expected: Vector2) -> Vector2:
 	var avail_w: float = maxf(0.0, viewport_size.x - VIEWPORT_MARGIN * 2.0)
 	var avail_h: float = maxf(0.0, viewport_size.y - VERTICAL_MARGIN)
-	return Vector2(minf(expected.x, avail_w), minf(expected.y, avail_h))
+	return Vector2(
+		maxf(MIN_MODAL_SIZE.x, minf(expected.x, avail_w)),
+		maxf(MIN_MODAL_SIZE.y, minf(expected.y, avail_h))
+	)
 
 
 ## 弹层根节点挂载后调用：写入设计期望并按当前视口收敛 min size。

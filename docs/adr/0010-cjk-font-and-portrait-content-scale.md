@@ -20,24 +20,31 @@ v0.1.1 在线 Pages 试玩暴露两个渲染层缺陷：
 ### D1: 内嵌文泉驿微米黑，三处收口
 
 - 资产: `assets/fonts/WQY-MicroHei.ttf`（自系统 wqy-microhei.ttc index 0 提取，
-  4.6MB，Apache 2.0 + 附带例外，许可全文随资产入库）。
+  4.6MB，许可全文随资产入库）。
+- **许可选择依据**: WQY-MicroHei 为双许可（GPL with font exception / Apache 2.0），
+  ttc index 0 为 Droid Sans Fallback 衍生的 Apache 分支——选 Apache 2.0 侧：
+  与项目 MIT 主许可兼容且无 copyleft 传染，闭源分发亦无负担。
 - 收口链: `dark_gold_theme.tres → default_font`（主链） +
   `project.godot gui/theme/custom`（原生 Window 类兜底）。
 - 防回归: `verify.sh` 字体二进制门禁（防 LFS 指针入库）+ `test_theme_font.gd`
-  （default_font 存在性 / 字形覆盖抽查 / 资产文件头 / 豁免规则）。
+  （default_font 存在性 / 汉字与 UI 符号字形覆盖抽查 / 资产文件头 / 豁免规则）。
+- **符号禁令**: WQY 无 U+23F8（⏸）/U+23F3（⏳）字形（截图实证豆腐），
+  界面符号仅限 test_theme_font 抽查表白名单（✓✕●○‖ 等）。
 
 **落选**: 思源黑体（单文件 >8MB，体积翻倍）、运行时动态加载（引入异步失败面）、
-字体子集化（缺字即豆腐，与本次事故同构，收益不抵风险）。
+字体子集化（缺字即豆腐，与本次事故同构，收益不抵风险；列为后续体积优化选项）。
 
 ### D2: 竖屏内容基准切换（1280 → 480）
 
+- 基准数学: `canvas_items+expand` 下缩放 = min(物理宽/基准宽, 物理高/基准高)。
+  1280 基准时 390×844 → scale=390/1280≈0.30（字小如蚁）；480×854 基准时
+  → scale=390/480≈0.81，逻辑视口 480×≈1039，字号恢复可读（截图实证）。
 - `ResponsiveLayoutManager.resolve_content_scale()` 纯函数：物理视口 y>x 时
-  返回 (480, 854)，否则 (1280, 720)；`main.gd` 在 `_ready` 与 RESIZED（deferred）
-  时写入 `root.content_scale_size`。
-- 390×844 → 缩放 ≈0.81，逻辑视口 480×~1039，字号恢复可读；桌面基准不变零回归。
+  返回 (480, 854)，否则 (1280, 720)；`main.gd` 在 `_ready` 与 RESIZED（deferred
+  +幂等检查）时写入 `root.content_scale_size`。
 - 弹层尺寸从"固定 offset"改为"中心锚 + custom_minimum_size + 视口 clamp"
   （`ModalSizing` 纯函数 + 脚本 `_ready` 应用 + `_on_viewport_resized` 统一刷新），
-  窄视口收敛、宽视口保持 v0.1.1 观感。
+  窄视口收敛、宽视口保持 v0.1.1 观感，并设 `MIN_MODAL_SIZE` 下限防极小窗口塌缩。
 
 **落选**: 保持 1280 基准（0.3 倍缩放不可接受）；换 `viewport` 拉伸模式
 （控件类 UI 失去缩放一致性）；竖屏基准 360（对比 480 无进一步收益，缩放≈1 反而
@@ -60,6 +67,12 @@ godot headless 导出 Web → 本地静态服务（正确 WASM MIME）→ headle
 
 **落选**: xvfb + 桌面导出（环境依赖重、且验证不了"Web 端打包后"的真实链路）；
 纯延时等待（WASM 冷启动时间方差大，盲等既慢又脆）。
+
+**调试驱动裁决**: `main.gd._setup_debug_shot_driver()`（约 30 行）仅 Web 平台且
+显式 `?shot=<id>` 查询参数时激活：冻结时钟、丢弃挂起决策卡（防叠层污染证据）、
+推目标弹层、置 `window.__DSH_SHOT_READY__` 就绪标志。正常游玩（无 query）零影响、
+无写路径、无攻击面。**移除条件**: 若未来引入正式的 e2e/试玩自动化框架并覆盖
+同等能力，应移除该驱动改走正式设施（跟踪于后续测试策略 ADR）。
 
 ## 后果
 
