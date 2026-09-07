@@ -72,6 +72,7 @@ const REFERENCE_VALUES: Dictionary = {
 
 
 func test_texts_table_shape_is_valid() -> void:
+	assert_true(TextService.is_enabled(), "TextService 静态初始化应成功（熔断即全断言空洞通过）")
 	var texts: Dictionary = DataLoader.load_json(TEXTS_PATH)
 	assert_eq(texts.size(), 40, "起步集应为 40 键（DR-010 起步集约定）")
 	for key: String in texts:

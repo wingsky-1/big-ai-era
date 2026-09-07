@@ -172,6 +172,11 @@ static func table() -> Dictionary:
 	return _table.duplicate(true)
 
 
+## 服务是否已成功初始化（测试显式断言，防熔断后三断言空洞通过）。
+static func is_enabled() -> bool:
+	return _enabled
+
+
 static func _validate_entries(raw: Dictionary) -> Array[String]:
 	var invalid: Array[String] = []
 	for key: String in raw:
