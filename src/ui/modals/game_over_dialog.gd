@@ -22,6 +22,7 @@ func setup(summary_data: Dictionary) -> void:
 
 
 func _ready() -> void:
+	ModalSizing.apply(self)
 	restart_btn.pressed.connect(func() -> void: restart_requested.emit())
 	_render()
 

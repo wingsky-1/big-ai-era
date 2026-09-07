@@ -22,6 +22,7 @@ func setup(world: GameWorld) -> void:
 
 
 func _ready() -> void:
+	ModalSizing.apply(self)
 	close_btn.pressed.connect(func() -> void: closed.emit())
 	_render()
 

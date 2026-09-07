@@ -19,6 +19,7 @@ func setup(report_data: Dictionary) -> void:
 
 
 func _ready() -> void:
+	ModalSizing.apply(self)
 	confirm_btn.pressed.connect(func() -> void: confirmed.emit())
 	_render()
 

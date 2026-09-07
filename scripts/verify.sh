@@ -37,6 +37,19 @@ else
 fi
 
 # ---------- 2. 引擎导入校验 ----------
+step "资产完整性门禁 (字体二进制检查，防 LFS 指针入库复现豆腐块)"
+# git-lfs 未装的环境 clone 后，LFS 规则命中的文件会是指针文本；Godot 打开无报错、
+# 运行时才豆腐块。故在打包前把此类事故拦在 verify 阶段（v0.1.2 裁决：字体/截图直存）。
+shopt -s nullglob
+for f in assets/fonts/*.ttf assets/fonts/*.otf; do
+    if head -c 200 "$f" | grep -q "git-lfs"; then
+        echo "[verify] 致命: $f 是 git-lfs 指针文件而非字体二进制"
+        echo "[verify] 修复: 安装 git-lfs 后重取该文件，或检查 .gitattributes 豁免规则"
+        exit 1
+    fi
+done
+shopt -u nullglob
+
 step "引擎导入校验 (暴露 UID 丢失/场景破损/资源损坏)"
 if ! "$GODOT_BIN" --headless --import --quit >"$IMPORT_LOG" 2>&1; then
     cat "$IMPORT_LOG"

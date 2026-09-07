@@ -58,6 +58,8 @@ func _ready() -> void:
 	_init_runtime_systems()
 	_connect_ui_events()
 	_update_views()
+	_on_viewport_resized()
+	_setup_debug_shot_driver()
 
 
 func _exit_tree() -> void:
@@ -80,8 +82,37 @@ func _process(delta: float) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
-		if _layout_mgr != null:
-			_layout_mgr.update_viewport(get_viewport_rect().size)
+		# deferred 执行：等 stretch/缩放状态在本帧末稳定后再做基准切换与布局同步
+		_on_viewport_resized.call_deferred()
+
+
+## 截图/试玩自动化驱动（仅 Web 且显式 ?shot=<id> 时激活，正常游玩零影响）：
+## home=主工作台 tech=科技树 report=周报归档 gameover=终局结算；同时冻结时钟。
+func _setup_debug_shot_driver() -> void:
+	if OS.has_feature("web") == false:
+		return
+	var shot: String = str(
+		JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('shot') || ''", true)
+	)
+	if shot.is_empty():
+		return
+	_world.set_paused(true)
+	# 注意：类内不可裸调 get_stack()——与 GDScript 内置全局函数（返回调试栈 Array）撞名
+	var stack: PanelStack = _stack
+	if stack == null:
+		return
+	match shot:
+		"home":
+			pass  # 主工作台即默认态
+		"tech":
+			stack.push_panel(PanelStack.PANEL_TECH_TREE)
+		"report":
+			stack.push_panel(PanelStack.PANEL_REPORT_ARCHIVE)
+		"gameover":
+			_world.set_paused(false)
+			stack.push_panel(PanelStack.PANEL_GAME_OVER)
+	# 精确就绪信号：截图脚本轮询此标志，避免盲等延时
+	JavaScriptBridge.eval("window.__DSH_SHOT_READY__ = true;", true)
 
 
 func get_world() -> GameWorld:
@@ -109,6 +140,30 @@ func get_text_count() -> int:
 	return TextService.table().size()
 
 
+## 视口变化统一入口：竖屏内容基准切换 + 折叠规则 + 已开弹层尺寸刷新。
+## 幂等：基准未变化时写 content_scale_size 不触发额外 RESIZED。
+func _on_viewport_resized() -> void:
+	if _layout_mgr == null or not is_inside_tree():
+		return
+	var win := get_tree().root
+	if win != null:
+		var phys := Vector2i(win.size)
+		var target: Vector2i = ResponsiveLayoutManager.resolve_content_scale(phys)
+		if win.content_scale_size != target:
+			win.content_scale_size = target
+	_layout_mgr.update_viewport(get_viewport_rect().size)
+	_sync_folded_elements()
+	for modal: Control in _active_modals.values():
+		if is_instance_valid(modal):
+			ModalSizing.refresh(modal)
+
+
+## 仅同步折叠态（资源栏副行），与 ResponsiveLayoutManager 竖屏规则一致
+func _sync_folded_elements() -> void:
+	if resource_subrow != null:
+		resource_subrow.visible = not _layout_mgr.is_resource_subrow_folded()
+
+
 func _init_runtime_systems() -> void:
 	_world = GameWorld.new()
 	_world.start_new_game()
@@ -132,8 +187,8 @@ func _init_runtime_systems() -> void:
 
 	_setup_mask_overlay()
 
-	# 初始同步折叠状态
-	resource_subrow.visible = not _layout_mgr.is_resource_subrow_folded()
+	# 初始同步折叠状态（后续随视口变化由信号与 RESIZED 钩子驱动）
+	_sync_folded_elements()
 
 
 func _setup_mask_overlay() -> void:
@@ -176,7 +231,7 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 					_stack.pop_panel(PanelStack.PANEL_DECISION_CARD)
 			)
 			_active_modals[panel_id] = modal
-			modal_container.add_child(modal)
+			_mount_modal(modal)
 
 		PanelStack.PANEL_AUTO_REPORT, PanelStack.PANEL_REPORT_ARCHIVE:
 			var report_data: Dictionary = _presenter.get_resource_view()
@@ -184,7 +239,7 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 			modal.setup(report_data)
 			modal.confirmed.connect(func() -> void: _stack.pop_panel(panel_id))
 			_active_modals[panel_id] = modal
-			modal_container.add_child(modal)
+			_mount_modal(modal)
 
 		PanelStack.PANEL_GAME_OVER:
 			var summary: Dictionary = _presenter.get_game_over_summary()
@@ -197,7 +252,7 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 					_update_views()
 			)
 			_active_modals[panel_id] = modal
-			modal_container.add_child(modal)
+			_mount_modal(modal)
 
 		PanelStack.PANEL_TECH_TREE:
 			var modal: TechTreeDialog = TECH_TREE_SCENE.instantiate()
@@ -209,14 +264,14 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 					_update_views()
 			)
 			_active_modals[panel_id] = modal
-			modal_container.add_child(modal)
+			_mount_modal(modal)
 
 		PanelStack.PANEL_ROSTER:
 			var modal: StaffRosterDialog = STAFF_ROSTER_SCENE.instantiate()
 			modal.setup(world)
 			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
 			_active_modals[panel_id] = modal
-			modal_container.add_child(modal)
+			_mount_modal(modal)
 
 
 func _on_panel_popped(panel_id: String, _layer: int) -> void:
@@ -233,6 +288,12 @@ func _resolve_world() -> GameWorld:
 		if w != null and w is GameWorld:
 			return w as GameWorld
 	return _world
+
+
+## 弹层统一挂载：容器加入 + 自适应 min size 收敛
+func _mount_modal(modal: Control) -> void:
+	modal_container.add_child(modal)
+	ModalSizing.apply(modal)
 
 
 func _connect_ui_events() -> void:
@@ -255,16 +316,17 @@ func _connect_ui_events() -> void:
 	_world.toast_queued.connect(_on_toast_queued)
 
 
-func _on_layout_folded(_folded: bool, _elements: Array[String]) -> void:
-	resource_subrow.visible = not _layout_mgr.is_resource_subrow_folded()
-
-
 func _on_speed_pause_pressed() -> void:
 	if _world.user_paused:
 		_world.set_paused(false)
 	else:
 		_world.set_paused(true)
 	_update_speed_buttons()
+
+
+## ResponsiveLayoutManager 竖屏折叠规则信号联动（DR-009）
+func _on_layout_folded(_folded: bool, _elements: Array[String]) -> void:
+	_sync_folded_elements()
 
 
 func _set_speed(spd: float) -> void:

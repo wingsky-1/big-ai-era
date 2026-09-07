@@ -16,11 +16,23 @@ signal l3_animation_triggered(anim_id: String, used_count: int, remaining: int)
 
 const MAX_L3_ANIMATIONS_PER_GAME: int = 3
 
+# 竖屏内容基准（v0.1.2）：canvas_items+expand 下逻辑宽恒等于基准宽，
+# 1280 基准会让 390 物理宽的手机整体缩到 ~0.3 倍（字小如蚁）。
+# 竖屏改用 480 基准：390/480 ≈ 0.81 缩放，字号恢复可读。
+const PORTRAIT_CONTENT_SCALE: Vector2i = Vector2i(480, 854)
+const LANDSCAPE_CONTENT_SCALE: Vector2i = Vector2i(1280, 720)
+
 var _is_portrait: bool = false
 var _resource_subrow_folded: bool = false
 var _workspace_folded: bool = false  # 硬约束：永不为 true
 var _l3_animation_counter: int = 0
 var _shown_terms: Dictionary = {}
+
+
+## 纯函数：由物理视口尺寸解析内容缩放基准（可 GUT 单测，无 Node 依赖）。
+## 判定与 update_viewport 一致：y > x 视为竖屏。
+static func resolve_content_scale(physical_size: Vector2i) -> Vector2i:
+	return PORTRAIT_CONTENT_SCALE if physical_size.y > physical_size.x else LANDSCAPE_CONTENT_SCALE
 
 
 func setup(viewport_size: Vector2) -> void:
