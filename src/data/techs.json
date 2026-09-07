@@ -1,0 +1,291 @@
+{
+	"domain_enum": [
+		"deep_thought",
+		"dandelion",
+		"long_memory",
+		"synesthesia",
+		"tool_use",
+		"crossover",
+		"elsewhere"
+	],
+	"fog_gate": {
+		"rumored": 200,
+		"visible": 600
+	},
+	"nodes": {
+		"silver_leash": {
+			"name": "银缰对齐",
+			"domain": "deep_thought",
+			"rp_cost": 300,
+			"cost": 0,
+			"min_week": 0,
+			"parents": [],
+			"unlock": {
+				"predicate": "none",
+				"params": {}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.05,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"cot_sketch": {
+			"name": "析理草图",
+			"domain": "deep_thought",
+			"rp_cost": 360,
+			"cost": 0,
+			"min_week": 0,
+			"parents": [],
+			"unlock": {
+				"predicate": "none",
+				"params": {}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.05,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"silent_chain": {
+			"name": "默识长链",
+			"domain": "deep_thought",
+			"rp_cost": 550,
+			"cost": 5000,
+			"min_week": 8,
+			"parents": [
+				"cot_sketch"
+			],
+			"unlock": {
+				"predicate": "tech_lit",
+				"params": {
+					"tech_id": "cot_sketch"
+				}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.08,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"distill_garden": {
+			"name": "析津别院",
+			"domain": "dandelion",
+			"rp_cost": 420,
+			"cost": 0,
+			"min_week": 0,
+			"parents": [],
+			"unlock": {
+				"predicate": "none",
+				"params": {}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.05,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"hand_tutor": {
+			"name": "琢玉手札",
+			"domain": "dandelion",
+			"rp_cost": 380,
+			"cost": 0,
+			"min_week": 0,
+			"parents": [],
+			"unlock": {
+				"predicate": "none",
+				"params": {}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.05,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"pocket_smart": {
+			"name": "袖珍智能",
+			"domain": "dandelion",
+			"rp_cost": 1300,
+			"cost": 10000,
+			"min_week": 16,
+			"parents": [
+				"distill_garden",
+				"hand_tutor"
+			],
+			"unlock": {
+				"predicate": "tech_lit",
+				"params": {
+					"tech_ids": [
+						"distill_garden",
+						"hand_tutor"
+					]
+				}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.12,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"long_scroll": {
+			"name": "千卷过目",
+			"domain": "long_memory",
+			"rp_cost": 1600,
+			"cost": 15000,
+			"min_week": 20,
+			"parents": [],
+			"unlock": {
+				"predicate": "rp_threshold",
+				"params": {
+					"threshold": 1600
+				}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.15,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"outer_brain": {
+			"name": "外脑抄本",
+			"domain": "long_memory",
+			"rp_cost": 1900,
+			"cost": 20000,
+			"min_week": 24,
+			"parents": [
+				"long_scroll"
+			],
+			"unlock": {
+				"predicate": "tech_lit",
+				"params": {
+					"tech_id": "long_scroll"
+				}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.18,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"arm_will": {
+			"name": "如臂使指",
+			"domain": "tool_use",
+			"rp_cost": 2300,
+			"cost": 25000,
+			"min_week": 30,
+			"parents": [],
+			"unlock": {
+				"predicate": "rp_threshold",
+				"params": {
+					"threshold": 2300
+				}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.2,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"synesthesia_clip": {
+			"name": "辨影聆音",
+			"domain": "synesthesia",
+			"rp_cost": 2700,
+			"cost": 30000,
+			"min_week": 26,
+			"parents": [],
+			"unlock": {
+				"predicate": "none",
+				"params": {}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.22,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"mirror_mind": {
+			"name": "镜像心智",
+			"domain": "crossover",
+			"rp_cost": 2400,
+			"cost": 50000,
+			"min_week": 40,
+			"parents": [],
+			"unlock": {
+				"predicate": "crossover_count",
+				"params": {
+					"required_lit_count": 6
+				}
+			},
+			"effect": {
+				"type": "tech_bonus",
+				"value": 0.25,
+				"target": "all",
+				"enabled": true
+			}
+		},
+		"world": {
+			"name": "寰宇形胜",
+			"domain": "elsewhere",
+			"rp_cost": 0,
+			"cost": 0,
+			"min_week": 999,
+			"parents": [],
+			"unlock": {
+				"predicate": "never",
+				"params": {}
+			},
+			"effect": {
+				"type": "none",
+				"value": 0.0,
+				"target": "none",
+				"enabled": false
+			}
+		},
+		"symbol": {
+			"name": "规矩符契",
+			"domain": "elsewhere",
+			"rp_cost": 0,
+			"cost": 0,
+			"min_week": 999,
+			"parents": [],
+			"unlock": {
+				"predicate": "never",
+				"params": {}
+			},
+			"effect": {
+				"type": "none",
+				"value": 0.0,
+				"target": "none",
+				"enabled": false
+			}
+		},
+		"embodied": {
+			"name": "化魄知几",
+			"domain": "elsewhere",
+			"rp_cost": 0,
+			"cost": 0,
+			"min_week": 999,
+			"parents": [],
+			"unlock": {
+				"predicate": "never",
+				"params": {}
+			},
+			"effect": {
+				"type": "none",
+				"value": 0.0,
+				"target": "none",
+				"enabled": false
+			}
+		}
+	}
+}
