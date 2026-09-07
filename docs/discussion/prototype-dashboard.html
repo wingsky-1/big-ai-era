@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《大 AI 时代》Dashboard UI 原型（一次性）</title>
+<!--
+  ═══════════════════════════════════════════════════════════════
+  UI 原型（throwaway）—— 回答的问题：
+  "迷雾 Dashboard 应该长什么样？"
+  三个结构性变体，底部浮动条 / ←→ 键 / ?variant=A|B|C 切换。
+  评的是【信息架构与布局】，美术风格未定不代表最终。
+  数据全部为讨论期虚构资产。无持久化，关页即弃。
+  ═══════════════════════════════════════════════════════════════
+-->
+<style>
+/* ── 设计 token（Theme 收口草案：色板/字号/间距） ── */
+:root{
+  --bg:#14171c; --panel:#1d222a; --panel2:#242b36; --line:#31394a;
+  --ink:#e8ecf2; --ink2:#9aa6b8; --ink3:#5d6b80;
+  --gold:#e8b34b; --green:#5fc06c; --red:#e06a5a; --blue:#5b9bd5; --purple:#a17fd4;
+  --r:12px; --fs:14px;
+  --h-unit:48px; /* 触屏目标下限 */
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#0b0d11;color:var(--ink);font:var(--fs)/1.55 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;align-items:center}
+/* 原型声明条 */
+.proto-banner{width:100%;background:#3d2f14;color:var(--gold);text-align:center;
+  font-size:12px;padding:5px 10px;border-bottom:1px solid #5a4720}
+/* 手机框（竖屏预览） */
+.frame{width:100%;max-width:860px;height:calc(100vh - 92px);min-height:520px;overflow:hidden;
+  position:relative;background:var(--bg);display:flex;flex-direction:column}
+body.portrait .frame{max-width:390px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.variant{display:none;flex:1;flex-direction:column;overflow:hidden;height:100%}
+.variant.on{display:flex}
+.scroll{flex:1;overflow-y:auto;min-height:0}
+.pad{padding:12px}
+
+/* ── 共享元件 ── */
+.res{display:flex;gap:8px;align-items:stretch;background:var(--panel);padding:8px 12px;border-bottom:1px solid var(--line)}
+.res .r{flex:1;min-width:0}
+.res .k{font-size:11px;color:var(--ink2)}
+.res .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.res .d{font-size:11px;color:var(--ink3)}
+.week{display:flex;align-items:center;gap:6px;background:var(--panel2);padding:6px 12px;border-bottom:1px solid var(--line)}
+.week b{font-size:15px}
+.speed{margin-left:auto;display:flex;gap:4px}
+.spd{width:var(--h-unit);height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  color:var(--ink2);font-size:13px;cursor:pointer}
+.spd.on{border-color:var(--gold);color:var(--gold);font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.card h4{font-size:13px;color:var(--ink2);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.tag{font-size:11px;padding:1px 8px;border-radius:20px;border:1px solid var(--line);color:var(--ink2)}
+.tag.gold{color:var(--gold);border-color:var(--gold)}
+.tag.green{color:var(--green);border-color:var(--green)}
+.tag.purple{color:var(--purple);border-color:var(--purple)}
+.bar{height:8px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gold);border-radius:6px}
+.bar.rival i{background:var(--red)}
+.bar.blue i{background:var(--blue)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.btn{min-width:var(--h-unit);min-height:var(--h-unit);border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--ink);font-size:14px;padding:10px 14px;cursor:pointer}
+.btn.primary{background:var(--gold);color:#1a1408;border-color:var(--gold);font-weight:700}
+.btn.ghost{background:transparent}
+.dock{display:flex;border-top:1px solid var(--line);background:var(--panel)}
+.dock button{flex:1;min-height:var(--h-unit);background:none;border:none;color:var(--ink2);font-size:13px;cursor:pointer;padding:8px 2px}
+.dock button b{display:block;font-size:16px}
+.dock button.on{color:var(--gold)}
+
+/* toast 流 */
+.toast{background:var(--panel2);border-left:3px solid var(--blue);border-radius:8px;padding:8px 10px;
+  font-size:13px;color:var(--ink2);margin-bottom:6px}
+.toast.important{border-left-color:var(--gold);color:var(--ink)}
+.toast .t{color:var(--ink3);font-size:11px}
+
+/* 研究员卡（变体A） */
+.staff{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer}
+.avatar{width:var(--h-unit);height:var(--h-unit);border-radius:10px;background:var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.staff .nm{font-weight:700;font-size:14px}
+.staff .task{font-size:12px;color:var(--ink2)}
+.staff .bar{margin-top:6px;width:120px}
+
+/* 周报流（变体B） */
+.weekcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:0 12px 10px;opacity:.75}
+.weekcard.now{opacity:1;border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.weekcard h3{font-size:14px;color:var(--gold);margin-bottom:8px}
+.weekcard .evt{font-size:13px;color:var(--ink2);padding:3px 0;border-top:1px dashed var(--line)}
+.weekcard .evt b{color:var(--ink)}
+.rivalbar-fixed{position:absolute;left:0;right:0;bottom:calc(var(--h-unit) + 0px);background:rgba(29,34,42,.94);
+  border-top:1px solid var(--line);padding:6px 12px;font-size:12px;color:var(--ink2)}
+
+/* 卡片岛（变体C） */
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:12px}
+.bento .card{margin:0}
+.c-econ{grid-column:span 3}.c-train{grid-column:span 3}
+.c-staff{grid-column:span 2}.c-rival{grid-column:span 2}.c-fog{grid-column:span 2}
+.c-evt{grid-column:span 6}
+.big{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.mini-staff{display:flex;gap:6px}
+.mini-staff .s{flex:1;text-align:center;background:var(--panel2);border-radius:8px;padding:6px 2px;font-size:11px;color:var(--ink2)}
+.mini-staff .s b{display:block;font-size:13px;color:var(--ink)}
+body.portrait .bento{grid-template-columns:repeat(2,1fr)}
+body.portrait .c-econ,body.portrait .c-train,body.portrait .c-staff,
+body.portrait .c-rival,body.portrait .c-fog{grid-column:span 2}
+/* 竖屏折叠第一折：资源栏 .d 副行收起（U 竖屏折叠定稿） */
+body.portrait .res .d{display:none}
+
+/* ── 面板栈弹层（共享：即 PanelStack 阻塞层/常规层评估对象） ── */
+.overlay{position:absolute;inset:0;display:none;align-items:flex-end;justify-content:center;
+  background:rgba(6,8,12,.62);z-index:40}
+.overlay.on{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 0 0;
+  width:100%;max-height:82%;overflow-y:auto;padding:16px}
+.sheet h3{font-size:16px;margin-bottom:2px}
+.sheet .sub{font-size:12px;color:var(--ink2);margin-bottom:12px}
+.fog-domain{margin-bottom:12px}
+.fog-domain .dh{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px}
+.fog-domain .dh span{color:var(--ink3);font-weight:400;font-size:12px}
+.node{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:13px}
+.node .st{font-size:11px}
+.node.lit{border-color:var(--green)} .node.lit .st{color:var(--green)}
+.node.ready{border-color:var(--gold)} .node.ready .st{color:var(--gold)}
+.node.seeing .st{color:var(--blue)}
+.node.fog{color:var(--ink3);border-style:dashed}
+.node.locked{color:var(--ink3);opacity:.6}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.opt{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 12px;cursor:pointer}
+.opt b{font-size:14px}
+.opt .hint{font-size:12px;color:var(--gold);margin-top:2px}
+.opt.disabled{opacity:.45;cursor:not-allowed}
+.opt.disabled .hint{color:var(--red)}
+.opt.selected{border-color:var(--gold);background:#2a2416}
+
+/* 竞对胶囊（四主区定稿：竞对条常驻） */
+.rival-pill{display:flex;align-items:center;gap:8px;margin:0 12px 8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;color:var(--ink2)}
+.rival-pill b{color:var(--ink)}
+.rival-pill .bar{flex:1}
+
+/* ── 底部浮动切换条（原型工具，非游戏 UI） ── */
+.switcher{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:99;
+  display:flex;align-items:center;gap:8px;background:#000c;border:1px solid #4a5568;
+  border-radius:999px;padding:6px 10px;box-shadow:0 4px 18px #000c}
+.switcher button{width:40px;height:40px;border-radius:50%;border:none;background:#2d3748;color:#fff;font-size:16px;cursor:pointer}
+.switcher .lb{color:#fff;font-size:13px;min-width:150px;text-align:center}
+.switcher .shape{font-size:12px;color:#a0aec0;background:#1a202c;border:1px solid #4a5568;
+  border-radius:999px;padding:6px 12px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="proto-banner">一次性 UI 原型 · 只评【信息架构 / 布局 / 密度】 · 美术风格与配色不代表最终 · 数据为虚构讨论资产</div>
+
+<div class="frame" id="frame">
+
+  <!-- ══════════ 变体 A：工作台（UI 席四主区方案） ══════════ -->
+  <section class="variant" id="vA">
+    <div class="res">
+      <div class="r"><div class="k">资金</div><div class="v">¥12.5万</div><div class="d">周净 -1.2k</div></div>
+      <div class="r"><div class="k">算力</div><div class="v">840 卡时</div><div class="d">占用 62%</div></div>
+      <div class="r"><div class="k">声誉</div><div class="v">47</div><div class="d">本周 +2</div></div>
+    </div>
+    <div class="week"><b>第 14 周</b><span style="color:var(--ink3);font-size:12px">2023-03</span>
+      <div class="speed"><button class="spd">⏸</button><button class="spd on">1x</button><button class="spd">2x</button><button class="spd">4x</button></div>
+    </div>
+    <div class="rival-pill">🔴 <b>深巷科技</b> 71% <div class="bar rival"><i style="width:71%"></i></div> 上周：巷灯 L2</div>
+    <div class="scroll pad">
+      <div class="card">
+        <h4>训练中 · 项目 A-3 <span class="tag gold">出分预计 3 周</span></h4>
+        <div class="row"><span>璞石 1b → 冲击 <b style="color:var(--gold)">GKP</b> 榜</span><span style="font-size:12px;color:var(--ink2)">62%</span></div>
+        <div class="bar" style="margin-top:6px"><i style="width:62%"></i></div>
+        <div class="row" style="margin-top:8px;font-size:12px;color:var(--ink2)">
+          <span>阶段：损失下降中（预热提示：距离 SOTA 线还差 ~9 分）</span>
+          <button class="btn ghost" style="min-height:34px" onclick="openPanel('tech')">详情</button>
+        </div>
+      </div>
+      <div class="card"><h4>研究员 <span class="tag">点卡进详情分配</span></h4>
+        <div class="staff" onclick="openPanel('staff')"><div class="avatar">🧑‍🔬</div>
+          <div><div class="nm">林望舒</div><div class="task">复现 · 灵犀通识评测（剩余 2 周）</div><div class="bar"><i style="width:78%"></i></div></div>
+        </div>
+        <div class="staff" onclick="openPanel('staff')"><div class="avatar">👩‍💻</div>
+          <div><div class="nm">陈北辰</div><div class="task">研究 · 长记忆线（喂 RP）</div><div class="bar blue" style="width:120px"><i style="width:45%"></i></div></div>
+        </div>
+        <div class="staff" onclick="openPanel('staff')"><div class="avatar">🧑‍💻</div>
+          <div><div class="nm">周霁明</div><div class="task">支援训练 · 项目 A-3</div><div class="bar" style="width:120px"><i style="width:62%"></i></div></div>
+        </div>
+      </div>
+      <div class="card"><h4>通知 <span class="tag">≤3 条 · 暂停即冻结</span></h4>
+        <div class="toast important">💡 灵感闪现：蒸馏也许能把大模型压进小卡 <span class="t">第 14 周</span></div>
+        <div class="toast">深巷科技 发布「巷灯 L2」，通识试金石榜首位易主 <span class="t">第 13 周</span></div>
+        <div class="toast">课题结项：西麓大学横向，¥6.4万 已入账 <span class="t">第 13 周</span></div>
+      </div>
+    </div>
+    <div class="dock">
+      <button class="on" onclick="openPanel('tech')"><b>🌫</b>科技 <span style="font-size:10px">8/14</span></button>
+      <button onclick="openPanel('report')"><b>📊</b>周报</button>
+      <button onclick="openPanel('card')"><b>⚡</b>事件</button>
+      <button><b>≡</b>暂停</button>
+    </div>
+  </section>
+
+  <!-- ══════════ 变体 B：周报流（时间流中心） ══════════ -->
+  <section class="variant" id="vB">
+    <div class="res">
+      <div class="r"><div class="k">资金</div><div class="v">¥12.5万</div><div class="d">周净 -1.2k</div></div>
+      <div class="r"><div class="k">算力</div><div class="v">840 卡时</div><div class="d">占用 62%</div></div>
+      <div class="r"><div class="k">声誉</div><div class="v">47</div><div class="d">本周 +2</div></div>
+    </div>
+    <div class="week"><b>第 14 周</b>
+      <div class="speed"><button class="spd">⏸</button><button class="spd on">1x</button><button class="spd">2x</button><button class="spd">4x</button></div>
+    </div>
+    <div class="scroll" style="padding-top:10px">
+      <div class="weekcard now">
+        <h3>第 14 周 · 本周</h3>
+        <div class="evt">训练 <b>项目 A-3</b> 推进至 62%，距 GKP 榜首还差 ~9 分</div>
+        <div class="evt">💡 灵感：<b>蒸馏小型化</b> 方向浮现（长记忆线 3/4 已探明）</div>
+        <div class="evt">已预约：<b>复现任务</b> 第 15 周开工（林望舒 空出即接）</div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn primary" style="flex:1" onclick="openPanel('tech')">指派 / 调整</button>
+          <button class="btn" style="flex:1" onclick="openPanel('tech')">开新任务</button>
+        </div>
+      </div>
+      <div class="weekcard">
+        <h3>第 13 周 · 周报</h3>
+        <div class="evt">收入 ¥6.4万（课题结项）· 支出 ¥5.2万 · 声誉 +2</div>
+        <div class="evt">⚠ <b>深巷科技</b> 发布「巷灯 L2」，GKP 榜首位易主（81.2 分）</div>
+        <div class="evt">决策：算力租金暴涨 → 选择「按原计划烧卡」（-¥3.6万）</div>
+      </div>
+      <div class="weekcard">
+        <h3>第 12 周 · 周报</h3>
+        <div class="evt">研究产出：规模律验证完毕，<b>已点亮</b>（算法 +）</div>
+        <div class="evt">🔥 烧卡 812 卡时 · 项目 A-3 进入损失下降期</div>
+      </div>
+      <div class="weekcard"><h3>第 11 周</h3><div class="evt">周结 · 无显著事件</div></div>
+    </div>
+    <div class="rivalbar-fixed">🔴 深巷科技 71% ▍上周：发布巷灯 L2 ▍我方最佳：GKP 72.4（第 3）</div>
+    <div class="dock">
+      <button class="on" onclick="openPanel('tech')"><b>🌫</b>科技 <span style="font-size:10px">8/14</span></button>
+      <button onclick="openPanel('report')"><b>📊</b>周报</button>
+      <button onclick="openPanel('card')"><b>⚡</b>事件</button>
+      <button><b>≡</b>暂停</button>
+    </div>
+  </section>
+
+  <!-- ══════════ 变体 C：卡片岛（bento 一屏全览） ══════════ -->
+  <section class="variant" id="vC">
+    <div class="res">
+      <div class="r"><div class="k">资金</div><div class="v">¥12.5万</div></div>
+      <div class="r"><div class="k">算力</div><div class="v">840</div></div>
+      <div class="r"><div class="k">声誉</div><div class="v">47</div></div>
+    </div>
+    <div class="week"><b>第 14 周</b>
+      <div class="speed"><button class="spd">⏸</button><button class="spd on">1x</button><button class="spd">2x</button><button class="spd">4x</button></div>
+    </div>
+    <div class="scroll"><div class="bento">
+      <div class="card c-econ"><h4>经济 <span class="tag">距破产线 -¥20万</span></h4>
+        <div class="big">¥12.5万</div>
+        <div style="font-size:12px;color:var(--ink2);margin-top:4px">本周净 <span style="color:var(--red)">-¥1.2k</span> · 课题冷却 2 周</div>
+        <div class="bar" style="margin-top:8px"><i style="width:22%;background:var(--red)"></i></div>
+      </div>
+      <div class="card c-train"><h4>训练 · A-3 <span class="tag gold">3 周出分</span></h4>
+        <div class="big">62%</div>
+        <div style="font-size:12px;color:var(--ink2)">璞石 1b → GKP 榜 · 差 9 分</div>
+        <div class="bar" style="margin-top:8px"><i style="width:62%"></i></div>
+      </div>
+      <div class="card c-staff"><h4>研究员</h4>
+        <div class="mini-staff">
+          <div class="s"><b>🧑‍🔬</b>林望舒<br>复现 78%</div>
+          <div class="s"><b>👩‍💻</b>陈北辰<br>研究 45%</div>
+          <div class="s"><b>🧑‍💻</b>周霁明<br>支援训练</div>
+        </div>
+      </div>
+      <div class="card c-rival"><h4>深巷科技 <span class="tag green">第 2</span></h4>
+        <div class="big">71%</div>
+        <div class="bar rival" style="margin-top:8px"><i style="width:71%"></i></div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:4px">上周发布 巷灯 L2</div>
+      </div>
+      <div class="card c-fog" onclick="openPanel('tech')" style="cursor:pointer"><h4>迷雾 <span class="tag purple">望远镜 +1</span></h4>
+        <div class="big">8/14</div>
+        <div style="font-size:12px;color:var(--ink2)">长记忆线 3/4 · 传闻 2</div>
+        <div class="bar" style="margin-top:8px"><i style="width:57%;background:var(--purple)"></i></div>
+      </div>
+      <div class="card c-evt"><h4>最近动态</h4>
+        <div class="toast important">💡 灵感闪现：蒸馏也许能把大模型压进小卡 <span class="t">第 14 周</span></div>
+        <div class="toast">深巷科技 发布「巷灯 L2」 <span class="t">第 13 周</span></div>
+      </div>
+    </div></div>
+    <div class="dock">
+      <button class="on" onclick="openPanel('tech')"><b>🌫</b>科技</button>
+      <button onclick="openPanel('report')"><b>📊</b>周报</button>
+      <button onclick="openPanel('card')"><b>⚡</b>事件</button>
+      <button><b>≡</b>暂停</button>
+    </div>
+  </section>
+
+  <!-- ══════════ 共享弹层：迷雾科技树（C 方案：列表+???+域计数） ══════════ -->
+  <div class="overlay" id="p-tech">
+    <div class="sheet">
+      <h3>科技方向 <span class="tag purple" style="margin-left:6px">已探明 8/14</span></h3>
+      <div class="sub">翻雾靠：投入研究 / 竞对论文外溢 / 灵感 —— 他者道路以传闻形式存在</div>
+      <div class="fog-domain"><div class="dh">🧠 深思线 <span>已探明 3/4</span></div>
+        <div class="node lit"><span>✔ 规模律</span><span class="st">已点亮 · 算法 +</span></div>
+        <div class="node ready"><span>提示思维链</span><span class="st">可研 · RP 62%</span></div>
+        <div class="node seeing"><span>偏好对齐</span><span class="st">可见 · 需 深思线+开放权重线</span></div>
+      </div>
+      <div class="fog-domain"><div class="dh">📖 开放权重线 <span>已探明 2/3</span></div>
+        <div class="node lit"><span>✔ 蒲公英式权重流出</span><span class="st">已点亮</span></div>
+        <div class="node seeing"><span>蒸馏小型化</span><span class="st">可见 · 灵感已触发</span></div>
+      </div>
+      <div class="fog-domain"><div class="dh">🧷 长记忆线 <span>已探明 3/4</span></div>
+        <div class="node ready"><span>长上下文</span><span class="st">可研 · RP 31%</span></div>
+        <div class="node fog"><span>？？？</span><span class="st">传闻 · 深巷论文里提过"外脑"</span></div>
+      </div>
+      <div class="fog-domain"><div class="dh">👁 通感线 / 🔧 器用线 <span>已探明 0/4 · 未开域</span></div>
+        <div class="node fog"><span>？？？</span><span class="st">传闻 · 业界在谈"看图说话"</span></div>
+      </div>
+      <div class="fog-domain"><div class="dh">🚪 他者道路 <span>3 条 · 均未开域</span></div>
+        <div class="node locked"><span>世界推演？</span><span class="st">传闻：有人想教模型理解世界</span></div>
+        <div class="node locked"><span>符号炼金？</span><span class="st">传闻：老派学者的执念</span></div>
+        <div class="node locked"><span>袖珍智能？</span><span class="st">传闻：把模型塞进你口袋</span></div>
+      </div>
+      <button class="btn primary" style="width:100%" onclick="closePanels()">返回</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 共享弹层：决策卡（阻塞层） ══════════ -->
+  <div class="overlay" id="p-card">
+    <div class="sheet">
+      <h3>⚡ 算力租金暴涨 <span class="tag" style="margin-left:6px">决定后世界继续流淌</span></h3>
+      <div class="sub">云厂商例行调价，卡时单价本周上涨 35%。训练排期不动的话，下周资金将多支出 ¥3.6万。——去会议室碰一下？</div>
+      <div class="opts">
+        <div class="opt selected"><b>锁价长约</b><div class="hint">资金 -¥12万 · 锁 8 周</div></div>
+        <div class="opt"><b>随行就市</b><div class="hint">资金 -¥3.6万 · 赌降价</div></div>
+        <div class="opt disabled"><b>暂停训练一周</b><div class="hint">资金不足，无法执行</div></div>
+      </div>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="closePanels()">稍后处理（本周结前必须选择）</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 共享弹层：员工详情（U40：点卡进详情再分配） ══════════ -->
+  <div class="overlay" id="p-staff">
+    <div class="sheet">
+      <h3>🧑‍🔬 林望舒 <span class="tag green" style="margin-left:6px">研究力 84</span></h3>
+      <div class="sub">当前：复现 · 灵犀通识评测（剩余 2 周 · 中途改派将损失进度）</div>
+      <div class="card"><div class="row"><span>复现进度</span><b>78%</b></div><div class="bar" style="margin-top:6px"><i style="width:78%"></i></div></div>
+      <h4 style="font-size:13px;color:var(--ink2);margin:10px 0 8px">改派至（改派确认前先预览）</h4>
+      <div class="opts">
+        <div class="opt"><b>继续复现</b><div class="hint">2 周后完成 · 声誉 +1</div></div>
+        <div class="opt"><b>研究 · 长上下文</b><div class="hint">喂 RP · 长记忆线还差 1 节点点亮</div></div>
+        <div class="opt"><b>支援训练 · 项目 A-3</b><div class="hint">出分预计提前 ~0.5 周</div></div>
+      </div>
+      <button class="btn primary" style="width:100%;margin-top:12px" onclick="closePanels()">取消（返回 Dashboard）</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 共享弹层：周报（5 行文本弹卡） ══════════ -->
+  <div class="overlay" id="p-report">
+    <div class="sheet">
+      <h3>📊 第 13 周 · 周报</h3>
+      <div class="sub">显著变化周 · 已自动暂停</div>
+      <div class="card">收入 <b style="color:var(--green)">+¥6.4万</b>（课题结项）· 支出 <b style="color:var(--red)">-¥5.2万</b></div>
+      <div class="card">声誉 +2（林望舒论文进入玄冬会议评审）</div>
+      <div class="card">⚠ 深巷科技 发布「巷灯 L2」，GKP 榜首位易主（81.2 分）</div>
+      <div class="card">项目 A-3 推进 62% · 距榜首 ~9 分</div>
+      <div class="card">迷雾：长记忆线已探明 3/4</div>
+      <button class="btn primary" style="width:100%" onclick="closePanels()">继续（恢复流淌）</button>
+    </div>
+  </div>
+
+</div><!-- /frame -->
+
+<!-- 浮动切换条（原型工具） -->
+<div class="switcher">
+  <button onclick="cycle(-1)">←</button>
+  <div class="lb" id="lb">A · 工作台</div>
+  <button onclick="cycle(1)">→</button>
+  <button class="shape" onclick="toggleShape()" id="shapeBtn">📱 竖屏</button>
+</div>
+
+<script>
+// 变体注册与切换（URL ?variant= 可分享、刷新稳定）
+const VS=[['A','A · 工作台'],['B','B · 周报流'],['C','C · 卡片岛']];
+let cur=(new URLSearchParams(location.search).get('variant')||'A').toUpperCase();
+if(!VS.some(v=>v[0]===cur))cur='A';
+function apply(){
+  for(const v of VS){document.getElementById('v'+v[0]).classList.toggle('on',v[0]===cur)}
+  document.getElementById('lb').textContent=VS.find(v=>v[0]===cur)[1];
+  history.replaceState(null,'','?variant='+cur);
+  // 变体切换后滚回顶部，保证每次评估从同一起点开始
+  document.querySelectorAll('.scroll').forEach(e=>e.scrollTop=0);
+}
+function cycle(d){const i=VS.findIndex(v=>v[0]===cur);cur=VS[(i+d+VS.length)%VS.length][0];apply()}
+// 键盘 ←/→ 循环（输入框聚焦时不拦截——本原型无输入框，防御式保留）
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea'))return;
+  if(e.key==='ArrowLeft')cycle(-1);
+  if(e.key==='ArrowRight')cycle(1);
+});
+// 竖屏框预览（移动一等公民：评的是手机形态）
+let portrait=false;
+function toggleShape(){portrait=!portrait;document.body.classList.toggle('portrait',portrait);
+  document.getElementById('shapeBtn').textContent=portrait?'🖥 横屏':'📱 竖屏'}
+// 面板栈演示：同层互斥 + 阻塞层语义（打开时压暗全屏）
+function openPanel(id){closePanels();document.getElementById('p-'+id).classList.add('on')}
+function closePanels(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('on'))}
+apply();
+</script>
+</body>
+</html>
