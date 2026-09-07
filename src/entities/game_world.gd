@@ -51,10 +51,6 @@ const SCHEMA_VERSION: int = 1
 const DECISION_POLICY_META: StringName = &"decision_policy"
 
 var week: int = 0  # 权威周数（游戏状态口径；clock.week 仅触发器内部计数，一致性由测试锁定）
-var money: int = 0
-var compute_tier: int = 0
-var compute_hours_remaining: float = 0.0
-var influence: int = 0
 var research_eff: int = 0
 var tech_bonus: float = 0.0
 var user_paused: bool = false
@@ -66,23 +62,44 @@ var sota_best: float = 0.0
 var rival_best: float = 0.0
 
 var clock: GameClock
+var economy: Economy
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
 var _named_cursor: int = 0
 var _last_signal_report: Dictionary = {}
+var _income_roll_seed: int = 0
 
 
-## 组装子系统（GameClock 强持有+参数注入节拍；不回指）。
+## 组装子系统（GameClock/Economy 强持有+参数注入；不回指）。
 func _init() -> void:
 	clock = GameClock.new()
 	clock.setup(DataLoader.load_json("res://src/data/clock.json"), self)
 	clock.week_boundary_reached.connect(_on_week_boundary)
+	economy = Economy.new()
+	economy.setup(DataLoader.load_json("res://src/data/economy.json"))
+	economy.warned.connect(
+		func(amount: int) -> void:
+			toast_queued.emit({"text_key": "sys_save_hint", "warned": amount})
+	)
 
 
 ## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
 func get_clock() -> GameClock:
 	return clock
+
+
+## 资源只读委托（资源状态内聚 Economy，M3 唯一过账口无分叉状态）。
+func get_money() -> int:
+	return economy.get_money()
+
+
+func get_influence() -> int:
+	return economy.get_influence()
+
+
+func get_compute() -> Dictionary:
+	return economy.get_compute()
 
 
 ## ============ 命令面（11）============
@@ -91,11 +108,8 @@ func get_clock() -> GameClock:
 ## 建档（B1/GW8）：seed 定格开局态（灵犀 Chat 已发布+三研究员+W0 态）。
 func start_new_game(seed: int = 0) -> void:
 	rng_seed = seed
+	_income_roll_seed = seed + 1  # 收入脉冲随机源种子（PR7 换 rng_stream）
 	week = 0
-	money = 0
-	influence = 0
-	compute_tier = 0
-	compute_hours_remaining = 0.0
 	research_eff = 0
 	tech_bonus = 0.0
 	user_paused = false
@@ -106,12 +120,15 @@ func start_new_game(seed: int = 0) -> void:
 	_named_cursor = 0
 	sota_best = 0.0
 	staff = {}
+	economy.setup(DataLoader.load_json("res://src/data/economy.json"))
 	var opening := DataLoader.load_json("res://src/data/opening.json")
-	money = int(opening.get("money", money))
-	influence = int(opening.get("influence", influence))
 	var compute: Dictionary = opening.get("compute", {})
-	compute_tier = int(compute.get("tier", compute_tier))
-	compute_hours_remaining = float(compute.get("hours_remaining", compute_hours_remaining))
+	economy.init_resources(
+		int(opening.get("money", 0)),
+		int(opening.get("influence", 0)),
+		int(compute.get("tier", 1)),
+		float(compute.get("hours_remaining", 0.0))
+	)
 	rival_best = float(opening.get("rival_best", rival_best))
 	var staff_table := DataLoader.load_json("res://src/data/staff.json")
 	for staff_id: String in opening.get("staff_ids", []):
@@ -127,10 +144,18 @@ func start_new_game(seed: int = 0) -> void:
 	_last_signal_report = {}
 	_recalculate_research_eff()
 	_sync_card_block()
-	resources_changed.emit(money, compute_hours_remaining, influence)
+	_emit_resources()
 	# W0 假头条：灵犀 Chat 已发布（竞对榜基线，非玩家纪录）
 	sota_updated.emit(
 		{"model": str(opening.get("rival_model_name", "")), "score": rival_best, "rival": true}
+	)
+
+
+## 资源信号统一出口（唯一广播点；载荷取自 Economy 单一真源）。
+func _emit_resources() -> void:
+	var compute_state := economy.get_compute()
+	resources_changed.emit(
+		economy.get_money(), float(compute_state["hours_remaining"]), economy.get_influence()
 	)
 
 
@@ -191,12 +216,15 @@ func request_save(reason: String = "manual") -> bool:
 ## 非 11 命令面，引擎装配层调用；业务字段随 PR 扩展）。
 func restore(data: Dictionary) -> void:
 	week = int(data.get("week", 0))
+	economy.setup(DataLoader.load_json("res://src/data/economy.json"))
 	var resources: Dictionary = data.get("resources", {})
-	money = int(resources.get("money", 0))
-	influence = int(resources.get("influence", 0))
 	var compute: Dictionary = resources.get("compute", {})
-	compute_tier = int(compute.get("tier", 0))
-	compute_hours_remaining = float(compute.get("hours_remaining", 0.0))
+	economy.init_resources(
+		int(resources.get("money", 0)),
+		int(resources.get("influence", 0)),
+		int(compute.get("tier", 1)),
+		float(compute.get("hours_remaining", 0.0))
+	)
 	var sota: Dictionary = data.get("sota", {})
 	sota_best = float(sota.get("best", 0.0))
 	rival_best = float(sota.get("rival_best", 0.0))
@@ -269,13 +297,41 @@ func _sync_card_block() -> void:
 
 
 ## GameClock 周界回调（DR-007 周结序）：
-## PR4 起 1 收支(economy/apply_delta)→PR8 Game Over 短路；PR6 出分；PR7 竞对/
-## 迷雾/灵感/事件；PR5 阶段重评。骨架仅产出周报骨架帧。
+## 步序 1 收支（本 PR，全部经 economy.apply_delta 过账）→ PR8 Game Over 短路
+## 接线；PR6 出分；PR7 竞对/迷雾/灵感/事件；PR5 阶段重评。
 func settle_week() -> void:
 	week += 1
-	var report := {"week": week}
+	var roll := RandomNumberGenerator.new()
+	roll.seed = hash(str(_income_roll_seed, ":", week))
+	var headcount := staff.size()
+	var ledger := economy.accrue_week(headcount, _DeterministicRoll.new(roll))
+	var report := {
+		"week": week,
+		"money_row":
+		{
+			"income": Formatter.format_money(int(ledger["income"])),
+			"expense": Formatter.format_money(int(ledger["expense"])),
+			"net": Formatter.format_delta(int(ledger["net"])),
+		},
+		"line_state": economy.check_lines(),
+	}
 	_last_signal_report = report
+	_emit_resources()
 	week_settled.emit(report)
+
+
+## 收入脉冲确定性随机源（PR7 前 MVP 占位：随机源接口与 rng_stream 对齐，
+## World 按 seed+week 播种，同 seed 双跑哈希一致的确定性由此保证）。
+class _DeterministicRoll:
+	extends RefCounted
+
+	var _rng: RandomNumberGenerator
+
+	func _init(rng: RandomNumberGenerator) -> void:
+		_rng = rng
+
+	func randi_in_range(low: int, high: int) -> int:
+		return _rng.randi_range(low, high)
 
 
 func _recalculate_research_eff() -> void:

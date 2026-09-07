@@ -67,7 +67,7 @@ func test_command_and_signal_contract_accounting() -> void:
 func test_start_new_game_opening_fields() -> void:
 	# 开局口径硬锚（issue #1 / 预演报告）：资金 50k；W0；三研究员；灵犀 Chat 已发布。
 	assert_eq(_world.week, 0, "开局应为 W0")
-	assert_eq(_world.money, 50000, "开局资金应为 50k（口径硬锚）")
+	assert_eq(_world.get_money(), 50000, "开局资金应为 50k（口径硬锚）")
 	assert_eq(_world.staff.size(), 3, "开局应有三研究员（ST1 种子表）")
 	assert_gt(_world.rival_best, 0.0, "竞对基线分应已就位（灵犀 Chat 已发布）")
 	var poured := _poured("sota_updated")
@@ -83,7 +83,7 @@ func test_ui_snapshot_matches_signal_terminal_state() -> void:
 	_world.settle_week()
 	var snapshot := _world.get_ui_snapshot()
 	assert_eq(int(snapshot["week"]), 2, "快照周数应等于信号终态")
-	assert_eq(int(snapshot["resources"]["money"]), _world.money, "快照资金应与世界一致")
+	assert_eq(int(snapshot["resources"]["money"]), _world.get_money(), "快照资金应与世界一致")
 	assert_eq(
 		int(snapshot["resources"]["money"]),
 		int(_poured("resources_changed").back()[0]),
