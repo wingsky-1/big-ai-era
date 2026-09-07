@@ -8,6 +8,8 @@ extends Control
 const DECISION_CARD_SCENE: PackedScene = preload("res://src/ui/modals/decision_card_dialog.tscn")
 const WEEKLY_REPORT_SCENE: PackedScene = preload("res://src/ui/modals/weekly_report_dialog.tscn")
 const GAME_OVER_SCENE: PackedScene = preload("res://src/ui/modals/game_over_dialog.tscn")
+const TECH_TREE_SCENE: PackedScene = preload("res://src/ui/modals/tech_tree_dialog.tscn")
+const STAFF_ROSTER_SCENE: PackedScene = preload("res://src/ui/modals/staff_roster_dialog.tscn")
 
 var _world: GameWorld
 var _world_ref: WeakRef
@@ -197,6 +199,25 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 			_active_modals[panel_id] = modal
 			modal_container.add_child(modal)
 
+		PanelStack.PANEL_TECH_TREE:
+			var modal: TechTreeDialog = TECH_TREE_SCENE.instantiate()
+			modal.setup(world)
+			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
+			modal.research_requested.connect(
+				func(tid: String) -> void:
+					world.start_research(tid)
+					_update_views()
+			)
+			_active_modals[panel_id] = modal
+			modal_container.add_child(modal)
+
+		PanelStack.PANEL_ROSTER:
+			var modal: StaffRosterDialog = STAFF_ROSTER_SCENE.instantiate()
+			modal.setup(world)
+			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
+			_active_modals[panel_id] = modal
+			modal_container.add_child(modal)
+
 
 func _on_panel_popped(panel_id: String, _layer: int) -> void:
 	if _active_modals.has(panel_id):
@@ -223,6 +244,7 @@ func _connect_ui_events() -> void:
 	dock_tech_btn.pressed.connect(_on_dock_tech_pressed)
 	dock_report_btn.pressed.connect(_on_dock_report_pressed)
 	dock_pause_btn.pressed.connect(_on_dock_pause_pressed)
+	staff_count_label.gui_input.connect(_on_staff_label_clicked)
 
 	_world.resources_changed.connect(
 		func(_money: int, _comp: float, _inf: int) -> void: _update_views()
@@ -268,6 +290,11 @@ func _update_speed_buttons() -> void:
 
 func _on_dock_tech_pressed() -> void:
 	_stack.push_panel(PanelStack.PANEL_TECH_TREE)
+
+
+func _on_staff_label_clicked(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_stack.push_panel(PanelStack.PANEL_ROSTER)
 
 
 func _on_dock_report_pressed() -> void:
