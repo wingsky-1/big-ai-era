@@ -43,6 +43,8 @@ PR（自检清单）→ 评审（gd-code-review）→ 合并 → 人类试玩。
 | 场景 | 调用 skill |
 | :--- | :--- |
 | 排期/砍需求/里程碑 | `gd-producer` |
+| 多席设计会议/交叉裁决 | `gd-council-facilitator` |
+| 玩家画像审视（DR-019） | `gd-player-persona-review` |
 | 机制设计/GDD/验收标准 | `gd-lead-designer` |
 | 编码/架构/修 Bug/ADR | `gd-lead-programmer` |
 | 数值表/公式/模拟验证 | `gd-balance-designer` |
