@@ -1,0 +1,193 @@
+{
+	"inspiration_spec": {
+		"base": 0.1,
+		"pity": 8,
+		"cap": 12
+	},
+	"events": [
+		{
+			"id": "evt_open_source_rumor",
+			"layer": "notice",
+			"kind": "notice",
+			"trigger": {
+				"predicate": "none",
+				"weight": 20,
+				"once": true
+			},
+			"title": "开源风声",
+			"description": "业内传闻有大厂权重泄露，蒸馏之风将起。",
+			"effects": [
+				{
+					"type": "fog_reveal",
+					"target": "distill_garden",
+					"value": "visible",
+					"timing": "immediate"
+				}
+			]
+		},
+		{
+			"id": "evt_academic_grant",
+			"layer": "notice",
+			"kind": "notice",
+			"trigger": {
+				"predicate": "none",
+				"weight": 25,
+				"once": false
+			},
+			"title": "横向课题资助",
+			"description": "高校科研联合资助到账。",
+			"effects": [
+				{
+					"type": "money",
+					"value": 15000,
+					"timing": "immediate"
+				}
+			]
+		},
+		{
+			"id": "evt_paper_accepted",
+			"layer": "notice",
+			"kind": "notice",
+			"trigger": {
+				"predicate": "none",
+				"weight": 20,
+				"once": false
+			},
+			"title": "论文顶会录用",
+			"description": "实验室最新成果登上顶会，学术声誉大增。",
+			"effects": [
+				{
+					"type": "influence",
+					"value": 100,
+					"timing": "immediate"
+				}
+			]
+		},
+		{
+			"id": "evt_cloud_rebate",
+			"layer": "notice",
+			"kind": "notice",
+			"trigger": {
+				"predicate": "none",
+				"weight": 15,
+				"once": false
+			},
+			"title": "云厂商卡时赠送",
+			"description": "云服务商提供了试用算力补贴。",
+			"effects": [
+				{
+					"type": "compute",
+					"value": 10,
+					"timing": "immediate"
+				}
+			]
+		},
+		{
+			"id": "evt_hardware_sponsor",
+			"layer": "decision",
+			"kind": "decision",
+			"trigger": {
+				"predicate": "none",
+				"weight": 10,
+				"once": true
+			},
+			"title": "赞助商的邀约",
+			"description": "某硬件厂商提出赞助方案，但需承担合作课题。",
+			"options": [
+				{
+					"text": "接受设备补贴（资金+30k）",
+					"effects": [
+						{
+							"type": "money",
+							"value": 30000,
+							"timing": "immediate"
+						}
+					]
+				},
+				{
+					"text": "接入定向联合任务",
+					"effects": [
+						{
+							"type": "inject_task",
+							"target": "task_grant_pilot",
+							"timing": "immediate"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "evt_compute_maintenance",
+			"layer": "decision",
+			"kind": "decision",
+			"trigger": {
+				"predicate": "none",
+				"weight": 10,
+				"once": false
+			},
+			"title": "集群电力检修",
+			"description": "供电检修即将开始，是否对训练进行顺延调度？",
+			"options": [
+				{
+					"text": "停机维护（训练顺延 1 周）",
+					"effects": [
+						{
+							"type": "delay_training",
+							"value": 1,
+							"timing": "delayed"
+						}
+					]
+				},
+				{
+					"text": "花费备用电费抢修（资金-5k）",
+					"effects": [
+						{
+							"type": "money",
+							"value": -5000,
+							"timing": "immediate"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "evt_advisor_visit",
+			"layer": "notice",
+			"kind": "notice",
+			"trigger": {
+				"predicate": "none",
+				"weight": 10,
+				"once": false
+			},
+			"title": "知名顾问来访",
+			"description": "学界泰斗来访讲座，点拨启发了全员灵感。",
+			"effects": [
+				{
+					"type": "rp_grant",
+					"value": 200,
+					"timing": "immediate"
+				}
+			]
+		},
+		{
+			"id": "evt_startup_badge",
+			"layer": "notice",
+			"kind": "notice",
+			"trigger": {
+				"predicate": "none",
+				"weight": 10,
+				"once": true
+			},
+			"title": "初创企业授牌",
+			"description": "实验室正式获颁高新技术培育资质。",
+			"effects": [
+				{
+					"type": "flag_set",
+					"target": "hightech_certified",
+					"value": true,
+					"timing": "immediate"
+				}
+			]
+		}
+	]
+}

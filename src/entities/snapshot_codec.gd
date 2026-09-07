@@ -82,7 +82,7 @@ static func to_save(world: GameWorld) -> Dictionary:
 		"staff": world.roster.to_save(),
 		"training": world.training.to_save(),
 		"rivals": world.rival_track.to_save(),
-		"events": {"fired": [], "pending": [], "effects_pending": []},
+		"events": world.event_engine.to_save(),
 		"player_model_names": model_names,
 		"stages": world.stages.to_save(),
 		"sota": world.sota_board.to_save(),

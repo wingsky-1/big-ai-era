@@ -75,6 +75,7 @@ var training: TrainingProject
 var sota_board: SotaBoard
 var rng_stream: RngStream
 var rival_track: RivalTrack
+var event_engine: EventEngine
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
@@ -106,11 +107,13 @@ func _init() -> void:
 	sota_board = SotaBoard.new()
 	rng_stream = RngStream.new()
 	rival_track = RivalTrack.new()
+	event_engine = EventEngine.new()
 	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
 	tech_fog.setup(techs_cfg)
 	tech_tree.setup(techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
 	training.setup(DataLoader.load_json("res://src/data/model_bases.json"))
+	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
 
 
 ## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
@@ -176,6 +179,7 @@ func start_new_game(seed: int = 0) -> void:
 	sota_best = sota_board.get_best_score()
 	rival_best = sota_board.get_rival_best()
 	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream)
+	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
 	_income_roll_seed = rng_seed
 	_named_ids.clear()
 	_last_signal_report = {}
@@ -261,8 +265,11 @@ func start_training(base_id: String) -> void:
 		_emit_resources()
 
 
-func choose_decision(_pending_id: String, _option_idx: int) -> void:
-	_not_implemented_yet("choose_decision")
+func choose_decision(pending_id: String, option_idx: int) -> void:
+	if not pending_decision.is_empty() and pending_decision.get("id", "") == pending_id:
+		if event_engine.choose_decision_option(option_idx, self):
+			set_pending_decision({})
+			_emit_resources()
 
 
 ## 命名（PR6 接入长度/敏感词校验+名池轮转+转义防二次解析）。
@@ -353,6 +360,9 @@ func restore(data: Dictionary) -> void:
 	var stages_data: Dictionary = data.get("stages", {})
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
 	stages.restore(stages_data)
+	var events_data: Dictionary = data.get("events", {})
+	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
+	event_engine.restore(events_data)
 	var flags: Dictionary = data.get("flags", {})
 	game_over_flag = bool(flags.get("game_over", false))
 	_named_cursor = int(flags.get("name_cursor", 0))
@@ -362,6 +372,8 @@ func restore(data: Dictionary) -> void:
 	for name_entry: String in names:
 		_named_ids[name_entry] = true
 	pending_decision = {}
+	if not event_engine.get_pending_card().is_empty():
+		set_pending_decision(event_engine.get_pending_card())
 	_last_signal_report = {}
 	_recalculate_research_eff()
 	_sync_card_block()
@@ -413,6 +425,10 @@ func _resolve_pending_same_frame() -> void:
 ## 挂起决策卡登记（事件引擎 PR7 与装配层使用；同步带卡阻塞态，UI 不调用）。
 func set_pending_decision(card: Dictionary) -> void:
 	pending_decision = card.duplicate(true)
+	if event_engine != null:
+		event_engine._pending_card = card.duplicate(true)
+	if not card.is_empty():
+		user_paused = true
 	_sync_card_block()
 
 
@@ -447,6 +463,8 @@ func settle_week() -> void:
 		var next_active := task_queue.get_active_task()
 		if not next_active.is_empty():
 			task_state_changed.emit(str(next_active.get("task_id", "")), "active")
+	# 周结第 3 步：消费 delayed 效果队列（在出分前消费）
+	event_engine.consume_delayed_effects(self)
 	# 周结第 4 步出分与第 5 步 SOTA 判定
 	var train_res := training.settle_week(research_eff, tech_bonus, economy.get_compute()["tier"])
 	if train_res.get("completed", false):
@@ -466,8 +484,24 @@ func settle_week() -> void:
 				sota_best = sota_board.get_best_score()
 				rival_best = r_score
 				sota_updated.emit({"model": r_model, "score": r_score, "rival": true})
-	# 周结第 7 步迷雾翻雾推进与第 10 步阶段软门重评
+	# 周结第 7 步迷雾翻雾推进
 	tech_fog.advance(get_influence())
+	# 周结第 8 步灵感触发与第 9 步事件抽取
+	event_engine.evaluate_inspiration(rng_stream, tech_fog)
+	var event_context := {
+		"money": get_money(),
+		"influence": get_influence(),
+		"week": week,
+	}
+	var ev_res := event_engine.evaluate_events(week, rng_stream, event_context, self)
+	if not event_engine.get_pending_card().is_empty():
+		if has_meta(DECISION_POLICY_META):
+			set_pending_decision(event_engine.get_pending_card())
+		else:
+			# 无 policy 注入时自动默认选项消费，保障全自动模拟不卡死
+			event_engine.choose_decision_option(0, self)
+			event_engine._pending_card.clear()
+	# 周结第 10 步阶段软门重评
 	var stage_context := {
 		"crossover_count": tech_fog.get_crossover_progress(),
 		"lit_techs": tech_fog.get_lit_techs(),
