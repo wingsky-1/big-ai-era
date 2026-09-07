@@ -26,9 +26,7 @@ whenToUse: 编码前预防、审查发现可疑旧语法、调试引擎行为异
 
 ## 高频静默坑（不报错但坏行为）
 
-1. **循环引用类型降级**：两个 class_name 互引 → 编译期静默降级为 Nil，
-   运行时 `Invalid call on Nil`。解法：弱引用（`weakref`）或解除一方类型注解。
-2. **RefCounted 循环引用泄漏**：A↔B 强引用互持永不释放。子方必须 `weakref`。
+1. **循环引用三连坑**（同一根因：两个 `class_name` 互相引用）：①编译期类型静默降级为 Nil，运行时才 `Invalid call on Nil`；②RefCounted A↔B 强引用互持永不释放（内存泄漏）。解法一体：依赖箭头保持单向（上层持下层），确需回指时子方用 `weakref`。本仓库铁律：RefCounted 双向引用必须 weakref（AGENTS.md 红线 5）。
 3. **autoload 与 class_name 同名**：解析直接失败（本仓库真实踩过）。
 4. **浮点等值比较** `if v == 0.0`：用 `is_zero_approx()` / `is_equal_approx()`。
 5. **物理改动时机**：非 `_physics_process` 中改刚体 → `call_deferred`。

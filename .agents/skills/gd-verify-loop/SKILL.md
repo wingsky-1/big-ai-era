@@ -30,7 +30,7 @@ bash scripts/export_all.sh all build   # 或单平台: windows / linux / web
 | 失败层 | 常见原因 | 解法 |
 | :--- | :--- | :--- |
 | gdformat | 手写格式冲突 | `gdformat src tests` 自动修 |
-| gdlint | 定义顺序/命名 | 看 code-style.md §4（@onready 位置！） |
+| gdlint | 定义顺序/命名 | 看 code-style.md「§4 文件结构顺序（gdlint 机器强制）」（@onready 必须排在普通变量之后） |
 | 导入 ERROR | UID 断链/场景损坏/autoload 解析 | 读首个 SCRIPT ERROR 行，通常是 class_name 冲突 |
 | GUT Failed | 断言失败 | 读语义消息；**Unexpected Errors** = 错误未消费，用 assert_push_error 消费 |
 | GUT 脚本解析失败 | 测试文件自身语法错 | 脚本级 Parse Error，测试整个被跳过（注意 Scripts 数对不对） |
