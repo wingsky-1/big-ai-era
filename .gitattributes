@@ -35,3 +35,10 @@
 *.gltf       filter=lfs diff=lfs merge=lfs -text
 *.fbx        filter=lfs diff=lfs merge=lfs -text
 *.aseprite   filter=lfs diff=lfs merge=lfs -text
+
+# ===== 低频静态资产豁免：git 直存（不启用 LFS，v0.1.2 裁决）=====
+# 字体内嵌与试玩截图属于"一次入库、永不改版"的资产，为免所有环境/CI
+# 都依赖 git-lfs（指针文件误入库会直接复现豆腐块事故），走 git 直存。
+# 后行规则覆盖上方的通配 LFS 规则（gitattributes 后行优先）。
+assets/fonts/*.ttf     -filter -diff -merge -text
+docs/playtest/screenshots/**/*.png -filter -diff -merge -text

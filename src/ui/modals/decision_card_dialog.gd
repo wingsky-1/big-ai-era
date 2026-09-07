@@ -20,6 +20,7 @@ func setup(event_data: Dictionary) -> void:
 
 
 func _ready() -> void:
+	ModalSizing.apply(self)
 	_render()
 
 
