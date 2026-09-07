@@ -46,6 +46,8 @@
 | DR-023 | **数据定稿三件套生效**（G2/G3/争点③关闭）：效果注册表 9 类型+timing 显式字段；竞对 8 动作（零 RNG 翻态规则，week~40 外溢改双 field 修 distill_garden 死谓词，evt_open_source_rumor 目标改 distill_garden/visible）；**14 节点 v2.1 定稿**——深思线 silver_leash（对齐）→cot_sketch（思维链独立起点）→silent_chain（挂 lit 门）；pocket_smart 转正蒲公英域交叉支路（parents=[distill_garden,hand_tutor] 勘误定稿），elsewhere 余 2（world/symbol），tool_forge 腾挪砍除；通感锚后（~26/~45）；逐节点 rp_cost Σ≈~10.4k（红线带 [8k,12k]，P50 7–9 自洽）；谓词注册表新增 lit{tech_id}；tech_fog 转移表增则（parents 全 lit⇒升 crossover）；开局任务链 task_reproduce_paper_0→silver_leash→task_reproduce_lingxi（教学闭环 ~4–6 周） | 长期定稿（数值 ~ 占位待 PR10 V-sim 收口） | 谓词/节点/效果扩展均=黄级纯数据；改 rp_cost=纯数据 |
 | DR-024 | **GitHub 建仓**：`github.com/wingsky-1/big-ai-era`（公开，main 已推，本地 verify.sh 全绿先行）；issue 排期/Pages/Release 沿用脚手架 workflow | 一次性 | 公开=Pages 免费可用，试玩闭环成立 |
 | DR-025 | **开工前文档批次**（不实施代码）：架构稿 v1.1（B1–B4/M1–M7/Q1–Q6/字段协商/v2.1 并入）→ 数值预演（RP 供需/现金流蒙特卡洛/sigmoid 量纲/竞对 ε/灵感三键）→ 模块-功能点-故事线文档 → 主策划提交 GitHub issue 排期 MVP 第一阶段（PR1–PR10）→ 方可实施 | 流程记录 | issue 按 PR 分组；玩家故事线表=试玩脚本底稿 |
+| DR-026 | **架构稿 v1.1 定稿生效**（`2026-09-07-mvp-architecture-plan-v11.md`，24 项修订清单随文）：命令 9→11（+get_ui_snapshot/start_new_game）、信号 10→11（+progress_ticked；naming_request=week_settled 载荷字段）、Game Over 短路判定写死收支后、paused 双源 OR、apply_delta 唯一过账口、E 矩阵"2 红（sota.by_key/staff.condition 预埋后归零）"、PR 序列重划 12 个（新增 5R；8 拆出结算卡、9 拆 9a/9b/9c） | 长期定稿（开工蓝本） | 后续架构改动在 v1.1 基础上追加修订记录 |
+| DR-027 | **数值预演结论生效**（`2026-09-07-mvp-balance-preview.md`）：①RP 供需重标——Σ(rp_cost+域门槛)≈12–16k（警戒带 [10k,20k]），λ=1.6 阈值表（早期 300–420/中继 550/后期 1300–2700/交叉 2400），"40 周内容墙"实锤已解；②现金流——被动流近无风险，V1 改双断言（基线 <1% + 标准扩张剧本 ∈[0.5%,8%]），破产线 -200k 维持、警告线建议 -30k（试玩定），开局资金 50k；③sigmoid 量纲勘误——k=13 真值表冻结（80→24.0/110→76.0），K=4.0+锚 2 改"中盘 eff≈100"；④竞对 ε——L1=12 周维持（先发率 49.4% 设计正中首训窗口），预警黄灯 ⌈0.15t⌉ 周/红灯 2 周零误报；⑤灵感三键 base=0.10/pity=8/cap=12，**cap=硬保底语义**（概率上限语义否决，20 周零雾率 12% 必破红线） | 长期定稿（数值 ~ 占位，PR3 后真 Economy 复算） | V 断言区间 JSON 初值随预演入 PR3；供给口径（三阶段占比曲线）待主策划锁口径确认 |
 
 ## D. 待回填项
 
@@ -54,13 +56,14 @@
 - **DR-013**：副题二选一待制作人随时拍；
 - **DR-019**：玩家之声四画像已闭环（处置见 DR-022）；
 - **文案交付包**：已交付（G8 关闭，敏感词/texts 40 键/8 卡/5 域终审）；
-- **数值预演**（RP 供需/蒙特卡洛/sigmoid 量纲/竞对 ε/灵感三键）进行中 → 参数移交清单随报告输出；
-- **issue 排期**：主策划待模块-功能点-故事线文档与 v1.1/预演齐备后提交（DR-025）。
+- **数值预演**：已交付并生效（DR-027）；余两项待主策划锁口径：供给口径（三阶段占比曲线 vs lab 30% 恒定）、灵感触发>可研节点数时的行为定义（v0.1.0 用"跳过并顺延 pity 减 2"兜底）；
+- **issue 排期**：主策划按 v1.1 的 12-PR 序列提交 issue（DR-025/026），进行中。
 
 ## E. 决策来源索引
 
 - 争点与共识细节：`2026-09-07-round2-brainstorm-synthesis.md` §2–§4
 - 第一轮冲突与裁决：`2026-09-07-expert-round1-design-bones.md` (v1.1) §2 + R1–R6
-- 架构契约：`2026-09-07-mvp-architecture-plan.md`（A–G）
+- 架构契约：`2026-09-07-mvp-architecture-plan.md`（v1.0）+ `2026-09-07-mvp-architecture-plan-v11.md`（v1.1 开工蓝本，24 项修订清单随文）
+- 数值契约：`2026-09-07-mvp-balance-preview.md`（五项预演+参数移交清单）
 - 机制细节：`2026-09-07-producer-completeness-review.md` §3（打磨排序）
-- 架构类决策落 ADR-0005~0009（拍板后随 GDD v3 同批落笔）
+- 架构类决策落 ADR-0005~0009（随 GDD v3 同批落笔；ADR-0009 待裁 TechFog 独立 vs 复用）
