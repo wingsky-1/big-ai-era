@@ -1,0 +1,202 @@
+{
+	"opening_line_intro": {
+		"text": "2022 年深秋，你接过母校 AI 实验室的钥匙：三张工位、一块旧显卡，和一屋子待还的论文债。",
+		"max_len": 60,
+		"vars": []
+	},
+	"opening_line_goal": {
+		"text": "从复现别人的论文起步，点亮属于你的技术树，把小组带成最强的实验室。",
+		"max_len": 60,
+		"vars": []
+	},
+	"opening_line_rival": {
+		"text": "隔壁深巷科技刚发布了新模型。榜单不会等人——先让机器跑起来。",
+		"max_len": 60,
+		"vars": []
+	},
+	"opening_line_hint": {
+		"text": "分配研究员、接下课题、攒出算力，第 1 周已经开始流淌。",
+		"max_len": 60,
+		"vars": []
+	},
+	"naming_title": {
+		"text": "为模型署名",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_prompt": {
+		"text": "这个名字将印在评测榜单与实验室的历史里。想好，或者交给命运。",
+		"max_len": 60,
+		"vars": []
+	},
+	"naming_input_hint": {
+		"text": "2~12 个字符，避开真实公司与产品名",
+		"max_len": 20,
+		"vars": []
+	},
+	"naming_button_submit": {
+		"text": "署名发布",
+		"max_len": 8,
+		"vars": []
+	},
+	"naming_button_skip": {
+		"text": "交给命运",
+		"max_len": 8,
+		"vars": []
+	},
+	"naming_too_long_toast": {
+		"text": "太长了，榜单格子装不下",
+		"max_len": 20,
+		"vars": []
+	},
+	"naming_sensitive_toast": {
+		"text": "这个名字过不了风评审核",
+		"max_len": 20,
+		"vars": []
+	},
+	"naming_empty_toast": {
+		"text": "总得有个名字吧",
+		"max_len": 20,
+		"vars": []
+	},
+	"naming_success_toast": {
+		"text": "「{name}」正式发布！",
+		"max_len": 20,
+		"vars": ["name"]
+	},
+	"naming_banner": {
+		"text": "「{name}」登顶 SOTA 榜！",
+		"max_len": 30,
+		"vars": ["name"]
+	},
+	"naming_default_toast": {
+		"text": "随缘命名：「{name}」",
+		"max_len": 20,
+		"vars": ["name"]
+	},
+	"naming_fallback_01": {
+		"text": "夸父",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_02": {
+		"text": "精卫",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_03": {
+		"text": "望舒",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_04": {
+		"text": "天枢",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_05": {
+		"text": "织女",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_06": {
+		"text": "晨曦",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_07": {
+		"text": "远航",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_08": {
+		"text": "星火",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_09": {
+		"text": "启明",
+		"max_len": 12,
+		"vars": []
+	},
+	"naming_fallback_10": {
+		"text": "逐光",
+		"max_len": 12,
+		"vars": []
+	},
+	"report_headline": {
+		"text": "【头条】{headline}",
+		"max_len": 30,
+		"vars": ["headline"]
+	},
+	"report_money_row": {
+		"text": "收支｜入 {income} · 出 {expense} · 结余 {net}",
+		"max_len": 60,
+		"vars": ["income", "expense", "net"]
+	},
+	"report_reputation_row": {
+		"text": "声誉｜影响力 {influence}（本周 {influence_delta}）",
+		"max_len": 60,
+		"vars": ["influence", "influence_delta"]
+	},
+	"report_event_row": {
+		"text": "事件｜{event_text}",
+		"max_len": 30,
+		"vars": ["event_text"]
+	},
+	"report_fog_row": {
+		"text": "迷雾｜{fog_text}",
+		"max_len": 30,
+		"vars": ["fog_text"]
+	},
+	"report_training_row": {
+		"text": "训练｜{training_text}",
+		"max_len": 30,
+		"vars": ["training_text"]
+	},
+	"sys_app_title": {
+		"text": "大 AI 时代",
+		"max_len": 12,
+		"vars": []
+	},
+	"sys_week_label": {
+		"text": "第 {week} 周",
+		"max_len": 8,
+		"vars": ["week"]
+	},
+	"sys_money_label": {
+		"text": "资金",
+		"max_len": 8,
+		"vars": []
+	},
+	"sys_compute_label": {
+		"text": "算力",
+		"max_len": 8,
+		"vars": []
+	},
+	"sys_influence_label": {
+		"text": "影响力",
+		"max_len": 8,
+		"vars": []
+	},
+	"sys_speed_paused": {
+		"text": "已暂停",
+		"max_len": 8,
+		"vars": []
+	},
+	"sys_save_hint": {
+		"text": "进度已保存",
+		"max_len": 20,
+		"vars": []
+	},
+	"sys_menu_new_game": {
+		"text": "新开实验室",
+		"max_len": 8,
+		"vars": []
+	},
+	"sys_menu_continue": {
+		"text": "继续经营",
+		"max_len": 8,
+		"vars": []
+	}
+}

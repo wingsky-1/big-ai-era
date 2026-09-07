@@ -6,14 +6,15 @@ extends GutTest
 ## 引擎报错，必须用 assert_push_error / assert_engine_error 显式消费，
 ## 否则任何未被处理的错误都会导致测试失败（Unexpected Errors）。
 
-const ITEMS_PATH: String = "res://src/data/items.json"
+const TEXTS_PATH: String = "res://src/data/texts.json"
 
 
-func test_load_items_table_succeeds() -> void:
-	var items := DataLoader.load_json(ITEMS_PATH)
-	assert_eq(items.size(), 2, "示例数据表应包含 2 个条目")
-	assert_true(items.has("potion_small"), "应包含 potion_small 条目")
-	assert_eq(int(items.get("potion_small", {}).get("heal", 0)), 30, "药水治疗量应为 30")
+func test_load_texts_table_succeeds() -> void:
+	var texts := DataLoader.load_json(TEXTS_PATH)
+	assert_eq(texts.size(), 40, "文本起步集应包含 40 个键")
+	assert_true(texts.has("opening_line_intro"), "应包含 opening_line_intro 条目")
+	var intro: Dictionary = texts.get("opening_line_intro", {})
+	assert_eq(int(intro.get("max_len", 0)), 60, "开场白 max_len 应为 60")
 	assert_push_error_count(0, "正常路径不应产生任何错误")
 
 
@@ -37,7 +38,7 @@ func test_non_object_json_returns_empty_dict() -> void:
 
 
 func test_utf8_content_preserved() -> void:
-	var items := DataLoader.load_json(ITEMS_PATH)
-	var small: Dictionary = items.get("potion_small", {})
+	var texts := DataLoader.load_json(TEXTS_PATH)
+	var intro: Dictionary = texts.get("opening_line_intro", {})
 	# 注意：assert_string_contains 第三参是 match_case 而非消息，勿传中文消息
-	assert_string_contains(str(small.get("name", "")), "药水")
+	assert_string_contains(str(intro.get("text", "")), "实验室")
