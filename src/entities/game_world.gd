@@ -71,6 +71,8 @@ var task_queue: TaskQueue
 var tech_fog: TechFog
 var tech_tree: TechTree
 var stages: Stages
+var training: TrainingProject
+var sota_board: SotaBoard
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
@@ -98,10 +100,13 @@ func _init() -> void:
 	tech_fog = TechFog.new()
 	tech_tree = TechTree.new()
 	stages = Stages.new()
+	training = TrainingProject.new()
+	sota_board = SotaBoard.new()
 	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
 	tech_fog.setup(techs_cfg)
 	tech_tree.setup(techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
+	training.setup(DataLoader.load_json("res://src/data/model_bases.json"))
 
 
 ## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
@@ -161,6 +166,10 @@ func start_new_game(seed: int = 0) -> void:
 	tech_fog.setup(techs_cfg)
 	tech_tree.setup(techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
+	training.setup(DataLoader.load_json("res://src/data/model_bases.json"))
+	sota_board.setup(opening, DataLoader.load_json("res://src/data/benchmarks.json"))
+	sota_best = sota_board.get_best_score()
+	rival_best = sota_board.get_rival_best()
 	_income_roll_seed = rng_seed
 	_named_ids.clear()
 	_last_signal_report = {}
@@ -234,21 +243,48 @@ func start_research(tech_id: String) -> void:
 		_emit_resources()
 
 
-func start_training(_base_id: String) -> void:
-	_not_implemented_yet("start_training")
+func start_training(base_id: String) -> void:
+	var context := {
+		"research_eff": research_eff,
+		"compute_tier": economy.get_compute()["tier"],
+		"money": get_money(),
+		"economy": economy,
+	}
+	var res := training.start_training(base_id, context)
+	if res.get("ok", false):
+		_emit_resources()
 
 
 func choose_decision(_pending_id: String, _option_idx: int) -> void:
 	_not_implemented_yet("choose_decision")
 
 
-## 命名（⚠️② 预览路径，PR6 接入长度/敏感词校验+名池轮转；骨架接受合法名）。
+## 命名（PR6 接入长度/敏感词校验+名池轮转+转义防二次解析）。
 func submit_model_name(raw: String) -> void:
-	if game_over_flag or raw.is_empty():
+	if game_over_flag:
 		return
-	model_name = raw
-	_named_ids[raw] = true
-	model_named.emit(raw)
+
+	var candidate := raw.strip_edges()
+	var final_name := candidate
+
+	# 若玩家输入为空或跳过命名，从默认名池确定性轮转
+	if candidate.is_empty():
+		final_name = TextService.default_name(_named_cursor)
+		_named_cursor += 1
+	else:
+		# 单大括号转义防二次注入：把 { 替换为 {{，把 } 替换为 }}
+		var escaped := candidate.replace("{", "{{").replace("}", "}}")
+		# 校验长度（<= 20）与敏感词
+		var stripped_brackets := candidate.replace("{", "").replace("}", "")
+		if not TextService.is_name_allowed(stripped_brackets, 20):
+			# 敏感词或不合法拒绝
+			toast_queued.emit({"text_key": "naming_sensitive_reject"})
+			return
+		final_name = escaped
+
+	model_name = final_name
+	_named_ids[final_name] = true
+	model_named.emit(final_name)
 
 
 ## 暂停键（Q4 防御第一半：blocked 期间解除请求被拒；GameClock 持第二半）。
@@ -284,8 +320,11 @@ func restore(data: Dictionary) -> void:
 		float(compute.get("hours_remaining", 0.0))
 	)
 	var sota: Dictionary = data.get("sota", {})
-	sota_best = float(sota.get("best", 0.0))
-	rival_best = float(sota.get("rival_best", 0.0))
+	sota_board.restore(sota)
+	sota_best = sota_board.get_best_score()
+	rival_best = sota_board.get_rival_best()
+	var training_data: Dictionary = data.get("training", {})
+	training.restore(training_data)
 	var staff_data: Dictionary = data.get("staff", {})
 	var opening := DataLoader.load_json("res://src/data/opening.json")
 	var staff_table := DataLoader.load_json("res://src/data/staff.json")
@@ -397,6 +436,15 @@ func settle_week() -> void:
 		var next_active := task_queue.get_active_task()
 		if not next_active.is_empty():
 			task_state_changed.emit(str(next_active.get("task_id", "")), "active")
+	# 周结第 4 步出分与第 5 步 SOTA 判定
+	var train_res := training.settle_week(research_eff, tech_bonus, economy.get_compute()["tier"])
+	if train_res.get("completed", false):
+		var score: float = float(train_res.get("score", 0.0))
+		var current_name := model_name if model_name != "" else "未命名"
+		var broken := sota_board.submit_score(current_name, score)
+		if broken:
+			sota_best = sota_board.get_best_score()
+			sota_updated.emit({"model": current_name, "score": sota_best, "rival": false})
 	# 周结第 7 步迷雾翻雾推进与第 10 步阶段软门重评
 	tech_fog.advance(get_influence())
 	var stage_context := {
