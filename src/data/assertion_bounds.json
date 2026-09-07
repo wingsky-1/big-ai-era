@@ -1,0 +1,21 @@
+{
+	"_meta": {
+		"version": "v1.0-frozen",
+		"note": "PR10 数值断言区间冻结（DR-027 / issue #20 / 预演报告收窄）"
+	},
+	"v1_cash_flow": {
+		"baseline_bankrupt_rate_max": 0.01,
+		"expansion_script_rate_min": 0.005,
+		"expansion_script_rate_max": 0.08
+	},
+	"v6_tech_lit_distribution": {
+		"p10_min": 5,
+		"p50_min": 7,
+		"p50_max": 9,
+		"p90_max": 11,
+		"supply_anchor_rp": 12300
+	},
+	"v10_window": {
+		"max_gap_weeks": 40
+	}
+}
