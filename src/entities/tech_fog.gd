@@ -44,6 +44,23 @@ func _init(techs_path: String = DEFAULT_TECHS_PATH) -> void:
 	reset()
 
 
+## 允许外部传入字典配置重置（对齐其他实体 setup 约定）
+func setup(config: Dictionary) -> void:
+	_fog_gate_rumored = int(config.get("fog_gate", {}).get("rumored", 200))
+	_fog_gate_visible = int(config.get("fog_gate", {}).get("visible", 600))
+	_nodes_data = config.get("nodes", {}).duplicate(true)
+	reset()
+
+
+## 获取所有已点亮科技 ID 列表
+func get_lit_techs() -> Array[String]:
+	var lit_list: Array[String] = []
+	for node_id: String in _fog_states:
+		if _fog_states[node_id] == STATE_LIT:
+			lit_list.append(node_id)
+	return lit_list
+
+
 func reset() -> void:
 	_fog_states.clear()
 	_pity_counter = 0
