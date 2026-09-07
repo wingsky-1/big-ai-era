@@ -17,15 +17,19 @@ v0.1.1 在线 Pages 试玩暴露两个渲染层缺陷：
 
 ## 决策
 
-### D1: 内嵌文泉驿微米黑，三处收口
+### D1: 内嵌文泉驿微米黑，场景级 Theme 收口
 
 - 资产: `assets/fonts/WQY-MicroHei.ttf`（自系统 wqy-microhei.ttc index 0 提取，
   4.6MB，许可全文随资产入库）。
 - **许可选择依据**: WQY-MicroHei 为双许可（GPL with font exception / Apache 2.0），
   ttc index 0 为 Droid Sans Fallback 衍生的 Apache 分支——选 Apache 2.0 侧：
   与项目 MIT 主许可兼容且无 copyleft 传染，闭源分发亦无负担。
-- 收口链: `dark_gold_theme.tres → default_font`（主链） +
-  `project.godot gui/theme/custom`（原生 Window 类兜底）。
+- 收口链: `dark_gold_theme.tres → default_font`（主链）。AppShell 根与 5 个弹层
+  根均显式挂载该 Theme，覆盖全部游戏内控件。
+- **`gui/theme/custom` 兜底层已移除**：CI 冷环境实证——首次 `--import` 时编辑器
+  启动路径会先解析该设置，此刻字体尚未完成导入，主题解析必然报错（资源断链
+  ERROR）。收益（仅覆盖"未来可能出现的原生 Window 弹窗"）不抵该确定性风险；
+  若未来引入原生 Window 类弹窗，直接在其场景根挂同一 Theme 即可。
 - 防回归: `verify.sh` 字体二进制门禁（防 LFS 指针入库）+ `test_theme_font.gd`
   （default_font 存在性 / 汉字与 UI 符号字形覆盖抽查 / 资产文件头 / 豁免规则）。
 - **符号禁令**: WQY 无 U+23F8（⏸）/U+23F3（⏳）字形（截图实证豆腐），

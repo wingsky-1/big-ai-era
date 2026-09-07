@@ -27,13 +27,6 @@ window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
-[gui]
-
-; 全局 Theme 兜底：保证任何未挂 AppShell Theme 的节点（如原生 Window 类弹窗）
-; 也解析到内嵌中文字体，杜绝 Web 端豆腐块（v0.1.1 事故根因）。
-; 注意：本文件注释必须用分号，# 会被 ConfigFile 解析成键名的一部分。
-theme/custom="res://src/ui/theme/dark_gold_theme.tres"
-
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/gut/plugin.cfg")

@@ -21,9 +21,20 @@ func test_theme_default_font_is_cjk_capable() -> void:
 		assert_true(font_file.has_char(codepoint), "字体应含 UI 符号 U+%04X" % codepoint)
 
 
-func test_project_custom_theme_fallback() -> void:
-	var custom: String = ProjectSettings.get_setting("gui/theme/custom", "")
-	assert_eq(custom, "res://src/ui/theme/dark_gold_theme.tres", "gui/theme/custom 兜底应指向主 Theme")
+func test_theme_chain_covers_scene_roots() -> void:
+	# gui/theme/custom 兜底层已裁决移除（冷导入序风险，见 ADR-0010），
+	# 字体收口依赖场景级 theme 挂载：主壳与全部弹层根必须各自挂主 Theme。
+	var theme_path := "res://src/ui/theme/dark_gold_theme.tres"
+	for scene_path: String in [
+		"res://src/ui/main/main.tscn",
+		"res://src/ui/modals/decision_card_dialog.tscn",
+		"res://src/ui/modals/weekly_report_dialog.tscn",
+		"res://src/ui/modals/tech_tree_dialog.tscn",
+		"res://src/ui/modals/staff_roster_dialog.tscn",
+		"res://src/ui/modals/game_over_dialog.tscn",
+	]:
+		var txt := FileAccess.get_file_as_string(scene_path)
+		assert_true(txt.contains(theme_path), "%s 根节点应挂主 Theme（字体收口链）" % scene_path)
 
 
 func test_font_asset_is_real_binary_not_lfs_pointer() -> void:
