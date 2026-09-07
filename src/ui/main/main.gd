@@ -5,11 +5,18 @@ extends Control
 ## 整合 DashboardPresenter, GameLoopDriver, ResponsiveLayoutManager 与 PanelStack。
 ## UI 表现层零写路径：只单向监听 GameWorld 契约信号或调用 GameWorld 11 项契约命令。
 
+const DECISION_CARD_SCENE: PackedScene = preload("res://src/ui/modals/decision_card_dialog.tscn")
+const WEEKLY_REPORT_SCENE: PackedScene = preload("res://src/ui/modals/weekly_report_dialog.tscn")
+const GAME_OVER_SCENE: PackedScene = preload("res://src/ui/modals/game_over_dialog.tscn")
+
 var _world: GameWorld
+var _world_ref: WeakRef
 var _presenter: DashboardPresenter
 var _driver: GameLoopDriver
 var _layout_mgr: ResponsiveLayoutManager
 var _stack: PanelStack
+var _active_modals: Dictionary = {}
+var _mask_overlay: ColorRect
 
 @onready var resource_bar: PanelContainer = %ResourceBar
 @onready var resource_subrow: HBoxContainer = %ResourceSubrow
@@ -55,6 +62,13 @@ func _exit_tree() -> void:
 	if _driver != null:
 		_driver.free()
 		_driver = null
+	if _mask_overlay != null and is_instance_valid(_mask_overlay):
+		_mask_overlay.free()
+		_mask_overlay = null
+	for modal in _active_modals.values():
+		if is_instance_valid(modal):
+			modal.free()
+	_active_modals.clear()
 
 
 func _process(delta: float) -> void:
@@ -96,8 +110,14 @@ func get_text_count() -> int:
 func _init_runtime_systems() -> void:
 	_world = GameWorld.new()
 	_world.start_new_game()
+	_world_ref = weakref(_world)
 
 	_stack = PanelStack.new()
+	_stack.panel_pushed.connect(_on_panel_pushed)
+	_stack.panel_popped.connect(_on_panel_popped)
+	_stack.mask_state_changed.connect(_on_mask_state_changed)
+	_stack.tick_feeding_gate_changed.connect(_on_tick_feeding_gate_changed)
+
 	_presenter = DashboardPresenter.new()
 	_presenter.setup(_world, _stack)
 
@@ -108,8 +128,90 @@ func _init_runtime_systems() -> void:
 	_layout_mgr.setup(get_viewport_rect().size)
 	_layout_mgr.layout_folded.connect(_on_layout_folded)
 
+	_setup_mask_overlay()
+
 	# 初始同步折叠状态
 	resource_subrow.visible = not _layout_mgr.is_resource_subrow_folded()
+
+
+func _setup_mask_overlay() -> void:
+	_mask_overlay = ColorRect.new()
+	_mask_overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+	_mask_overlay.set_anchors_preset(PRESET_FULL_RECT)
+	_mask_overlay.visible = false
+	_mask_overlay.gui_input.connect(_on_mask_gui_input)
+	modal_container.add_child(_mask_overlay)
+
+
+func _on_mask_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_stack.on_mask_clicked()
+
+
+func _on_mask_state_changed(mask_visible: bool, _dismissable: bool) -> void:
+	if _mask_overlay != null:
+		_mask_overlay.visible = mask_visible
+
+
+func _on_tick_feeding_gate_changed(allow_feeding: bool) -> void:
+	if _driver != null:
+		_driver.set_feeding_enabled(allow_feeding)
+
+
+func _on_panel_pushed(panel_id: String, _layer: int) -> void:
+	var world := _resolve_world()
+	if world == null:
+		return
+
+	match panel_id:
+		PanelStack.PANEL_DECISION_CARD:
+			var event_data: Dictionary = world.pending_decision
+			var modal: DecisionCardDialog = DECISION_CARD_SCENE.instantiate()
+			modal.setup(event_data)
+			modal.option_selected.connect(
+				func(idx: int) -> void:
+					world.choose_decision(str(event_data.get("id", "")), idx)
+					_stack.pop_panel(PanelStack.PANEL_DECISION_CARD)
+			)
+			_active_modals[panel_id] = modal
+			modal_container.add_child(modal)
+
+		PanelStack.PANEL_AUTO_REPORT, PanelStack.PANEL_REPORT_ARCHIVE:
+			var report_data: Dictionary = _presenter.get_resource_view()
+			var modal: WeeklyReportDialog = WEEKLY_REPORT_SCENE.instantiate()
+			modal.setup(report_data)
+			modal.confirmed.connect(func() -> void: _stack.pop_panel(panel_id))
+			_active_modals[panel_id] = modal
+			modal_container.add_child(modal)
+
+		PanelStack.PANEL_GAME_OVER:
+			var summary: Dictionary = _presenter.get_game_over_summary()
+			var modal: GameOverDialog = GAME_OVER_SCENE.instantiate()
+			modal.setup(summary)
+			modal.restart_requested.connect(
+				func() -> void:
+					world.start_new_game()
+					_stack.pop_panel(PanelStack.PANEL_GAME_OVER)
+					_update_views()
+			)
+			_active_modals[panel_id] = modal
+			modal_container.add_child(modal)
+
+
+func _on_panel_popped(panel_id: String, _layer: int) -> void:
+	if _active_modals.has(panel_id):
+		var modal: Node = _active_modals[panel_id]
+		_active_modals.erase(panel_id)
+		if is_instance_valid(modal):
+			modal.queue_free()
+
+
+func _resolve_world() -> GameWorld:
+	if _world_ref != null:
+		var w: Variant = _world_ref.get_ref()
+		if w != null and w is GameWorld:
+			return w as GameWorld
+	return _world
 
 
 func _connect_ui_events() -> void:
@@ -122,10 +224,12 @@ func _connect_ui_events() -> void:
 	dock_report_btn.pressed.connect(_on_dock_report_pressed)
 	dock_pause_btn.pressed.connect(_on_dock_pause_pressed)
 
-	_world.resources_changed.connect(func(_res: Dictionary) -> void: _update_views())
-	_world.progress_ticked.connect(func(_type: String, _pct: float) -> void: _update_views())
-	_world.task_state_changed.connect(func(_active: Dictionary, _q: Array) -> void: _update_views())
-	_world.week_settled.connect(func(_w: int, _r: Dictionary) -> void: _update_views())
+	_world.resources_changed.connect(
+		func(_money: int, _comp: float, _inf: int) -> void: _update_views()
+	)
+	_world.progress_ticked.connect(func(_prog: Dictionary) -> void: _update_views())
+	_world.task_state_changed.connect(func(_tid: String, _st: String) -> void: _update_views())
+	_world.week_settled.connect(func(_report: Dictionary) -> void: _update_views())
 	_world.toast_queued.connect(_on_toast_queued)
 
 
@@ -163,16 +267,16 @@ func _update_speed_buttons() -> void:
 
 
 func _on_dock_tech_pressed() -> void:
-	_stack.push("tech_tree")
+	_stack.push_panel(PanelStack.PANEL_TECH_TREE)
 
 
 func _on_dock_report_pressed() -> void:
-	_stack.push("weekly_report")
+	_presenter.open_report_archive()
 
 
 func _on_dock_pause_pressed() -> void:
 	_world.set_paused(true)
-	_stack.push("pause_menu")
+	_stack.push_panel(PanelStack.PANEL_PAUSE_MENU)
 
 
 func _on_toast_queued(msg: String, _color_tag: String) -> void:
