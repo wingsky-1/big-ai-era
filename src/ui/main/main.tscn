@@ -151,6 +151,7 @@ layout_mode = 2
 [node name="StaffCountLabel" type="Label" parent="ShellVBox/Workspace/WorkspaceVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 0
 text = "在岗研究员: 0人"
 
 [node name="ToastLabel" type="Label" parent="ShellVBox/Workspace/WorkspaceVBox"]
