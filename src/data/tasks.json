@@ -1,0 +1,61 @@
+{
+	"task_reproduce_paper_0": {
+		"duration_weeks": 3,
+		"rp_output": 50,
+		"income": 8000,
+		"cost": 0,
+		"enabled": true,
+		"unlock": {
+			"predicate": "none",
+			"params": {}
+		}
+	},
+	"task_research_basic": {
+		"duration_weeks": 4,
+		"rp_output": 150,
+		"income": 0,
+		"cost": 0,
+		"enabled": true,
+		"unlock": {
+			"predicate": "none",
+			"params": {}
+		}
+	},
+	"task_grant_pilot": {
+		"duration_weeks": 4,
+		"rp_output": 0,
+		"income": 35000,
+		"cost": 2000,
+		"enabled": true,
+		"unlock": {
+			"predicate": "min_money",
+			"params": {
+				"amount": 2000
+			}
+		}
+	},
+	"task_reproduce_lingxi": {
+		"duration_weeks": 4,
+		"rp_output": 100,
+		"income": 12000,
+		"cost": 0,
+		"enabled": true,
+		"unlock": {
+			"predicate": "tech_lit",
+			"params": {
+				"tech_id": "silver_leash"
+			}
+		}
+	},
+	"task_deploy_placeholder": {
+		"duration_weeks": 6,
+		"rp_output": 0,
+		"income": 0,
+		"cost": 0,
+		"enabled": false,
+		"unlock": {
+			"predicate": "never",
+			"params": {}
+		}
+	}
+}
