@@ -50,6 +50,7 @@ PR（自检清单）→ 评审（gd-code-review）→ 合并 → 人类试玩。
 | 数值表/公式/模拟验证 | `gd-balance-designer` |
 | 文本/i18n/命名 | `gd-narrative-designer` |
 | 界面/HUD/适配 | `gd-ui-ux-designer` |
+| 测试策略/门禁草案 | `gd-test-engineer` |
 | Godot 语法疑虑 | `gd-godot4-gotchas` |
 | 试玩反馈处理 | `gd-playtest-intake` |
 | 改完代码自检 | `gd-verify-loop` |
