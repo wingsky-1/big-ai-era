@@ -15,10 +15,12 @@ extends RefCounted
 
 const CURRENT_VERSION: int = 1
 
-## schema v1 机制壳全量字段（v1.1 §C）：结构真源；数值为壳占位，业务初值由
-## start_new_game（PR3）写入，字段集冻结与单测由 PR5R 收口。
+## schema v1 机制壳全量字段（v1.1 §C + PR5R 冻结包硬 deadline）：
+## 包含 tutorial{step,done}、cum_income（经营性口径）、staff.condition 预埋、
+## sota.by_key 预埋、flags 开放容器。
 const V1_SHELL: Dictionary = {
 	"week": 0,
+	"cum_income": 0,
 	"resources":
 	{
 		"money": 0,
@@ -35,6 +37,7 @@ const V1_SHELL: Dictionary = {
 	"player_model_names": [],
 	"stages": {"current": 0},
 	"sota": {"best": 0.0, "rival_best": 0.0, "by_key": {}},
+	"tutorial": {"step": 0, "done": false},
 	"flags": {},
 }
 
