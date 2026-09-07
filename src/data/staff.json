@@ -1,0 +1,20 @@
+{
+	"r_lin": {
+		"name": "林拾光",
+		"research": 70,
+		"engineering": 55,
+		"wage": 2000
+	},
+	"r_wen": {
+		"name": "温若愚",
+		"research": 55,
+		"engineering": 70,
+		"wage": 2000
+	},
+	"r_bai": {
+		"name": "白鹿鸣",
+		"research": 62,
+		"engineering": 62,
+		"wage": 2000
+	}
+}

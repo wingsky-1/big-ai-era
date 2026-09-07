@@ -1,0 +1,11 @@
+{
+	"_meta": {
+		"note": "W0 开局态（GW8）：money=issue#1 口径硬锚 50k；rival_best=灵犀 Chat 按 θ=95/k=13 sigmoid 表 A=80→24.0；staff 种子表 PR4 ST1 扩展"
+	},
+	"rival_model_name": "灵犀 Chat",
+	"money": 50000,
+	"influence": 0,
+	"compute": {"tier": 1, "hours_remaining": 0},
+	"rival_best": 24.0,
+	"staff_ids": ["r_lin", "r_wen", "r_bai"]
+}
