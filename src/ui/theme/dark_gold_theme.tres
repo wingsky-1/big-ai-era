@@ -1,0 +1,18 @@
+[gd_resource type="Theme" load_steps=6 format=3]
+
+[ext_resource type="StyleBox" path="res://src/ui/theme/stylebox_button_normal.tres" id="1_btn_normal"]
+[ext_resource type="StyleBox" path="res://src/ui/theme/stylebox_button_hover.tres" id="2_btn_hover"]
+[ext_resource type="StyleBox" path="res://src/ui/theme/stylebox_button_pressed.tres" id="3_btn_pressed"]
+[ext_resource type="StyleBox" path="res://src/ui/theme/stylebox_panel.tres" id="4_panel"]
+[ext_resource type="StyleBox" path="res://src/ui/theme/stylebox_panel2.tres" id="5_panel2"]
+
+[resource]
+default_font_size = 14
+Button/colors/font_color = Color(0.910, 0.925, 0.949, 1.0)
+Button/colors/font_hover_color = Color(0.910, 0.702, 0.294, 1.0)
+Button/colors/font_pressed_color = Color(0.102, 0.078, 0.031, 1.0)
+Button/styles/normal = ExtResource("1_btn_normal")
+Button/styles/hover = ExtResource("2_btn_hover")
+Button/styles/pressed = ExtResource("3_btn_pressed")
+Label/colors/font_color = Color(0.910, 0.925, 0.949, 1.0)
+PanelContainer/styles/panel = ExtResource("4_panel")
