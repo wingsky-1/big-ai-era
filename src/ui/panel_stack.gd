@@ -35,6 +35,7 @@ enum PanelId {
 	PAUSE_MENU,  ## z2 暂停菜单（遮罩可关）
 	AUTO_REPORT,  ## z2 周结自动周报
 	FINALE,  ## z2 终局收尾屏（#82 RF-03；与 GAME_OVER 破产卡两套并存）
+	TRAINING,  ## z1 训练基座选择（#104 PR-B；追加于枚举末尾，避免既有隐式值位移）
 }
 
 ## 面板所在操作层级（z0/z3 为概念层，不入栈操作）

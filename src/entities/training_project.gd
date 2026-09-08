@@ -30,6 +30,51 @@ func get_active_training() -> Dictionary:
 	return _active_training.duplicate(true)
 
 
+## 训练板行（#104 PR-B：L2 只出数，不出文案；文案由 GameWorld 依 ui_display 拼装）。
+## 返回**全部基座**（含当前不可启动者与原因），按数据表键序稳定。
+func get_base_rows(context: Dictionary) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for base_id: String in _bases_cfg:
+		var cfg: Dictionary = _bases_cfg[base_id]
+		var check: Dictionary = can_start_training(base_id, context)
+		(
+			rows
+			. append(
+				{
+					"base_id": base_id,
+					"name": str(cfg.get("name", base_id)),
+					"train_weeks": int(cfg.get("train_weeks", 0)),
+					"min_tier": int(cfg.get("min_tier", 0)),
+					"max_staff": int(cfg.get("max_staff", 0)),
+					"hours_per_week": int(cfg.get("hours_per_week", 0)),
+					"quality": float(cfg.get("quality", 0.0)),
+					"cost": int(cfg.get("cost", 0)),
+					"ok": bool(check.get("ok", false)),
+					"reason": str(check.get("reason", "")),
+					"active": str(_active_training.get("base_id", "")) == base_id,
+				}
+			)
+		)
+	return rows
+
+
+## 基座显示名（数据表 name 真源；缺键退化为 id）。
+func get_base_name(base_id: String) -> String:
+	var cfg: Dictionary = _bases_cfg.get(base_id, {})
+	return str(cfg.get("name", base_id))
+
+
+## 进行中训练进度（0…1，周粒度；L2 出数，L3 只显示）。
+func get_active_progress() -> float:
+	if not is_training():
+		return 0.0
+	var total: int = int(_active_training.get("total_weeks", 0))
+	if total <= 0:
+		return 0.0
+	var weeks_left: int = int(_active_training.get("weeks_left", 0))
+	return clampf(float(total - weeks_left) / float(total), 0.0, 1.0)
+
+
 ## 预检是否满足训练启动条件
 func can_start_training(base_id: String, context: Dictionary) -> Dictionary:
 	var reason: String = ""
