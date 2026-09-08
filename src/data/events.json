@@ -6,6 +6,14 @@
 		"pity_boost_factor": 2.0,
 		"pity_skip_step": 2
 	},
+	"event_spec": {
+		"p_week": 0.35,
+		"max_money": 5000,
+		"max_rp_grant": 60,
+		"max_influence": 20,
+		"weekly_net_cap": 600,
+		"_comment": "事件闸自洽参数组（DR-031/C2 裁决；出处 docs/discussion/2026-09-08-decision-session-minutes.md §2.6 + v1-requirements §5.3）。p_week 复用 event_roll 域不新增 RNG 域；单卡上限 money/rp_grant/influence 由 EventEngine.validate_card_caps 全表校验；weekly_net_cap 为事件期望净效果周上限。"
+	},
 	"events": [
 		{
 			"id": "evt_open_source_rumor",
@@ -34,14 +42,15 @@
 			"trigger": {
 				"predicate": "none",
 				"weight": 25,
-				"once": false
+				"once": false,
+				"cooldown_weeks": 8
 			},
 			"title": "横向课题资助",
 			"description": "高校科研联合资助到账。",
 			"effects": [
 				{
 					"type": "money",
-					"value": 15000,
+					"value": 4500,
 					"timing": "immediate"
 				}
 			]
@@ -52,15 +61,16 @@
 			"kind": "notice",
 			"trigger": {
 				"predicate": "none",
-				"weight": 20,
-				"once": false
+				"weight": 50,
+				"once": false,
+				"cooldown_weeks": 8
 			},
 			"title": "论文顶会录用",
 			"description": "实验室最新成果登上顶会，学术声誉大增。",
 			"effects": [
 				{
 					"type": "influence",
-					"value": 100,
+					"value": 20,
 					"timing": "immediate"
 				}
 			]
@@ -72,7 +82,8 @@
 			"trigger": {
 				"predicate": "none",
 				"weight": 15,
-				"once": false
+				"once": false,
+				"cooldown_weeks": 8
 			},
 			"title": "云厂商卡时赠送",
 			"description": "云服务商提供了试用算力补贴。",
@@ -97,11 +108,11 @@
 			"description": "某硬件厂商提出赞助方案，但需承担合作课题。",
 			"options": [
 				{
-					"text": "接受设备补贴（资金+30k）",
+					"text": "接受设备补贴（资金+5k）",
 					"effects": [
 						{
 							"type": "money",
-							"value": 30000,
+							"value": 5000,
 							"timing": "immediate"
 						}
 					]
@@ -125,7 +136,8 @@
 			"trigger": {
 				"predicate": "none",
 				"weight": 10,
-				"once": false
+				"once": false,
+				"cooldown_weeks": 8
 			},
 			"title": "集群电力检修",
 			"description": "供电检修即将开始，是否对训练进行顺延调度？",
@@ -158,15 +170,16 @@
 			"kind": "notice",
 			"trigger": {
 				"predicate": "none",
-				"weight": 10,
-				"once": false
+				"weight": 35,
+				"once": false,
+				"cooldown_weeks": 8
 			},
 			"title": "知名顾问来访",
 			"description": "学界泰斗来访讲座，点拨启发了全员灵感。",
 			"effects": [
 				{
 					"type": "rp_grant",
-					"value": 200,
+					"value": 60,
 					"timing": "immediate"
 				}
 			]
