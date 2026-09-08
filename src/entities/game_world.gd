@@ -1,5 +1,8 @@
 # gdlint:ignore = max-public-methods
+# gdlint:disable = max-file-lines
 ## 门面/资源服务类：方法即契约面与只读数据面，数量随功能增长，故豁免该上限。
+## 文件长度同理：周结管线 v2.1 步序 + 只读数据面在单一门面内定型（ADR-0016 单向数据流），
+## 拆分门面反而破坏契约面聚合，故豁免 1000 行上限（#79 出分参数刷新入此）。
 class_name GameWorld
 extends RefCounted
 
@@ -104,6 +107,8 @@ var _techs_cfg: Dictionary = {}
 var _rivals_cfg: Dictionary = {}
 var _ui_display: Dictionary = {}
 var _score_params: Dictionary = {}
+## 当前生效的出分参数（基准 × 当前阶段覆盖，RS-04/#79）；随开局/读档/阶段晋升刷新。
+var _active_score_params: Dictionary = {}
 ## 出分与榜单（分级显示 / 命名仪式判定的数据源）。
 var _scored_once: bool = false
 var _player_best_score: float = 0.0
@@ -140,7 +145,8 @@ func _init() -> void:
 	tech_fog.setup(_techs_cfg)
 	tech_tree.setup(_techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
-	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _score_params)
+	stages.stage_advanced.connect(_on_stage_advanced)
+	_refresh_score_params()
 	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
 
 
@@ -168,6 +174,37 @@ func _load_score_params() -> Dictionary:
 		push_error("GameWorld: %s 缺 '%s' 行" % [BENCHMARKS_PATH, BENCHMARK_KEY])
 		return {}
 	return ScoreMath.normalize_params(row)
+
+
+## 当前生效的出分参数（基准 × 当前阶段覆盖；L2 只读数据面，ADR-0016）。
+func get_score_params() -> Dictionary:
+	return _active_score_params.duplicate(true)
+
+
+## 出分参数刷新（RS-04/#79）：基准参数 × 当前阶段 score_params 覆盖 → 注入 TrainingProject。
+## TrainingProject.setup 会清空在训状态，故先取在训快照、注入后原样还原
+## （仅用其公开 API，TrainingProject 公开契约零变更）。
+func _refresh_score_params() -> void:
+	_active_score_params = ScoreMath.merge_stage_params(
+		_score_params, stages.get_current_stage_data()
+	)
+	var active: Dictionary = training.get_active_training()
+	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _active_score_params)
+	if not active.is_empty():
+		(
+			training
+			. restore(
+				{
+					"base": str(active.get("base_id", "")),
+					"weeks_left": int(active.get("weeks_left", 0)),
+				}
+			)
+		)
+
+
+## 阶段晋升钩子（Stages.stage_advanced）→ 重算并注入新阶段的出分参数。
+func _on_stage_advanced(_old_stage: int, _new_stage: int, _economy_mod: Dictionary) -> void:
+	_refresh_score_params()
 
 
 ## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
@@ -412,7 +449,7 @@ func _is_mainline_domain(domain: String) -> bool:
 
 ## 分数文本（精度取 benchmarks.json score_precision；缺失退化为原值文本）。
 func _format_score(score: float) -> String:
-	var precision_variant: Variant = _score_params.get("score_precision")
+	var precision_variant: Variant = _active_score_params.get("score_precision")
 	if precision_variant == null or float(precision_variant) <= 0.0:
 		return str(score)
 	var digits: int = int(round(log(1.0 / float(precision_variant)) / log(DECIMAL_BASE)))
@@ -463,7 +500,7 @@ func start_new_game(seed: int = 0) -> void:
 	tech_fog.setup(_techs_cfg)
 	tech_tree.setup(_techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
-	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _score_params)
+	_refresh_score_params()
 	sota_board.setup(opening, DataLoader.load_json(BENCHMARKS_PATH))
 	sota_best = sota_board.get_best_score()
 	rival_best = sota_board.get_rival_best()
@@ -679,6 +716,8 @@ func restore(data: Dictionary) -> void:
 	var stages_data: Dictionary = data.get("stages", {})
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
 	stages.restore(stages_data)
+	# 读档还原阶段后重算出分参数注入（RS-04/#79；不写存档形状，零迁移）
+	_refresh_score_params()
 	var events_data: Dictionary = data.get("events", {})
 	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
 	event_engine.restore(events_data)
