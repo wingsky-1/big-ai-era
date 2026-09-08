@@ -12,6 +12,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# user:// 隔离（issue #84）：同一台机器上多个 worktree/并发 GUT 进程共享
+# ~/.local/share/godot/app_userdata/<project name>/，SaveSystem 的原子写
+# （tmp→校验→rename）会互相踩踏，产生与代码无关的假失败。
+# 把本次运行的 Godot 用户数据目录指向独立临时目录，退出时清理。
+export XDG_DATA_HOME="$(mktemp -d)"
+
 GODOT_BIN="${GODOT_BIN:-godot}"
 command -v "$GODOT_BIN" >/dev/null 2>&1 \
     || GODOT_BIN="${HOME}/.local/bin/godot"
@@ -25,7 +31,7 @@ step() { printf '\n\033[1;34m[verify]\033[0m==> %s\n' "$*"; }
 
 IMPORT_LOG="$(mktemp)"
 GUT_LOG="$(mktemp)"
-trap 'rm -f "$IMPORT_LOG" "$GUT_LOG"' EXIT
+trap 'rm -f "$IMPORT_LOG" "$GUT_LOG"; rm -rf "$XDG_DATA_HOME"' EXIT
 
 # ---------- 1. 静态检查 ----------
 step "静态检查 (gdformat --check + gdlint)"
