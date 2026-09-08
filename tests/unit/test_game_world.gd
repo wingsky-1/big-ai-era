@@ -135,9 +135,10 @@ func test_ten_thousand_week_simulation_deterministic_and_fast() -> void:
 		reports.append_array(_world.simulate_weeks(1, policy))
 	assert_eq(_world.week, 10000, "万周模拟应完整推进")
 	assert_eq(reports.size(), 10000, "逐周报告应完整")
-	# 30s 防呆线：本地实测 ~10s；曾因自测残留 Chrome 抢 CPU 触发 15s 线 flaky，
-	# 性能真门禁是哈希确定性与 nightly 蒙卡，此处只拦截量级劣化。
-	assert_lt((Time.get_ticks_msec() as float) - start_time, 30000.0, "万周纯步进用时应合理")
+	# 60s 防呆线：本地实测 ~10s；CI runner 方差大——2026-09-08 main 跑出 36.5s
+	# （同一 commit 在 PR runner 上 ~12s）→ 30s 线会误杀。性能真门禁是哈希确定性与
+	# nightly 蒙卡，此处只拦截量级劣化（≥5× 本地基线）。
+	assert_lt((Time.get_ticks_msec() as float) - start_time, 60000.0, "万周纯步进用时应合理")
 
 
 func _run_thousand_week_digest() -> String:
