@@ -382,7 +382,24 @@ func get_rival_view() -> Dictionary:
 		"warn_level": _rival_warn_level,
 		"warn_weeks_left": _rival_warn_weeks_left,
 		"has_scored": _scored_once,
+		"gap_text": _format_rival_gap(),
+		"bar_display": (_ui_display.get("rival_bar", {}) as Dictionary).duplicate(true),
 	}
+
+
+## 竞对差距文本（L2 出数：名次前缀 + 数值；文案键与精度均来自数据表，L3 只透传）。
+## 名次口径（#77/X3）：gap = 竞对分 − 玩家分；>0 落后、≤0 领先；未出分显示占位符。
+func _format_rival_gap() -> String:
+	var cfg: Dictionary = _ui_display.get("rival_bar", {})
+	if not _scored_once:
+		return str(cfg.get("gap_unavailable", ""))
+	var gap: float = rival_best - _player_best_score
+	var prefix: String = (
+		str(cfg.get("gap_ahead_prefix", ""))
+		if gap <= 0.0
+		else str(cfg.get("gap_behind_prefix", ""))
+	)
+	return prefix + _format_score(absf(gap))
 
 
 ## 分数分级显示（RU-01：低于阈值主台只显档位标签，真值由周报保留）。

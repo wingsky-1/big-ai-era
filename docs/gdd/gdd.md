@@ -215,6 +215,8 @@ RNG 消费点恰 3 处（grep 可验断言）：rival_jitter / inspiration / eve
 
 深巷科技 8 动作时间线（rivals.json）：2 论文+4 发版+2 涨价引用；首模型 ~12 周卡玩家首训窗口正中（先发率 ~49.4%，DR-027④）。（RV1 / DR-023）
 
+- **死表重标（#77 已落）**：L4 发版分 92 → **95**（守卫带 `[93,98]`，**禁超玩家封顶 99**；三层张力=未满配被超/接近满配险胜/满配安全）；**时间线周次全部不动**（守 DR-027④ 先发率）；L1–L3 维持 35/58/75 提供渐进压迫。可达性校验口径：`ScoreMath.ability_for_score()`（sigmoid 反解）+ 满配 A 上限 ~213.4（eff=187/满树 tb=1.40/tier4/q=1.0）→ 4 个发版动作所需 A 全部 ≤ 上限。**竞对条字段对齐（X3 根因）**：`DashboardPresenter._on_week_settled` 此前不刷新竞对条（只在 `sota_updated` 破纪录时刷新）→ 未破纪录时名次/差距/进度停在旧值；现改为周结即刷新，并透传 `gap`/`gap_text`（L2 出数，文案键 `ui_display.json.rival_bar`）。
+
 - **±15% 扰动**（RNG 域 1 rival_jitter，均匀独立，仅周结消费）；逼近预警：黄灯=提前 ⌈0.15×t⌉ 周（l1–l4=~6/9/11/13 周）、红灯=2 周零误报（断言红灯误报率=0）；发版播报走 sota_updated。（RV2/RV4 / DR-027④）
 - **论文外溢翻态零 RNG**：确定性规则表——表序首个 hidden 节点+gate 分档；spill_fields/spill_rp_gate 升表级默认参数，单动作可覆写；week~40 外溢目标=distill_garden（evt_open_source_rumor→distill_garden/visible）。（RV3 / DR-023）
 - **宿敌分工**（DR-029 B-6）：深巷=总分榜宿敌；潮汐=斜率效率榜影子（v0.2 影子榜）；北岭=v0.3；落后"为什么"一行进周报。

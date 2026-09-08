@@ -339,3 +339,45 @@ func _mouse_pressed_event() -> InputEventMouseButton:
 func _training_weeks(base_id: String) -> int:
 	var bases: Dictionary = DataLoader.load_json(MODEL_BASES_PATH)
 	return int((bases.get(base_id, {}) as Dictionary).get("train_weeks", 0))
+
+
+func test_rival_bar_fields_match_presenter() -> void:
+	# [T] #77/X3：竞对条字段对齐——presenter 透传 gap/gap_text/进度，随周结刷新
+	var view: Dictionary = _presenter.get_rival_view()
+	var required: PackedStringArray = [
+		"rival_name",
+		"gap",
+		"gap_text",
+		"rival_progress",
+		"has_scored",
+		"rival_cursor",
+		"rival_total",
+	]
+	for key: String in required:
+		assert_true(view.has(key), "竞对条视图必须含字段 '%s'" % key)
+	assert_eq(str(view["rival_name"]), "深巷科技", "竞对名取自 rivals.json")
+	assert_eq(int(view["rival_cursor"]), 0, "开局时间线游标为 0")
+	assert_eq(int(view["rival_total"]), 8, "时间线共 8 个动作")
+	assert_false(bool(view["has_scored"]), "开局未出分")
+	var bar_display: Dictionary = _world.get_rival_view()["bar_display"]
+	var unavailable: String = str(bar_display.get("gap_unavailable", ""))
+	assert_eq(str(view["gap_text"]), unavailable, "未出分时差距显示占位符（不再冒充玩家分数）")
+
+	# 出分后差距文本就位，且 gap = 竞对分 − 玩家分
+	_world.assign_staff("r_lin", StaffRoster.SLOT_TRAINING)
+	_world.start_training("base_pushi_1b")
+	var bases: Dictionary = DataLoader.load_json(MODEL_BASES_PATH)
+	for _i: int in range(int(bases["base_pushi_1b"]["train_weeks"])):
+		_world.settle_week()
+	var view_after: Dictionary = _presenter.get_rival_view()
+	assert_true(bool(view_after["has_scored"]), "训练完成后应已出分")
+	assert_ne(str(view_after["gap_text"]), unavailable, "出分后差距文本应就位")
+	assert_almost_eq(
+		float(view_after["gap"]),
+		_world.rival_best - float(_world.get_rival_view()["player_score"]),
+		0.001,
+		"gap = 竞对分 − 玩家分"
+	)
+	# 周结推进 → 竞对时间线进度刷新（X3 的"恒 0%"回归守卫）
+	_world.simulate_weeks(20)
+	assert_gt(float(_presenter.get_rival_view()["rival_progress"]), 0.0, "周结推进后进度应 > 0")
