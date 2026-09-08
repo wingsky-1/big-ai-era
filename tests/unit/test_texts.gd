@@ -10,7 +10,7 @@ extends GutTest
 
 const TEXTS_PATH: String = "res://src/data/texts.json"
 
-## 40 键起步集白名单：尚未被代码消费的键登记在此（key -> 说明），
+## 43 键起步集白名单：尚未被代码消费的键登记在此（key -> 说明），
 ## 出现在这里即豁免死键断言；PR 接入消费后应移出白名单并同步消费点。
 const TEST_KEYS: Dictionary = {
 	"opening_line_intro": "开场白 4 句——PR9b 开场流程接入",
@@ -53,6 +53,9 @@ const TEST_KEYS: Dictionary = {
 	"sys_save_hint": "sys 常驻——PR8 存档提示接入",
 	"sys_menu_new_game": "sys 常驻——MENU 接入",
 	"sys_menu_continue": "sys 常驻——MENU 接入",
+	"report_quiet_week": "周报兜底——批 1a 周报 UI 修复接入",
+	"compute_upgrade_button": "买卡入口——批 1c 资源栏按钮接入",
+	"compute_upgrade_maxed": "买卡入口——批 1c 顶档提示接入",
 }
 
 ## 各插值变量的引用样例值（PR 消费点的最长口径；{var} 按 0 字计，长度断言用）。
@@ -74,7 +77,7 @@ const REFERENCE_VALUES: Dictionary = {
 func test_texts_table_shape_is_valid() -> void:
 	assert_true(TextService.is_enabled(), "TextService 静态初始化应成功（熔断即全断言空洞通过）")
 	var texts: Dictionary = DataLoader.load_json(TEXTS_PATH)
-	assert_eq(texts.size(), 40, "起步集应为 40 键（DR-010 起步集约定）")
+	assert_eq(texts.size(), 43, "起步集应为 43 键（DR-010 起步集约定 + 批 1a 三键）")
 	for key: String in texts:
 		var entry: Variant = texts[key]
 		assert_true(entry is Dictionary, "键 %s 应为对象条目" % key)

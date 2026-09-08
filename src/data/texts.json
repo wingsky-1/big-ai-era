@@ -154,6 +154,21 @@
 		"max_len": 30,
 		"vars": ["training_text"]
 	},
+	"report_quiet_week": {
+		"text": "本周运转平稳，各项研发平稳推进。",
+		"max_len": 30,
+		"vars": []
+	},
+	"compute_upgrade_button": {
+		"text": "升级算力 {price}",
+		"max_len": 20,
+		"vars": ["price"]
+	},
+	"compute_upgrade_maxed": {
+		"text": "算力已顶档",
+		"max_len": 12,
+		"vars": []
+	},
 	"sys_app_title": {
 		"text": "大 AI 时代",
 		"max_len": 12,

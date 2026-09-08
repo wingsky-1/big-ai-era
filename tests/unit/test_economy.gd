@@ -4,7 +4,7 @@ extends GutTest
 ## Economy 经济系统单元测试（issue #6 验收点）
 ## 覆盖 5 个 [T] 验收点：
 ## 1. apply_delta 唯一写点：全库 grep 验证除 Economy 内部外无直接写字段
-## 2. 周收支曲线断言（课题 U(30,80)k/4–8 周+复现 U(5,12)k/3–5 周，占位参数）
+## 2. 周固定支出与账期契约断言（批 1a：脉冲源退役，收入改占槽任务结算）
 ## 3. 双线分支断言（警告线提示；-200k 破产判负，Game Over 短路接线在 PR8 #17）
 ## 4. r 曲线/stage_depr 两参独立扰动断言
 ## 5. 算力升档/余量扣除断言（超分配拒绝）
@@ -71,34 +71,53 @@ func test_apply_delta_is_sole_resource_mutator() -> void:
 	assert_push_error("未知资源", "非法资源类型应报错")
 
 
-func test_weekly_revenue_and_expense_curve() -> void:
-	# [T] 验收点 2：周收支曲线断言（课题 U(30,80)k/4–8 周 + 复现 U(5,12)k/3–5 周）
-	# 验证配置中的参数区间
-	var rep: Dictionary = _config.get("reproduce", {})
-	assert_eq(int(rep.get("amount_min")), 5000, "复现收入下限 5k")
-	assert_eq(int(rep.get("amount_max")), 12000, "复现收入上限 12k")
-	assert_eq(int(rep.get("duration_min")), 3, "复现周期下限 3 周")
-	assert_eq(int(rep.get("duration_max")), 5, "复现周期上限 5 周")
+func test_weekly_fixed_expense_and_ledger_closure() -> void:
+	# [T] 验收点 2（批 1a）：周固定支出 = 工资×人数；脉冲源退役后周结本身不产收入
+	_economy.reset_week_ledger()
+	_economy.accrue_fixed_expense(3)
+	var ledger: Dictionary = _economy.get_week_ledger()
+	assert_eq(int(ledger["expense"]), 6000, "3 人工资支出应为 6000")
+	assert_eq(int(ledger["income"]), 0, "脉冲源退役后周结不产生经营收入")
+	assert_eq(int(ledger["net"]), -6000, "净结余应为 -6000")
+	assert_eq(_economy.get_money(), 44000, "工资应经 apply_delta 过账")
+	assert_eq(
+		int(ledger["income"]) - int(ledger["expense"]),
+		int(ledger["net"]),
+		"收支必须闭合（income - expense == net）"
+	)
 
-	var grant: Dictionary = _config.get("grant", {})
-	assert_eq(int(grant.get("amount_min")), 30000, "课题收入下限 30k")
-	assert_eq(int(grant.get("amount_max")), 80000, "课题收入上限 80k")
-	assert_eq(int(grant.get("duration_min")), 4, "课题周期下限 4 周")
-	assert_eq(int(grant.get("duration_max")), 8, "课题周期上限 8 周")
 
-	# 使用 mock 随机源验证单周聚合收支结算
-	var mock_min := MockRandomSource.new(1)  # 强制抽样下界
-	var ledger_min: Dictionary = _economy.accrue_week(3, mock_min)
-	# 工资 3 人 * 2000 = 6000
-	assert_eq(int(ledger_min["expense"]), 6000, "3 人工资支出应为 6000")
-	# 收入下界：复现 5000 + 课题 30000 = 35000
-	assert_eq(int(ledger_min["income"]), 35000, "收入下限聚合应为 35000")
-	assert_eq(int(ledger_min["net"]), 29000, "净结余应为 29000")
+func test_weekly_ledger_period_contract() -> void:
+	# [T] 验收点 4（#72）：账期契约——非周结过账（买卡/研究/入队/事件）计入当前未结算周
+	_economy.init_resources(50000, 0, 1, 8.0)
+	_economy.reset_week_ledger()
+	_economy.apply_delta("money", -2000, "task_cost")
+	_economy.apply_delta("influence", 30, "event_rp_grant")
+	_economy.accrue_fixed_expense(3)
+	var ledger: Dictionary = _economy.get_week_ledger()
+	assert_eq(int(ledger["expense"]), 8000, "非周结支出应计入本周未结算账")
+	assert_eq(int(ledger["influence_delta"]), 30, "非周结影响力过账应计入本周")
+	assert_eq(int(ledger["income"]) - int(ledger["expense"]), int(ledger["net"]), "收支必须闭合")
+	_economy.reset_week_ledger()
+	assert_eq(int(_economy.get_week_ledger()["expense"]), 0, "账期翻页后支出归零")
+	assert_eq(int(_economy.get_week_ledger()["influence_delta"]), 0, "账期翻页后影响力增量归零")
 
-	var mock_max := MockRandomSource.new(999999)  # 强制抽样上界
-	var ledger_max: Dictionary = _economy.accrue_week(3, mock_max)
-	# 收入上界：复现 12000 + 课题 80000 = 92000
-	assert_eq(int(ledger_max["income"]), 92000, "收入上限聚合应为 92000")
+
+func test_weekly_compute_supply_reset() -> void:
+	# [T] 验收点（#74）：连续 3 周结后每周卡时都重置为供给值，不累计不递减
+	_economy.init_resources(50000, 0, 1, 8.0)
+	for i: int in range(3):
+		_economy.apply_delta("compute", -3, "spend")
+		_economy.recharge_weekly()
+		assert_eq(
+			int(_economy.get_compute()["hours_remaining"]),
+			_economy.get_compute_supply(),
+			"第 %d 次周结后卡时应重置为供给值" % (i + 1)
+		)
+	# 升档后周供给升档（ADR-0011：供给与容量分键）
+	_economy.init_resources(100000, 0, 1, 8.0)
+	_economy.upgrade_compute(3)
+	assert_eq(_economy.get_compute_supply(), 32, "tier3 周供给应为 32")
 
 
 func test_warn_and_bankruptcy_lines() -> void:
@@ -122,17 +141,11 @@ func test_warn_and_bankruptcy_lines() -> void:
 	assert_eq(_economy.check_lines(), Economy.WARNED_BANKRUPT, "低于 -200k 判定破产")
 
 	# 验证在周结触发警告时发射 warned 信号
-	_economy.init_resources(-25000, 0, 1, 40.0)
+	_economy.init_resources(-25000, 0, 1, 8.0)
 	watch_signals(_economy)
 	# 工资扣除 6000 后资金变为 -31000，触发 WARNED_SOFT
-	var disabled_source := MockRandomSource.new(0)
-	# 把 reproduce 和 grant 关闭以纯测支出超线
-	var config_no_income := _config.duplicate(true)
-	config_no_income["sources"]["reproduce"]["enabled"] = false
-	config_no_income["sources"]["grant"]["enabled"] = false
-	_economy.setup(config_no_income)
-	_economy.init_resources(-25000, 0, 1, 40.0)
-	_economy.accrue_week(3, disabled_source)
+	_economy.accrue_fixed_expense(3)
+	_economy.emit_week_warning(_economy.get_week_ledger())
 	assert_signal_emitted(_economy, "warned", "周结越过警告线应发射 warned 信号")
 
 
@@ -181,10 +194,10 @@ func test_compute_upgrade_and_capacity_refusal() -> void:
 	assert_eq(_economy.get_money(), 100000 - 38000, "升档扣除 38000 资金")
 	assert_eq(_economy.get_compute()["tier"], 3, "档位变为 3")
 	assert_eq(_economy.get_compute_capacity(), 160, "容量提升至 160")
-	assert_eq(_economy.get_compute()["hours_remaining"], 160.0, "升档余量补齐为新档容量")
+	assert_eq(_economy.get_compute()["hours_remaining"], 32.0, "升档后本周预算重置为新档供给")
 	assert_signal_emitted(_economy, "compute_upgraded", "升档成功应发射 compute_upgraded 信号")
 
 	# 算力余量超额扣除拒绝
 	var ok: bool = _economy.apply_delta("compute", -200, "over_consume")
 	assert_false(ok, "扣除 200 卡时超过现有 160 应被拒绝")
-	assert_eq(_economy.get_compute()["hours_remaining"], 160.0, "余量不受非法操作影响")
+	assert_eq(_economy.get_compute()["hours_remaining"], 32.0, "余量不受非法操作影响")

@@ -25,8 +25,6 @@ func _ready() -> void:
 
 
 func _render() -> void:
-	if _report_data.is_empty():
-		return
 	var week_num: int = int(_report_data.get("week", 1))
 	title_label.text = "第 %d 周 周报" % week_num
 
@@ -36,7 +34,7 @@ func _render() -> void:
 	var rows: Array = _report_data.get("rows", [])
 	if rows.is_empty():
 		var lbl := Label.new()
-		lbl.text = "本周运转平稳，各项研发平稳推进。"
+		lbl.text = TextService.text("report_quiet_week")
 		rows_vbox.add_child(lbl)
 	else:
 		for row_text in rows:

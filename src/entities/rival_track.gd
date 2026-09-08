@@ -27,7 +27,8 @@ var _warn_red_weeks: int = 0
 var _warn_yellow_factor: float = 0.0
 
 
-func setup(config: Dictionary, rng: RngStream) -> void:
+## consume_rng=false：读档恢复路径专用——不重抽 jitter，避免 RNG 序列漂移（D3）。
+func setup(config: Dictionary, rng: RngStream, consume_rng: bool = true) -> void:
 	_config = config.duplicate(true)
 	_timeline = _config.get("timeline", []).duplicate(true)
 	var jitter_variant: Variant = DataLoader.require_key(_config, "jitter_pct", RIVALS_PATH)
@@ -58,7 +59,7 @@ func setup(config: Dictionary, rng: RngStream) -> void:
 			if str(act.get("type", "")) == "launch":
 				# 无 RNG 源时不做扰动（offset=0），保持与注入源一致的中性行为
 				var offset_pct: float = 0.0
-				if rng != null:
+				if consume_rng and rng != null:
 					var rand_f: float = rng.randf_domain(RngStream.DOMAIN_RIVAL_JITTER)
 					# 映射到 [-jitter, +jitter]
 					offset_pct = (rand_f * _jitter_span - 1.0) * _jitter_pct

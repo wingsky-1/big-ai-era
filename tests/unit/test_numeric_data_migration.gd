@@ -139,7 +139,12 @@ func _run_weeks_digest(seed_value: int) -> String:
 	var world := GameWorld.new()
 	autofree(world)
 	world.start_new_game(seed_value)
-	world.simulate_weeks(WEEKS)
+	# 批 1a 后经营收入只来自占槽任务结算：万周回归需持续接任务
+	var tasks := AutoTaskPolicy.new()
+	var policy := AutoDecisionPolicy.new()
+	for i: int in range(WEEKS):
+		tasks.fill(world)
+		world.simulate_weeks(1, policy)
 	return SnapshotCodec.state_digest(world)
 
 
