@@ -692,6 +692,8 @@ func get_task_board_view() -> Dictionary:
 					"meta_text": _task_meta_text(row, cfg),
 					"state_text": state_text,
 					"available": bool(row["ok"]),
+					"active": bool(row["active"]),
+					"queued": bool(row["queued"]),
 					"reason": str(row["reason"]),
 				}
 			)
@@ -751,20 +753,93 @@ func start_research(tech_id: String) -> void:
 		_emit_resources()
 
 
-func start_training(base_id: String) -> void:
-	var context := {
+## 启动训练（契约命令；#104 PR-B 起返回 bool 供 UI 反馈，调用方不依赖返回值亦兼容）。
+func start_training(base_id: String) -> bool:
+	var res := training.start_training(base_id, _training_context())
+	if res.get("ok", false):
+		# 关键决策回溯①（RF-03）：训练成本真源 model_bases.json（禁硬编码）
+		var bases: Dictionary = DataLoader.load_json(MODEL_BASES_PATH)
+		freedom.record_training(int(bases.get(base_id, {}).get("cost", 0)), base_id)
+		_emit_resources()
+		return true
+	return false
+
+
+## 训练上下文（启动预检与数据面共用，单点真源）。
+func _training_context() -> Dictionary:
+	return {
 		"research_eff": research_eff,
 		"compute_tier": economy.get_compute()["tier"],
 		"money": get_money(),
 		"economy": economy,
 		"training_headcount": roster.get_slot_count(StaffRoster.SLOT_TRAINING),
 	}
-	var res := training.start_training(base_id, context)
-	if res.get("ok", false):
-		# 关键决策回溯①（RF-03）：训练成本真源 model_bases.json（禁硬编码）
-		var bases: Dictionary = DataLoader.load_json(MODEL_BASES_PATH)
-		freedom.record_training(int(bases.get(base_id, {}).get("cost", 0)), base_id)
-		_emit_resources()
+
+
+## 训练板只读数据面（#104 PR-B / ADR-0016）：L2 出数并依 ui_display 拼装文案，L3 只渲染。
+## `available` 即"能否启动"（单点判定在 TrainingProject.can_start_training）。
+func get_training_view() -> Dictionary:
+	var context := _training_context()
+	var cfg: Dictionary = _ui_display.get("training", {})
+	var reasons: Dictionary = cfg.get("reason_texts", {})
+	var rows: Array[Dictionary] = []
+	for row: Dictionary in training.get_base_rows(context):
+		var state_text: String = str(cfg.get("ready_label", ""))
+		if bool(row["active"]):
+			state_text = str(cfg.get("training_label", ""))
+		elif not bool(row["ok"]):
+			state_text = str(reasons.get(str(row["reason"]), ""))
+		(
+			rows
+			. append(
+				{
+					"base_id": str(row["base_id"]),
+					"name": str(row["name"]),
+					"meta_text": _training_meta_text(row, cfg),
+					"state_text": state_text,
+					"available": bool(row["ok"]),
+					"active": bool(row["active"]),
+					"reason": str(row["reason"]),
+				}
+			)
+		)
+	var active: Dictionary = training.get_active_training()
+	var active_view: Dictionary = {}
+	if not active.is_empty():
+		active_view = {
+			"base_id": str(active.get("base_id", "")),
+			"name": training.get_base_name(str(active.get("base_id", ""))),
+			"weeks_left": int(active.get("weeks_left", 0)),
+			"total_weeks": int(active.get("total_weeks", 0)),
+			"progress": training.get_active_progress(),
+			"progress_text":
+			str(cfg.get("progress_template", "")).replace(
+				"{weeks}", str(int(active.get("weeks_left", 0)))
+			),
+		}
+	return {
+		"title": str(cfg.get("title", "")),
+		"entry_label": str(cfg.get("entry_label", "")),
+		"start_label": str(cfg.get("start_label", "")),
+		"close_label": str(cfg.get("close_label", "")),
+		"empty_active": str(cfg.get("empty_active", "")),
+		"rows": rows,
+		"active": active_view,
+	}
+
+
+## 训练板行文案（L2 拼装，L3 零格式化；ADR-0016 R3）。
+## 注：`min_staff` 本版不启用（DR-031/P5），故不展示，避免给玩家看假需求。
+func _training_meta_text(row: Dictionary, cfg: Dictionary) -> String:
+	return (
+		str(cfg.get("meta_template", ""))
+		. replace("{weeks}", str(int(row["train_weeks"])))
+		. replace("{cost}", Formatter.format_money(int(row["cost"])))
+		. replace("{quality}", "%.2f" % float(row["quality"]))
+		. replace("{tier}", str(int(row["min_tier"])))
+		. replace("{max_staff}", str(int(row["max_staff"])))
+		. replace("{hours}", str(int(row["hours_per_week"])))
+	)
 
 
 ## 买卡只读视图（UI 按钮三态数据面；非契约命令）

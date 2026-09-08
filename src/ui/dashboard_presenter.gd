@@ -96,6 +96,7 @@ func _update_all_views() -> void:
 	}
 
 	var task_board: Dictionary = snap.get("task_board", {})
+	var training_view: Dictionary = snap.get("training_view", {})
 	_workspace_view = {
 		"tasks": snap.get("tasks", {}),
 		"task_board": task_board.duplicate(true),
@@ -104,6 +105,10 @@ func _update_all_views() -> void:
 		"active_task": (task_board.get("active", {}) as Dictionary).duplicate(true),
 		"staff": staff_view.get("rows", []),
 		"training": snap.get("training", {}),
+		# 工作区训练行（#104 PR-B 修复）：此前 main.gd 完全不渲染 training →
+		# 启动 10–26 周训练后玩家看不到任何进度。
+		"training_view": training_view.duplicate(true),
+		"active_training": (training_view.get("active", {}) as Dictionary).duplicate(true),
 		"staff_total": int(staff_view.get("total", 0)),
 		"staff_assigned": int(staff_view.get("assigned", 0)),
 		"staff_idle": int(staff_view.get("idle", 0)),
@@ -269,6 +274,8 @@ func _on_resources_changed(money: int, compute_hours: float, influence: int) -> 
 	_refresh_forecast_view()
 	# 资金变化会影响"能否接单"（cost>0 资金门），故同步刷新任务板可接性。
 	_refresh_task_board_view()
+	# 训练启动/完成经 resources_changed 广播，同步刷新训练板与工作区训练行。
+	_refresh_training_view()
 
 
 func _on_progress_ticked(progress: Dictionary) -> void:
@@ -290,11 +297,24 @@ func _refresh_task_board_view() -> void:
 	_workspace_view["active_task"] = ((task_board.get("active", {}) as Dictionary).duplicate(true))
 
 
+## 训练板视图刷新（#104 PR-B；只更新三键，不整表重算）。
+func _refresh_training_view() -> void:
+	if _world == null:
+		return
+	var training_view: Dictionary = _world.get_training_view()
+	_workspace_view["training_view"] = training_view.duplicate(true)
+	_workspace_view["active_training"] = ((training_view.get("active", {}) as Dictionary).duplicate(
+		true
+	))
+
+
 func _on_week_settled(report: Dictionary) -> void:
 	_resource_view["week"] = int(report.get("week", _resource_view.get("week", 0)))
 	_dock_view["has_unread_report"] = true
 	# 周结后任务进度/队列推进（#104：工作区任务行随周结刷新）
 	_refresh_task_board_view()
+	# 周结后训练进度推进（#104 PR-B）
+	_refresh_training_view()
 	# 刷新断言：周结后重算净流入预告（ADR-0015 账期翻页进入新账期）
 	_refresh_forecast_view()
 	# 竞对条随周结刷新（#77 / X3 根因修复）：出分、竞对发版、时间线游标都在周结变化，

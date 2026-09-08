@@ -164,6 +164,29 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "接单"
 
+[node name="TrainingBtn" type="Button" parent="ShellVBox/Workspace/WorkspaceVBox/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "训练"
+
+[node name="TrainingRow" type="HBoxContainer" parent="ShellVBox/Workspace/WorkspaceVBox"]
+layout_mode = 2
+
+[node name="TrainingLabel" type="Label" parent="ShellVBox/Workspace/WorkspaceVBox/TrainingRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+text = "当前无进行中训练"
+
+[node name="TrainingProgressBar" type="ProgressBar" parent="ShellVBox/Workspace/WorkspaceVBox/TrainingRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="StaffRow" type="HBoxContainer" parent="ShellVBox/Workspace/WorkspaceVBox"]
 layout_mode = 2
 

@@ -15,6 +15,7 @@ const PAUSE_MENU_SCENE: PackedScene = preload("res://src/ui/modals/pause_menu_di
 const NAMING_DIALOG_SCENE: PackedScene = preload("res://src/ui/modals/naming_dialog.tscn")
 const FINALE_SCENE: PackedScene = preload("res://src/ui/modals/finale_dialog.tscn")
 const TASK_MANAGE_SCENE: PackedScene = preload("res://src/ui/modals/task_manage_dialog.tscn")
+const TRAINING_SCENE: PackedScene = preload("res://src/ui/modals/training_dialog.tscn")
 const TOKENS_COLORS: Resource = preload("res://src/ui/theme/tokens_colors.tres")
 
 var _world: GameWorld
@@ -67,6 +68,9 @@ var _freedom_panel_body: Label
 @onready var task_title_label: Label = %TaskTitleLabel
 @onready var task_progress_bar: ProgressBar = %TaskProgressBar
 @onready var task_accept_btn: Button = %TaskAcceptBtn
+@onready var training_btn: Button = %TrainingBtn
+@onready var training_label: Label = %TrainingLabel
+@onready var training_progress_bar: ProgressBar = %TrainingProgressBar
 @onready var staff_count_label: Label = %StaffCountLabel
 @onready var idle_staff_label: Label = %IdleStaffLabel
 @onready var toast_label: Label = %ToastLabel
@@ -121,7 +125,7 @@ func _notification(what: int) -> void:
 
 
 ## 截图/试玩自动化驱动（仅 Web 且显式查询参数时激活，正常游玩零影响）：
-## ?shot=<id>：合成指定弹层截图（home/tech/report/gameover/task）+ 就绪标志；
+## ?shot=<id>：合成指定弹层截图（home/tech/report/gameover/task/training）+ 就绪标志；
 ## ?selftest=1：仅启用面板栈信标供交互自测断言。两者均冻结时钟、丢弃挂起决策卡。
 func _setup_debug_shot_driver() -> void:
 	if OS.has_feature("web") == false:
@@ -155,6 +159,13 @@ func _setup_debug_shot_driver() -> void:
 		"task":
 			# 任务板（#104）：接单入口的渲染证据
 			stack.push_panel(PanelStack.PanelId.TASK_MGMT)
+		"training":
+			# 训练板（#104 PR-B）：训练入口的渲染证据。
+			# 派 1 人上桌使低档基座可启动 → 同一张图同时呈现「可启动」与「算力档不足」两态。
+			var staff_ids: Array = _world.staff.keys()
+			if not staff_ids.is_empty():
+				_world.assign_staff(str(staff_ids[0]), StaffRoster.SLOT_TRAINING)
+			stack.push_panel(PanelStack.PanelId.TRAINING)
 	# 面板栈信标：截图与自测脚本共用（_process 每帧同步）
 	_debug_beacon_enabled = true
 	_update_debug_beacon()
@@ -460,6 +471,26 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			_active_modals[panel_id] = task_modal
 			_mount_modal(task_modal)
 
+		PanelStack.PanelId.TRAINING:
+			# 训练板（#104 PR-B）：同 id 重复 push 时复用既有实例（防孤儿 modal 泄漏）
+			var existing_training: Variant = _active_modals.get(panel_id)
+			if existing_training != null and is_instance_valid(existing_training):
+				(existing_training as TrainingDialog).setup(
+					_presenter.get_workspace_view().get("training_view", {})
+				)
+				return
+			var training_modal: TrainingDialog = TRAINING_SCENE.instantiate()
+			training_modal.setup(_presenter.get_workspace_view().get("training_view", {}))
+			training_modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
+			training_modal.start_requested.connect(
+				func(base_id: String) -> void:
+					world.start_training(base_id)
+					training_modal.setup(_presenter.get_workspace_view().get("training_view", {}))
+					_update_views()
+			)
+			_active_modals[panel_id] = training_modal
+			_mount_modal(training_modal)
+
 		PanelStack.PanelId.PAUSE_MENU:
 			var modal: PauseMenuDialog = PAUSE_MENU_SCENE.instantiate()
 			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
@@ -546,6 +577,7 @@ func _connect_ui_events() -> void:
 	dock_report_btn.pressed.connect(_on_dock_report_pressed)
 	dock_pause_btn.pressed.connect(_on_dock_pause_pressed)
 	task_accept_btn.pressed.connect(_on_task_accept_pressed)
+	training_btn.pressed.connect(_on_training_pressed)
 	compute_upgrade_btn.pressed.connect(_on_compute_upgrade_pressed)
 	staff_count_label.gui_input.connect(_on_staff_label_clicked)
 	idle_staff_label.gui_input.connect(_on_staff_label_clicked)
@@ -604,6 +636,11 @@ func _update_speed_buttons() -> void:
 
 func _on_dock_tech_pressed() -> void:
 	_stack.push_panel(PanelStack.PanelId.TECH_TREE)
+
+
+## 训练入口（#104 PR-B）：工作区轻键 → z1 训练基座选择。
+func _on_training_pressed() -> void:
+	_stack.push_panel(PanelStack.PanelId.TRAINING)
 
 
 ## 接单入口（#104 P0）：工作区轻键 → z1 任务板。
@@ -690,6 +727,22 @@ func _update_views() -> void:
 		)
 		task_progress_bar.value = float(active_task.get("progress", 0.0)) * 100.0  # num-ok: 百分比换算
 	task_accept_btn.text = str(task_board.get("entry_label", "接单"))
+
+	# 训练行（#104 PR-B）：此前完全不渲染 training → 启动后 10–26 周黑箱。
+	var training_view: Dictionary = ws_view.get("training_view", {})
+	var active_training: Dictionary = ws_view.get("active_training", {})
+	training_btn.text = str(training_view.get("entry_label", "训练"))
+	if active_training.is_empty():
+		training_label.text = str(training_view.get("empty_active", "当前无进行中训练"))
+		training_progress_bar.visible = false
+		training_progress_bar.value = 0.0
+	else:
+		training_label.text = (
+			"%s · %s"
+			% [str(active_training.get("name", "")), str(active_training.get("progress_text", ""))]
+		)
+		training_progress_bar.visible = true
+		training_progress_bar.value = float(active_training.get("progress", 0.0)) * 100.0  # num-ok: 百分比换算
 
 	# 员工双口径：在岗=已指派任务/训练槽，待命=已入职未指派（W0 三人全员待命）
 	var staff_total: int = int(ws_view.get("staff_total", 0))
