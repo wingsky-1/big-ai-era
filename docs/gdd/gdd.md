@@ -167,7 +167,7 @@ RNG 消费点恰 3 处（grep 可验断言）：rival_jitter / inspiration / eve
 
 ### 8.1 14 节点 v2.1 全表（DR-022⑤ / DR-023 定稿；PR5 录表，逐节点附现实原型一行，文档层不进引擎）
 
-> **口径修正（DR-031/D-1）**：实表 14 节点 = **11 可研（`enabled`）+ 3 elsewhere 占位**（world/symbol/embodied）；DR-023 的"elsewhere 余 2"为中间态笔误，以 DR-003（3 他者道路）+ 实表为准。域计数分母**选 (b)**（显示 n/14 并注明 elsewhere 不可研；DR-031/D3，对抗评审 M-11）；`tech_fog.gd:18` 与 `event_engine.gd:84` **两处** `TOTAL_NODES` 硬编码须数据化（违反红线 3）。
+> **口径修正（DR-031/D-1）**：实表 14 节点 = **11 可研（`enabled`）+ 3 elsewhere 占位**（world/symbol/embodied）；DR-023 的"elsewhere 余 2"为中间态笔误，以 DR-003（3 他者道路）+ 实表为准。域计数分母**选 (b)**（显示 n/14 并注明 elsewhere 不可研；DR-031/D3，对抗评审 M-11）；`TOTAL_NODES` 硬编码（原 `tech_fog.gd:18` 与 `event_engine.gd:84` 两处）**已随 #71 数据化**为 `techs.json.total_nodes`（`grep -rn "TOTAL_NODES" src/` 零命中），#81 起逐域分母统一取 `TechFog.get_domain_totals()`。
 
 | 域 | 节点链 | 现实原型附注 | 锚点 |
 |---|---|---|---|
@@ -187,6 +187,7 @@ RNG 消费点恰 3 处（grep 可验断言）：rival_jitter / inspiration / eve
 - **4 类解锁谓词**（谓词枚举注册表：枚举+params+一层 any_of，禁 DSL）：阈值（RP）/外溢（spill）/交叉（crossover）/灵感（rp_grant 注入）；新增 lit{tech_id} 谓词。tech_fog 转移表增则：parents 全 lit ⇒ 升 crossover。
 - **翻雾三通路**：周 RP 揭示+竞对论文外溢+交叉进度。（TF4）**供给源（RK-04 / #76 已落）**：通路 1 读 `cum_influence`（累计获得影响力，只增不减）而非当前余额——点树消耗不拖慢翻雾（`TechFog.advance_with_context()` 为唯一入口）。
 - 域计数（已探明 n/14）入 fog_changed 载荷。（TF5）
+  - **UI 口径（#81 已落）**：逐域分母 = **该域实表节点数**（单点真源 `TechFog.get_domain_totals()`，与 `get_domain_counts()` 同源 `_nodes_data`），总分母 = `techs.json.total_nodes`；7 域全显，非可研域（elsewhere）行注明"不可研"（选项 b，**不**把分母改成 11）；域名取 `ui_display.json.domain_labels`，L3 经 `get_domain_progress()` 出数（ADR-0016）。
 - **防软锁 pity 保底**：连续无翻雾触发保底（占位 JSON 宽区间，PR5）；分位数断言 V6：lit@160 P10≥5 / P50∈[7,9] / P90≤11（分供给档校验）；V10 最长空窗 ≤~40 周。（DR-027 / TF6）
   - **V6 口径（DR-031/A1）**：v1.0 **维持绝对口径**（出处 = `DR-027①`/预演 1 的 V6 建议，**非 DR-027⑤**），**合规路径 = 标定任务池 `rp_output` 使 160 周供给 P50 ∈[4910, 6810)**（见 §7 与纪要 §2.9），**不需复议、不需调 Σrp_cost**；**v0.2 扩树（18 可研）同批切换为占比口径 `P50∈[55%,65%] / P90≤70%` + 绝对下限 `lit@160 ≥~5`**，走复议正门（材料=扩树触发器命中 + 1.0 试玩"点亮到顶太早"反馈）。实算判据（对抗评审 B-7 纠正）：`C(10) > 供给锚`（**不是**"9 个最便宜节点合计 >12.3k"——那是 P50≤8 的另一个条件）。18 节点下绝对口径**可行**（只要前 10 个节点累计成本高于供给），但占比降到 9/18=**50%**，探索感偏弱 → 这才是 v0.2 切换占比口径的理由。**每域至少 1 个可达节点**为硬约束（M-2）。
 - **灵感卡**（RNG 域 2）：base=0.10 / pity=8 / cap=12（~，PR10 收口）；**cap=硬保底语义**（概率上限语义已否决——20 周零雾率 ~12% 必破红线）；候选 ≥2 升决策卡。灵感触发 >可研节点数时：v0.1.0 用"跳过并顺延 pity 减 2"兜底（未决问题 Q3 复核）。（DR-001 / DR-027⑤）

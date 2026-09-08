@@ -246,6 +246,16 @@ func get_domain_counts() -> Dictionary:
 	return counts
 
 
+## 各域节点总数（分母真源 = 实表节点数，与 get_domain_counts 同源 `_nodes_data`）：
+## DR-031/D3 分母口径 (b)——UI 逐域分母与总分母均由此取值，禁止调用方自行统计。
+func get_domain_totals() -> Dictionary:
+	var totals: Dictionary = {}
+	for node_id: String in _nodes_data:
+		var domain: String = str(_nodes_data[node_id].get("domain", ""))
+		totals[domain] = int(totals.get(domain, 0)) + 1
+	return totals
+
+
 func get_crossover_progress() -> int:
 	return _crossover_progress
 

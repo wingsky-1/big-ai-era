@@ -185,6 +185,22 @@ func test_domain_counts_and_signals() -> void:
 	assert_eq(domain_counts.get("synesthesia", 0), 0)
 	assert_eq(domain_counts.get("crossover", 0), 0)
 
+	# 分母真源单点（#81）：get_domain_totals 与探明数同源 `_nodes_data`，
+	# Σ 逐域分母 = 节点总数数据键；逐域分母 = 该域实表节点数。
+	var domain_totals: Dictionary = _fog.get_domain_totals()
+	assert_eq(domain_totals.size(), 7, "分母真源应覆盖 7 个域")
+	var total_sum: int = 0
+	for domain: String in domain_totals:
+		total_sum += int(domain_totals[domain])
+	assert_eq(total_sum, _fog.get_total_nodes(), "Σ 逐域分母 = 节点总数（单点真源）")
+	assert_eq(int(domain_totals.get("deep_thought", 0)), 3)
+	assert_eq(int(domain_totals.get("dandelion", 0)), 3)
+	assert_eq(int(domain_totals.get("long_memory", 0)), 2)
+	assert_eq(int(domain_totals.get("synesthesia", 0)), 1)
+	assert_eq(int(domain_totals.get("tool_use", 0)), 1)
+	assert_eq(int(domain_totals.get("crossover", 0)), 1)
+	assert_eq(int(domain_totals.get("elsewhere", 0)), 3)
+
 	# 触发翻态测试信号
 	_fog.advance(200)
 	assert_signal_emitted(_fog, "fog_changed")
