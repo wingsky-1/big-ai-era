@@ -11,6 +11,7 @@ const GAME_OVER_SCENE: PackedScene = preload("res://src/ui/modals/game_over_dial
 const TECH_TREE_SCENE: PackedScene = preload("res://src/ui/modals/tech_tree_dialog.tscn")
 const STAFF_ROSTER_SCENE: PackedScene = preload("res://src/ui/modals/staff_roster_dialog.tscn")
 const INTRO_SCENE: PackedScene = preload("res://src/ui/modals/intro_dialog.tscn")
+const PAUSE_MENU_SCENE: PackedScene = preload("res://src/ui/modals/pause_menu_dialog.tscn")
 
 var _world: GameWorld
 var _world_ref: WeakRef
@@ -323,8 +324,28 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			_active_modals[panel_id] = modal
 			_mount_modal(modal)
 
+		PanelStack.PanelId.PAUSE_MENU:
+			var modal: PauseMenuDialog = PAUSE_MENU_SCENE.instantiate()
+			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
+			modal.restart_requested.connect(
+				func() -> void:
+					world.start_new_game()
+					_stack.pop_panel(PanelStack.PanelId.PAUSE_MENU)
+					_update_views()
+			)
+			modal.settings_requested.connect(_on_pause_settings_requested)
+			_active_modals[panel_id] = modal
+			_mount_modal(modal)
+
 
 func _on_panel_popped(panel_id: PanelStack.PanelId, _layer: int) -> void:
+	# 暂停菜单出栈（继续 / Esc / 遮罩三条路径统一走 pop）= 恢复流淌：
+	# 归零 user_paused；GameClock 双源 OR 保证决策卡在场时仍停（唯一源不变式不破）。
+	if panel_id == PanelStack.PanelId.PAUSE_MENU:
+		var world := _resolve_world()
+		if world != null:
+			world.set_paused(false)
+			_update_speed_buttons()
 	if _active_modals.has(panel_id):
 		var modal: Node = _active_modals[panel_id]
 		_active_modals.erase(panel_id)
@@ -415,11 +436,24 @@ func _on_dock_report_pressed() -> void:
 
 
 func _on_dock_pause_pressed() -> void:
+	# 幂等：z2 允许同 id 叠加，重复点击会二次挂载并泄漏前一个实例（#67 顺带封堵）
+	if _stack.get_z2_stack().has(PanelStack.PanelId.PAUSE_MENU):
+		return
 	_world.set_paused(true)
 	_stack.push_panel(PanelStack.PanelId.PAUSE_MENU)
 
 
+## 设置入口即时反馈（z3 级）：设置面板尚未落地，先给可辨反馈，
+## 避免"可见了无反馈"（ui-feedback-checklist §1 即时态）；设置面板立单后改接面板。
+func _on_pause_settings_requested() -> void:
+	_show_toast("设置面板开发中")
+
+
 func _on_toast_queued(msg: String, _color_tag: String) -> void:
+	_show_toast(msg)
+
+
+func _show_toast(msg: String) -> void:
 	toast_label.text = msg
 	toast_label.visible = true
 

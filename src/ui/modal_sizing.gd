@@ -20,6 +20,7 @@ const DESIGN_SIZES: Dictionary = {
 	"tech_tree_dialog": Vector2(520, 440),  # num-ok: 弹层设计尺寸（表现层）
 	"staff_roster_dialog": Vector2(440, 400),  # num-ok: 弹层设计尺寸（表现层）
 	"game_over_dialog": Vector2(360, 280),  # num-ok: 弹层设计尺寸（表现层）
+	"pause_menu_dialog": Vector2(360, 280),  # num-ok: 弹层设计尺寸（表现层）
 }
 
 

@@ -32,6 +32,7 @@ func test_theme_chain_covers_scene_roots() -> void:
 		"res://src/ui/modals/tech_tree_dialog.tscn",
 		"res://src/ui/modals/staff_roster_dialog.tscn",
 		"res://src/ui/modals/game_over_dialog.tscn",
+		"res://src/ui/modals/pause_menu_dialog.tscn",
 	]:
 		var txt := FileAccess.get_file_as_string(scene_path)
 		assert_true(txt.contains(theme_path), "%s 根节点应挂主 Theme（字体收口链）" % scene_path)
