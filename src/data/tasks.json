@@ -2,7 +2,7 @@
 	"task_reproduce_paper_0": {
 		"duration_weeks": 3,
 		"rp_output": 110,
-		"income": 8000,
+		"income": 15000,
 		"cost": 0,
 		"enabled": true,
 		"unlock": {
@@ -24,7 +24,7 @@
 	"task_grant_pilot": {
 		"duration_weeks": 4,
 		"rp_output": 150,
-		"income": 35000,
+		"income": 60000,
 		"cost": 2000,
 		"enabled": true,
 		"unlock": {
@@ -37,7 +37,7 @@
 	"task_reproduce_lingxi": {
 		"duration_weeks": 4,
 		"rp_output": 140,
-		"income": 12000,
+		"income": 15000,
 		"cost": 0,
 		"enabled": true,
 		"unlock": {

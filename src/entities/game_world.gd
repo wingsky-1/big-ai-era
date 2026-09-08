@@ -233,7 +233,9 @@ func get_compute() -> Dictionary:
 ## + 下周周结确定项（占槽任务结算收入 + 固定工资）。随机项（事件/竞对）不过账 money。
 func get_income_forecast() -> Dictionary:
 	var ledger: Dictionary = economy.get_week_ledger()
-	var wage: int = _wage_per_week()
+	var fixed: Dictionary = economy.get_weekly_fixed_expense(staff.size())
+	var wage: int = int(fixed.get("wage", 0))
+	var upkeep: int = int(fixed.get("upkeep", 0))
 	var task_income: int = 0
 	var task_rp: int = 0
 	var active: Dictionary = task_queue.get_active_task()
@@ -246,7 +248,7 @@ func get_income_forecast() -> Dictionary:
 	var booked_income: int = int(ledger.get("income", 0))
 	var booked_expense: int = int(ledger.get("expense", 0))
 	var income: int = booked_income + task_income
-	var expense: int = booked_expense + wage
+	var expense: int = booked_expense + wage + upkeep
 	return {
 		"available": not _ui_display.is_empty(),
 		"income": income,
@@ -254,12 +256,13 @@ func get_income_forecast() -> Dictionary:
 		"net": income - expense,
 		"influence_delta": int(ledger.get("influence_delta", 0)) + task_rp,
 		"wage": wage,
+		"upkeep": upkeep,
 		"task_income": task_income,
 		"display": _forecast_display_cfg(),
 		"lines":
 		[
 			{"id": "wage", "amount": -wage},
-			{"id": "opex", "amount": -booked_expense},
+			{"id": "opex", "amount": -(booked_expense + upkeep)},
 			{"id": "task", "amount": booked_income + task_income},
 		],
 	}
@@ -430,14 +433,6 @@ func get_last_ledger() -> Dictionary:
 	return _last_ledger.duplicate(true)
 
 
-## 每周固定工资（economy.json 真源 × 在册人数；与 Economy.accrue_fixed_expense 同口径）。
-func _wage_per_week() -> int:
-	var wage_variant: Variant = DataLoader.require_key(_economy_cfg, "wage_per_staff", ECONOMY_PATH)
-	if wage_variant == null:
-		return 0
-	return int(wage_variant) * staff.size()
-
-
 ## 域标志（techs.json domain_flags.<flag>；未标注域取 default_value）。
 func _domain_flag(domain: String, flag: String, default_value: bool) -> bool:
 	var flags: Dictionary = _techs_cfg.get("domain_flags", {})
@@ -549,7 +544,9 @@ func unassign_staff(staff_id: String) -> void:
 func enqueue_task(task_id: String) -> void:
 	var context := {
 		"money": get_money(),
-		"lit_techs": [],
+		# 已点亮科技集合（unlock=tech_lit 的谓词真源）；此前恒传空数组 →
+		# 教学链第二笔 task_reproduce_lingxi 永不可接（#80 连带修复）。
+		"lit_techs": tech_fog.get_lit_techs(),
 	}
 	var check := task_queue.can_enqueue(task_id, context)
 	if not check.get("ok", false):

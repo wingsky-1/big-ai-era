@@ -536,8 +536,14 @@ func _on_pause_settings_requested() -> void:
 	_show_toast("设置面板开发中")
 
 
-func _on_toast_queued(msg: String, _color_tag: String) -> void:
-	_show_toast(msg)
+## 世界侧 toast（载荷 = `{text_key, …}`；ADR-0016：L3 只取文案键并格式化，不拼装业务）。
+## 修复签名不匹配（#80 连带暴露）：信号是 `toast_queued(payload: Dictionary)`，旧实现
+## 按 `(msg, color_tag)` 接收 → 任何世界侧 toast 都会抛 "Method expected 2 argument(s)"。
+func _on_toast_queued(payload: Dictionary) -> void:
+	var key: String = str(payload.get("text_key", ""))
+	if key.is_empty() or not TextService.table().has(key):
+		return
+	_show_toast(TextService.text(key))
 
 
 func _show_toast(msg: String) -> void:

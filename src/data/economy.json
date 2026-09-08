@@ -1,5 +1,7 @@
 {
 	"wage_per_staff": 2000,
+	"upkeep_weekly": 3000,
+	"_comment_upkeep_weekly": "固定运维支出（DR-031/C3 新增键）：使 lab 期周支出 ~9k（工资 3×2k + 运维 3k），对齐 GDD §6.4。与工资同走周结步序 1 的固定支出，计入 ledger.expense。",
 	"warn_line": -30000,
 	"bankruptcy_line": -200000,
 	"stage_depr": {"reproduce_factor": 1.0, "grant_interval_add_weeks": 0},

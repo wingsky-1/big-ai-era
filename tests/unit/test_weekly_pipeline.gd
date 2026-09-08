@@ -16,7 +16,7 @@ func test_weekly_ledger_includes_task_income() -> void:
 	autofree(world)
 	world.start_new_game(7)
 	var policy := AutoDecisionPolicy.new()
-	# task_reproduce_paper_0：3 周、income 8000、cost 0
+	# task_reproduce_paper_0：3 周、income 15000（#80 标定）、cost 0
 	assert_true(
 		world.task_queue.enqueue(
 			"task_reproduce_paper_0", {"money": world.get_money(), "lit_techs": []}
@@ -36,24 +36,24 @@ func test_weekly_ledger_includes_task_income() -> void:
 	var completion: Dictionary = reports[2]
 	assert_eq(
 		str(completion["money_row"]["income"]),
-		Formatter.format_money(8000),
-		"任务完成周的收入必须含 task_reward 8000（D-11 裂缝修复）"
+		Formatter.format_money(15000),
+		"任务完成周的收入必须含 task_reward 15000（D-11 裂缝修复）"
 	)
 	assert_eq(
 		str(completion["money_row"]["expense"]),
-		Formatter.format_money(6000),
-		"任务完成周支出 = 当周工资 6000（账期契约：每周独立结算）"
+		Formatter.format_money(9000),
+		"任务完成周支出 = 当周固定支出 9000（工资 6000 + 运维 3000，#80）"
 	)
 	assert_eq(
 		str(completion["money_row"]["net"]),
-		Formatter.format_delta(8000 - 6000),
+		Formatter.format_delta(15000 - 9000),
 		"income - expense == net 必须闭合"
 	)
 	# 前两周无任务结算：收入 0、支出当周工资
 	for idx: int in range(2):
 		assert_eq(str(reports[idx]["money_row"]["income"]), Formatter.format_money(0), "未结算周无收入")
 		assert_eq(
-			str(reports[idx]["money_row"]["expense"]), Formatter.format_money(6000), "未结算周支出=工资"
+			str(reports[idx]["money_row"]["expense"]), Formatter.format_money(9000), "未结算周支出=固定支出"
 		)
 
 
@@ -62,11 +62,11 @@ func test_bankruptcy_checked_after_task_settlement() -> void:
 	autofree(world)
 	world.start_new_game(7)
 	var policy := AutoDecisionPolicy.new()
-	world.enqueue_task("task_grant_pilot")  # 4 周、income 35000、cost 2000
+	world.enqueue_task("task_grant_pilot")  # 4 周、income 60000、cost 2000
 	world.simulate_weeks(3, policy)
 	assert_false(world.game_over_flag, "前 3 周不应破产")
 
-	# 第 4 周结算前压到破产线以下；本周任务 +35000 与工资 -6000 会把它拉回线上
+	# 第 4 周结算前压到破产线以下；本周任务 +60000 与固定支出 -9000 会把它拉回线上
 	world.economy.apply_delta("money", -250000, "test_setup")
 	assert_lt(world.get_money(), -200000, "构造：结算前低于破产线")
 	world.simulate_weeks(1, policy)

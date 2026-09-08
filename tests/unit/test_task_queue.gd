@@ -109,9 +109,9 @@ func test_enqueue_validation_and_rejection() -> void:
 
 func test_three_task_types_and_placeholder_refusal() -> void:
 	# 验证 tasks.json 真实配置中的基础三类任务：
-	# 1. 论文复现：task_reproduce_paper_0 (3周, 50 RP, 8000 income)
+	# 1. 论文复现：task_reproduce_paper_0 (3周, 110 RP, 15000 income)
 	# 2. 基础科研：task_research_basic (4周, 150 RP, 0 income)
-	# 3. 横向课题：task_grant_pilot (4周, 0 RP, 35000 income, 2000 cost)
+	# 3. 横向课题：task_grant_pilot (4周, 150 RP, 60000 income, 2000 cost)
 	# 4. deploy 占位行拒绝：task_deploy_placeholder
 	var ctx: Dictionary = {"money": 10000, "lit_techs": []}
 
@@ -139,7 +139,7 @@ func test_three_task_types_and_placeholder_refusal() -> void:
 	assert_true(bool(s3.get("completed", false)))
 	assert_eq(str(s3.get("task_id", "")), "task_reproduce_paper_0")
 	assert_eq(int(s3.get("rp_output", 0)), 110)
-	assert_eq(int(s3.get("income", 0)), 8000)
+	assert_eq(int(s3.get("income", 0)), 15000)
 	assert_true(_task_queue.get_active_task().is_empty(), "任务完成后队列为空，无激活任务")
 
 	# 2. 基础科研
@@ -160,7 +160,7 @@ func test_three_task_types_and_placeholder_refusal() -> void:
 	assert_true(bool(s_grant.get("completed", false)))
 	assert_eq(str(s_grant.get("task_id", "")), "task_grant_pilot")
 	assert_eq(int(s_grant.get("rp_output", 0)), 150)
-	assert_eq(int(s_grant.get("income", 0)), 35000)
+	assert_eq(int(s_grant.get("income", 0)), 60000)
 
 
 func test_queue_fifo_and_auto_fill() -> void:
