@@ -71,6 +71,7 @@ func _connect_world_signals() -> void:
 	_world.sota_updated.connect(_on_sota_updated)
 	_world.model_named.connect(_on_model_named)
 	_world.toast_queued.connect(_on_toast_queued)
+	_world.decision_pending.connect(_on_decision_pending)
 
 
 func _update_all_views() -> void:
@@ -280,6 +281,17 @@ func _on_resources_changed(money: int, compute_hours: float, influence: int) -> 
 
 func _on_progress_ticked(progress: Dictionary) -> void:
 	_workspace_view["current_progress"] = progress.duplicate(true)
+
+
+## 决策卡挂载（#104 P0-3）：事件层出卡 → z2 阻塞面板（世界等玩家，DR-022①）。
+## 此前该信号零 emit 点、main.gd 的 DECISION_CARD 分支永不可达。
+func _on_decision_pending(card: Dictionary) -> void:
+	_workspace_view["pending_decision"] = card.duplicate(true)
+	if _stack == null or card.is_empty():
+		return
+	if _stack.get_z2_stack().has(PanelStack.PanelId.DECISION_CARD):
+		return
+	_stack.push_panel(PanelStack.PanelId.DECISION_CARD, PanelStack.Layer.BLOCKING)
 
 
 func _on_task_state_changed(task_id: String, state: String) -> void:

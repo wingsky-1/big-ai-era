@@ -119,6 +119,35 @@ func test_pause_menu_esc_and_mask_dismiss_resume_world() -> void:
 	assert_eq(stack.get_z2_stack().size(), 1, "重复点暂停键只入栈一次")
 
 
+func test_pause_menu_save_button_writes_save() -> void:
+	# #104 PR-C：手动存档入口（此前 request_save 在 src/ui/** 零调用方）。
+	var main: MainScene = MAIN_SCENE.instantiate()
+	add_child_autofree(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var stack: PanelStack = main.get_stack()
+	stack.pop_panel(PanelStack.PanelId.INTRO)
+	main.get_node("%DockPauseBtn").emit_signal("pressed")
+	await get_tree().process_frame
+	var dialog: PauseMenuDialog = _find_pause_dialog(main)
+	assert_not_null(dialog, "暂停菜单应挂载")
+	var save_btn: Button = dialog.get_node("%SaveBtn")
+	assert_not_null(save_btn, "暂停菜单应有「存档」入口（#104 PR-C）")
+	# 前置态：清掉同一次 verify 运行内其他用例可能写出的存档（user:// 按运行隔离、按用例复用）
+	if FileAccess.file_exists(SaveSystem.SAVE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveSystem.SAVE_PATH))
+	assert_false(FileAccess.file_exists(SaveSystem.SAVE_PATH), "前置态：应无存档文件")
+	save_btn.emit_signal("pressed")
+	await get_tree().process_frame
+	assert_true(
+		FileAccess.file_exists(SaveSystem.SAVE_PATH),
+		"点「存档」后应写出存档（经契约命令 request_save → SaveSystem 唯一写入口）"
+	)
+	var loaded: Dictionary = SaveSystem.load_game()
+	assert_false(loaded.is_empty(), "写出的存档应可读回")
+	assert_eq(int(loaded.get("week", -1)), main.get_world().week, "存档周数应与世界一致")
+
+
 func _find_pause_dialog(main: MainScene) -> PauseMenuDialog:
 	var container: Control = main.get_node("%ModalContainer")
 	for child in container.get_children():

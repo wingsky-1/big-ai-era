@@ -15,6 +15,10 @@ const PAUSE_MENU_SCENE: PackedScene = preload("res://src/ui/modals/pause_menu_di
 const NAMING_DIALOG_SCENE: PackedScene = preload("res://src/ui/modals/naming_dialog.tscn")
 const FINALE_SCENE: PackedScene = preload("res://src/ui/modals/finale_dialog.tscn")
 const TASK_MANAGE_SCENE: PackedScene = preload("res://src/ui/modals/task_manage_dialog.tscn")
+## 决策卡截图用固定 seed（RNG 确定性 ⇒ 出卡周次确定；非游戏数值，仅取证用）
+const DECISION_SHOT_SEED: int = 104  # num-ok: 截图固定种子（表现层取证）
+## 决策卡截图推进上限（周）
+const DECISION_SHOT_MAX_WEEKS: int = 12  # num-ok: 截图推进上限（表现层取证）
 const TRAINING_SCENE: PackedScene = preload("res://src/ui/modals/training_dialog.tscn")
 const TOKENS_COLORS: Resource = preload("res://src/ui/theme/tokens_colors.tres")
 
@@ -125,7 +129,7 @@ func _notification(what: int) -> void:
 
 
 ## 截图/试玩自动化驱动（仅 Web 且显式查询参数时激活，正常游玩零影响）：
-## ?shot=<id>：合成指定弹层截图（home/tech/report/gameover/task/training）+ 就绪标志；
+## ?shot=<id>：合成指定弹层截图（home/tech/report/gameover/task/training/decision）+ 就绪标志；
 ## ?selftest=1：仅启用面板栈信标供交互自测断言。两者均冻结时钟、丢弃挂起决策卡。
 func _setup_debug_shot_driver() -> void:
 	if OS.has_feature("web") == false:
@@ -159,6 +163,18 @@ func _setup_debug_shot_driver() -> void:
 		"task":
 			# 任务板（#104）：接单入口的渲染证据
 			stack.push_panel(PanelStack.PanelId.TASK_MGMT)
+		"decision":
+			# 决策卡（#104 PR-C）：换固定 seed 推进到事件层出卡，清掉周结/命名等
+			# 附带面板，只留决策卡（合成渲染证据；卡面数据来自真表事件卡）。
+			_world.start_new_game(DECISION_SHOT_SEED)
+			for _week: int in range(DECISION_SHOT_MAX_WEEKS):
+				if not _world.pending_decision.is_empty():
+					break
+				_world.settle_week()
+			while not stack.get_z2_stack().is_empty():
+				stack.pop_panel(stack.get_z2_stack().back())
+			if not _world.pending_decision.is_empty():
+				stack.push_panel(PanelStack.PanelId.DECISION_CARD)
 		"training":
 			# 训练板（#104 PR-B）：训练入口的渲染证据。
 			# 派 1 人上桌使低档基座可启动 → 同一张图同时呈现「可启动」与「算力档不足」两态。
@@ -389,6 +405,12 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 	var world := _resolve_world()
 	if world == null:
 		return
+	# 同 id 重复入栈（长帧跨周推多张周报 / 触屏重复点击）：先回收旧实例，
+	# 否则 _active_modals 被覆盖 → 旧 modal 变孤儿永挂屏上（本轮渲染取证实测踩到）。
+	var stale: Variant = _active_modals.get(panel_id)
+	if stale != null and is_instance_valid(stale):
+		(stale as Node).queue_free()
+		_active_modals.erase(panel_id)
 
 	match panel_id:
 		PanelStack.PanelId.DECISION_CARD:
@@ -452,13 +474,7 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			_mount_modal(modal)
 
 		PanelStack.PanelId.TASK_MGMT:
-			# 任务板（#104）：同 id 重复 push 时复用既有实例（防孤儿 modal 泄漏）
-			var existing: Variant = _active_modals.get(panel_id)
-			if existing != null and is_instance_valid(existing):
-				(existing as TaskManageDialog).setup(
-					_presenter.get_workspace_view().get("task_board", {})
-				)
-				return
+			# 任务板（#104）：同 id 重复 push 由通用清理回收旧实例（防孤儿 modal）
 			var task_modal: TaskManageDialog = TASK_MANAGE_SCENE.instantiate()
 			task_modal.setup(_presenter.get_workspace_view().get("task_board", {}))
 			task_modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
@@ -472,13 +488,7 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			_mount_modal(task_modal)
 
 		PanelStack.PanelId.TRAINING:
-			# 训练板（#104 PR-B）：同 id 重复 push 时复用既有实例（防孤儿 modal 泄漏）
-			var existing_training: Variant = _active_modals.get(panel_id)
-			if existing_training != null and is_instance_valid(existing_training):
-				(existing_training as TrainingDialog).setup(
-					_presenter.get_workspace_view().get("training_view", {})
-				)
-				return
+			# 训练板（#104 PR-B）：同 id 重复 push 由通用清理回收旧实例（防孤儿 modal）
 			var training_modal: TrainingDialog = TRAINING_SCENE.instantiate()
 			training_modal.setup(_presenter.get_workspace_view().get("training_view", {}))
 			training_modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
@@ -498,6 +508,13 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 				func() -> void:
 					world.start_new_game()
 					_stack.pop_panel(PanelStack.PanelId.PAUSE_MENU)
+					_update_views()
+			)
+			modal.save_requested.connect(
+				func() -> void:
+					# 手动存档（#104 PR-C）：走既有契约命令 request_save；
+					# 结果反馈经 toast_queued（texts.json 既有键 sys_save_hint）。
+					world.request_save("manual")
 					_update_views()
 			)
 			modal.settings_requested.connect(_on_pause_settings_requested)

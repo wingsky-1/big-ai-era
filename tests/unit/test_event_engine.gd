@@ -323,11 +323,14 @@ func test_event_income_share_bound() -> void:
 	var world := GameWorld.new()
 	world.start_new_game(20260908)
 	var task_policy := AutoTaskPolicy.new()
+	var decision_policy := AutoDecisionPolicy.new()
 	var weeks: int = 160
 	var settled: int = 0
 	for _i: int in range(weeks):
 		task_policy.fill(world)
-		var reports: Array[Dictionary] = world.simulate_weeks(1)
+		# #104 PR-C：决策卡入 pending 等玩家选择；headless 长跑注入应答策略
+		# （AutoDecisionPolicy 恒选 0 号选项，与原"自动选 0"语义一致）。
+		var reports: Array[Dictionary] = world.simulate_weeks(1, decision_policy)
 		if reports.is_empty():
 			break
 		settled += 1
