@@ -1,7 +1,7 @@
 {
 	"task_reproduce_paper_0": {
 		"duration_weeks": 3,
-		"rp_output": 50,
+		"rp_output": 110,
 		"income": 8000,
 		"cost": 0,
 		"enabled": true,
@@ -23,7 +23,7 @@
 	},
 	"task_grant_pilot": {
 		"duration_weeks": 4,
-		"rp_output": 0,
+		"rp_output": 150,
 		"income": 35000,
 		"cost": 2000,
 		"enabled": true,
@@ -36,7 +36,7 @@
 	},
 	"task_reproduce_lingxi": {
 		"duration_weeks": 4,
-		"rp_output": 100,
+		"rp_output": 140,
 		"income": 12000,
 		"cost": 0,
 		"enabled": true,

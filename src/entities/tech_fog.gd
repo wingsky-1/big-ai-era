@@ -88,7 +88,22 @@ func reset() -> void:
 	_emit_fog_changed()
 
 
+## 翻雾推进（旧签名保留）：入参即"累计获得影响力"，等价 advance_with_context。
+## RK-04 / DR-031 §2.9：供给源是**累计计数器**而非当前余额——点树消耗影响力
+## 不得拖慢翻雾进度；调用方应改用 advance_with_context({"cum_influence": …})。
 func advance(cumulative_rp: int) -> bool:
+	return advance_with_context({"cum_influence": cumulative_rp})
+
+
+## 翻雾推进（上下文版，RK-04 单一供给源）。
+func advance_with_context(context: Dictionary) -> bool:
+	var cumulative_variant: Variant = DataLoader.require_key(
+		context, "cum_influence", "tech_fog.advance_with_context() 调用点"
+	)
+	if cumulative_variant == null:
+		push_error("TechFog: 翻雾供给源必须是 cum_influence（累计获得影响力）")
+		return false
+	var cumulative_rp: int = int(cumulative_variant)
 	var any_revealed: bool = false
 
 	# 通路 1: 周 RP 累积达到 fog_gate.rumored 与 visible 揭示翻态

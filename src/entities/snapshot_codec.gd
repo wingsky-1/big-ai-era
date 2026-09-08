@@ -89,6 +89,9 @@ static func to_save(world: GameWorld) -> Dictionary:
 			# 为起步档、命名仪式不再触发（flags 为开放容器，加键零迁移）。
 			"scored": world._scored_once,
 			"player_best_score": world._player_best_score,
+			# 翻雾供给源（RK-04 / DR-031 §2.9）：累计获得影响力（只增不减），
+			# flags 为开放容器，加键零迁移（旧档缺键由 restore 兜底为 0）。
+			"cum_influence": world.economy.get_cum_influence(),
 		},
 	}
 

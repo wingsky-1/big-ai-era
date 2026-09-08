@@ -13,7 +13,9 @@
 		"p50_min": 7,
 		"p50_max": 9,
 		"p90_max": 11,
-		"supply_anchor_rp": 12300
+		"supply_band_rp_min": 4910,
+		"supply_band_rp_max": 6810,
+		"_comment_supply_band_rp": "供给带口径 = 任务 rp_output 唯一来源（DR-031 §2.9 / A1 第 2 条）。半开区间 [4910, 6810) ⇒ Σrp_cost 14210 下点亮 7 个（P50=7）。原 supply_anchor_rp=12300 系 balance-preview 连续模型锚，已被代码实证推翻（全仓无『研究力每周产 RP』通路），随 #76 改判。"
 	},
 	"v10_window": {
 		"max_gap_weeks": 40
