@@ -17,9 +17,14 @@ func test_constants_and_initial_state() -> void:
 	assert_eq(TechFog.STATE_VISIBLE, "visible")
 	assert_eq(TechFog.STATE_RESEARCHABLE, "researchable")
 	assert_eq(TechFog.STATE_LIT, "lit")
-	assert_eq(TechFog.TOTAL_NODES, 14)
-	assert_eq(TechFog.PITY_THRESHOLD, 8)
-	assert_eq(TechFog.PITY_CAP, 12)
+	# 批 0 数据化：节点总数/pity cap 真源 = techs.json（禁止代码常量）
+	var techs_cfg := DataLoader.load_json(TechFog.DEFAULT_TECHS_PATH)
+	assert_eq(int(techs_cfg.get("total_nodes", 0)), 14, "techs.json total_nodes 应为 14")
+	assert_eq(int(techs_cfg.get("pity", {}).get("cap", 0)), 12, "techs.json pity.cap 应为 12")
+	assert_eq(_fog.get_total_nodes(), 14, "TechFog 应从数据键读取节点总数")
+	assert_eq(
+		_fog.get_total_nodes(), (techs_cfg.get("nodes", {}) as Dictionary).size(), "数据键与实表节点数一致"
+	)
 
 	# 开局状态断言：
 	# 1. 4 节点开局即 researchable
@@ -206,7 +211,7 @@ func test_pity_counter_and_cap_12_hard_guarantee() -> void:
 		assert_false(revealed, "RP=0 且未达保底时不应翻态")
 		assert_eq(_fog.get_pity(), i, "第 %d 周 pity 应为 %d" % [i, i])
 
-	# 第 8 周 (pity=8)：达到 PITY_THRESHOLD，但未到硬保底 cap=12
+	# 第 8 周 (pity=8)：达到 pity.threshold，但未到硬保底 pity.cap=12
 	var revealed_8: bool = _fog.advance(0)
 	assert_false(revealed_8)
 	assert_eq(_fog.get_pity(), 8)
@@ -216,7 +221,7 @@ func test_pity_counter_and_cap_12_hard_guarantee() -> void:
 		_fog.advance(0)
 		assert_eq(_fog.get_pity(), i)
 
-	# 第 12 周：达到 PITY_CAP = 12，硬保底触发！
+	# 第 12 周：达到 pity.cap = 12，硬保底触发！
 	# 必须从处于 hidden 态的节点中挑选第一个表序节点翻为 visible (或 rumored)
 	# 初始 hidden 列表中第一个表序节点是 silent_chain
 	assert_eq(_fog.get_state("silent_chain"), TechFog.STATE_HIDDEN)

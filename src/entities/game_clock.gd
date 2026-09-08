@@ -12,14 +12,15 @@ extends RefCounted
 signal tick_advanced(week_ticks: int)
 signal week_boundary_reached(week: int)
 
-const TICKS_PER_WEEK: int = 40  # 语义校验值；运行时节拍以 clock.json 注入为准
+const CLOCK_PATH: String = "res://src/data/clock.json"
 
 var week: int = 0
 var week_ticks: int = 0
 var user_paused: bool = false
 var blocked_by_card: bool = false
 var paused: bool = false
-var tick_seconds: float = 0.25
+var tick_seconds: float = 0.0
+var ticks_per_week: int = 0
 
 var _accumulator: float = 0.0
 var _settle_target: Object = null
@@ -28,7 +29,12 @@ var _settle_target: Object = null
 ## 配置节拍并绑定周结宿主（GameWorld 提供 settle_week()）。
 ## Weakref 防止 GameWorld↔GameClock 循环引用泄漏（红线 5）。
 func setup(config: Dictionary, settle_target: Object) -> void:
-	tick_seconds = float(config.get("tick_seconds", tick_seconds))
+	var tick_variant: Variant = DataLoader.require_key(config, "tick_seconds", CLOCK_PATH)
+	var week_variant: Variant = DataLoader.require_key(config, "ticks_per_week", CLOCK_PATH)
+	if tick_variant == null or week_variant == null:
+		return
+	tick_seconds = float(tick_variant)
+	ticks_per_week = int(week_variant)
 	_settle_target = weakref(settle_target)
 
 
@@ -49,8 +55,8 @@ func advance(delta_seconds: float) -> void:
 	if gained <= 0:
 		return
 	var ticks_before := week_ticks
-	week_ticks = ClockMath.week_ticks_after(week_ticks, gained, TICKS_PER_WEEK)
-	var weeks := ClockMath.weeks_crossed(ticks_before, gained, TICKS_PER_WEEK)
+	week_ticks = ClockMath.week_ticks_after(week_ticks, gained, ticks_per_week)
+	var weeks := ClockMath.weeks_crossed(ticks_before, gained, ticks_per_week)
 	tick_advanced.emit(gained)
 	if weeks <= 0:
 		return

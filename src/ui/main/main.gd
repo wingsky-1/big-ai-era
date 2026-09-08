@@ -237,7 +237,7 @@ func _init_runtime_systems() -> void:
 
 func _setup_mask_overlay() -> void:
 	_mask_overlay = ColorRect.new()
-	_mask_overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+	_mask_overlay.color = Color(0.0, 0.0, 0.0, 0.6)  # num-ok: 遮罩透明度（表现层）
 	_mask_overlay.set_anchors_preset(PRESET_FULL_RECT)
 	_mask_overlay.visible = false
 	_mask_overlay.gui_input.connect(_on_mask_gui_input)
@@ -349,8 +349,8 @@ func _mount_modal(modal: Control) -> void:
 func _connect_ui_events() -> void:
 	speed_pause_btn.pressed.connect(_on_speed_pause_pressed)
 	speed_1x_btn.pressed.connect(func() -> void: _set_speed(1.0))
-	speed_2x_btn.pressed.connect(func() -> void: _set_speed(2.0))
-	speed_4x_btn.pressed.connect(func() -> void: _set_speed(4.0))
+	speed_2x_btn.pressed.connect(func() -> void: _set_speed(2.0))  # num-ok: 速度按钮 2x 档位（View）
+	speed_4x_btn.pressed.connect(func() -> void: _set_speed(4.0))  # num-ok: 速度按钮 4x 档位（View）
 
 	dock_tech_btn.pressed.connect(_on_dock_tech_pressed)
 	dock_report_btn.pressed.connect(_on_dock_report_pressed)
@@ -385,10 +385,10 @@ func _set_speed(spd: float) -> void:
 		_world.set_paused(false)
 	if is_equal_approx(spd, 1.0):
 		_driver.speed_index = 0
-	elif is_equal_approx(spd, 2.0):
+	elif is_equal_approx(spd, 2.0):  # num-ok: 速度档比较（View）
 		_driver.speed_index = 1
-	elif is_equal_approx(spd, 4.0):
-		_driver.speed_index = 2
+	elif is_equal_approx(spd, 4.0):  # num-ok: 速度档比较（View）
+		_driver.speed_index = 2  # num-ok: 速度档索引（纯逻辑索引）
 	_update_speed_buttons()
 
 
@@ -397,8 +397,8 @@ func _update_speed_buttons() -> void:
 	var spd: float = _driver.get_speed_multiplier()
 	speed_pause_btn.button_pressed = paused
 	speed_1x_btn.button_pressed = (not paused and is_equal_approx(spd, 1.0))
-	speed_2x_btn.button_pressed = (not paused and is_equal_approx(spd, 2.0))
-	speed_4x_btn.button_pressed = (not paused and is_equal_approx(spd, 4.0))
+	speed_2x_btn.button_pressed = (not paused and is_equal_approx(spd, 2.0))  # num-ok: 速度档比较（View）
+	speed_4x_btn.button_pressed = (not paused and is_equal_approx(spd, 4.0))  # num-ok: 速度档比较（View）
 
 
 func _on_dock_tech_pressed() -> void:
@@ -431,7 +431,8 @@ func _update_views() -> void:
 	influence_label.text = "声誉: %d" % int(res_view.get("influence", 0))
 
 	research_eff_label.text = "研发力: +%d" % int(res_view.get("research_eff", 0))
-	tech_bonus_label.text = "技术加成: +%.0f%%" % (float(res_view.get("tech_bonus", 0.0)) * 100.0)
+	var tech_bonus_pct: float = float(res_view.get("tech_bonus", 0.0)) * 100.0  # num-ok: 百分比换算
+	tech_bonus_label.text = "技术加成: +%.0f%%" % tech_bonus_pct
 
 	var week_num: int = int(res_view.get("week", 1))
 	week_label.text = "准备周" if week_num == 0 else "第 %d 周" % week_num
@@ -443,7 +444,7 @@ func _update_views() -> void:
 		task_progress_bar.value = 0.0
 	else:
 		task_title_label.text = str(active_task.get("title", "未命名任务"))
-		task_progress_bar.value = float(active_task.get("progress", 0.0)) * 100.0
+		task_progress_bar.value = float(active_task.get("progress", 0.0)) * 100.0  # num-ok: 百分比换算
 
 	# 员工双口径：在岗=已指派任务/训练槽，待命=已入职未指派（W0 三人全员待命）
 	var staff_total: int = int(ws_view.get("staff_total", 0))
@@ -456,6 +457,6 @@ func _update_views() -> void:
 	var rival_view: Dictionary = _presenter.get_rival_view()
 	rival_name_label.text = str(rival_view.get("rival_name", "深巷科技"))
 	rival_gap_label.text = str(rival_view.get("gap_text", "追赶中"))
-	rival_progress_bar.value = float(rival_view.get("rival_progress", 0.0)) * 100.0
+	rival_progress_bar.value = float(rival_view.get("rival_progress", 0.0)) * 100.0  # num-ok: 百分比换算
 
 	_update_speed_buttons()

@@ -49,6 +49,9 @@ const CONTRACT_SIGNALS: PackedStringArray = [
 ]
 const SCHEMA_VERSION: int = 1
 const DECISION_POLICY_META: StringName = &"decision_policy"
+const BENCHMARKS_PATH: String = "res://src/data/benchmarks.json"
+const BENCHMARK_KEY: String = "bench_gkp"
+const MODEL_BASES_PATH: String = "res://src/data/model_bases.json"
 
 var week: int = 0  # 权威周数（游戏状态口径；clock.week 仅触发器内部计数，一致性由测试锁定）
 var research_eff: int = 0
@@ -112,8 +115,18 @@ func _init() -> void:
 	tech_fog.setup(techs_cfg)
 	tech_tree.setup(techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
-	training.setup(DataLoader.load_json("res://src/data/model_bases.json"))
+	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _load_score_params())
 	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
+
+
+## 出分参数装载（benchmarks.json → ScoreMath.normalize_params；L0 不读盘，由 L2 注入）
+func _load_score_params() -> Dictionary:
+	var benchmarks := DataLoader.load_json(BENCHMARKS_PATH)
+	var row: Dictionary = benchmarks.get(BENCHMARK_KEY, {})
+	if row.is_empty():
+		push_error("GameWorld: %s 缺 '%s' 行" % [BENCHMARKS_PATH, BENCHMARK_KEY])
+		return {}
+	return ScoreMath.normalize_params(row)
 
 
 ## 组装口（GameLoopDriver 经此取时钟；非契约命令）。
@@ -174,8 +187,8 @@ func start_new_game(seed: int = 0) -> void:
 	tech_fog.setup(techs_cfg)
 	tech_tree.setup(techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
-	training.setup(DataLoader.load_json("res://src/data/model_bases.json"))
-	sota_board.setup(opening, DataLoader.load_json("res://src/data/benchmarks.json"))
+	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _load_score_params())
+	sota_board.setup(opening, DataLoader.load_json(BENCHMARKS_PATH))
 	sota_best = sota_board.get_best_score()
 	rival_best = sota_board.get_rival_best()
 	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream)
@@ -292,7 +305,7 @@ func submit_model_name(raw: String) -> void:
 		var escaped := candidate.replace("{", "{{").replace("}", "}}")
 		# 校验长度（<= 20）与敏感词
 		var stripped_brackets := candidate.replace("{", "").replace("}", "")
-		if not TextService.is_name_allowed(stripped_brackets, 20):
+		if not TextService.is_name_allowed(stripped_brackets, TextService.name_max_chars()):
 			# 敏感词或不合法拒绝
 			toast_queued.emit({"text_key": "naming_sensitive_reject"})
 			return
@@ -423,7 +436,7 @@ func simulate_weeks(n: int, policy: Object = null, _seed: int = 0) -> Array[Dict
 
 func _advance_one_week() -> void:
 	_sync_card_block()
-	clock.advance(clock.tick_seconds * GameClock.TICKS_PER_WEEK)
+	clock.advance(clock.tick_seconds * float(clock.ticks_per_week))
 
 
 ## GW3 同帧应答钩子：有 pending 卡且注入了策略 → 同帧选择，不跨帧不丢拍。
@@ -593,13 +606,13 @@ func _on_clock_tick(week_ticks: int) -> void:
 		var task_id := str(active.get("task_id", ""))
 		var weeks_left := int(active.get("weeks_left", 0))
 		var duration := int(active.get("duration_weeks", 1))
-		var week_progress: float = float(week_ticks) / float(GameClock.TICKS_PER_WEEK)
+		var week_progress: float = float(week_ticks) / float(clock.ticks_per_week)
 		var total_weeks_done: float = float(duration - weeks_left) + week_progress
 		var percent: float = clampf(total_weeks_done / float(maxi(duration, 1)), 0.0, 1.0)
 		current_progress = {
 			"task_id": task_id,
 			"weeks_left": weeks_left,
-			"progress_pct": int(percent * 100),
+			"progress_pct": int(percent * 100),  ## num-ok: 百分比换算（表现层系数）
 		}
 	if current_progress != _last_emitted_progress and not current_progress.is_empty():
 		_last_emitted_progress = current_progress.duplicate()

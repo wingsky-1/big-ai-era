@@ -3,6 +3,20 @@
 		"name": "通识试金石·五十七（GKP）",
 		"theta": 95.0,
 		"k": 13.0,
+		"ability_scale": 4.0,
+		"ability_exponents": {
+			"research_eff": 0.7,
+			"tech_bonus": 0.3
+		},
+		"compute_multipliers": {
+			"1": 0.6,
+			"2": 0.75,
+			"3": 0.9,
+			"4": 1.05
+		},
+		"sigmoid_clamp_exponent": 60.0,
+		"score_max": 100.0,
+		"score_precision": 0.1,
 		"baseline": 24.0,
 		"rival_model": "灵犀 Chat"
 	}

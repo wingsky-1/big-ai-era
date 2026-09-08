@@ -206,17 +206,22 @@ func test_name_validation_hits_wordlist_and_sensitive_layers() -> void:
 	assert_eq(TextService.find_sensitive_word("超大模型OpenAI"), "OpenAI", "应命中 sensitive_words 层")
 	# 干净名不误伤。
 	assert_eq(TextService.find_sensitive_word("璞玉"), "", "单字不误伤：璞玉不应命中璞石")
-	assert_true(TextService.is_name_allowed("逐光二号"), "干净中文名应放行")
-	assert_false(TextService.is_name_allowed("大模型公司腾讯"), "命中敏感词应拒绝")
-	assert_false(TextService.is_name_allowed("名字超长超过十二个字符上限"), "超长应拒绝")
-	assert_false(TextService.is_name_allowed("Bad!"), "非法字符应拒绝")
+	assert_true(TextService.is_name_allowed("逐光二号", TextService.name_max_chars()), "干净中文名应放行")
+	assert_false(TextService.is_name_allowed("大模型公司腾讯", TextService.name_max_chars()), "命中敏感词应拒绝")
+	assert_false(
+		TextService.is_name_allowed("名字超长超过十二个字符上限", TextService.name_max_chars()), "超长应拒绝"
+	)
+	assert_false(TextService.is_name_allowed("Bad!", TextService.name_max_chars()), "非法字符应拒绝")
 
 
 func test_fallback_name_cursor_respects_name_validation() -> void:
 	# 名池兜底与命名校验联动：名池全部名字都应通过敏感词校验（防自锁）。
 	for i in 10:
 		var name := TextService.default_name(i)
-		assert_true(TextService.is_name_allowed(name), "名池名字 %s 不应被自家词表拦截" % name)
+		assert_true(
+			TextService.is_name_allowed(name, TextService.name_max_chars()),
+			"名池名字 %s 不应被自家词表拦截" % name
+		)
 
 
 func _reference_value(name: String) -> String:

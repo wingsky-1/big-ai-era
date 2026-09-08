@@ -39,7 +39,7 @@ func _render() -> void:
 	for i in range(options.size()):
 		var opt: Dictionary = options[i]
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(48, 48)
+		btn.custom_minimum_size = Vector2(48, 48)  # num-ok: 触控最小热区（表现层）
 		btn.text = str(opt.get("text", "选项 %d" % (i + 1)))
 		var idx: int = i
 		btn.pressed.connect(func() -> void: _on_option_clicked(idx))

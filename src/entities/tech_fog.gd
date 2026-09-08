@@ -6,6 +6,10 @@ extends RefCounted
 ## - docs/adr/0009-tech-fog-standalone-pure-function.md
 ## - docs/gdd/gdd.md §8.2
 ## - docs/discussion/decision-log.md DR-003 / DR-023 / DR-027⑤（pity=8, cap=12 硬保底）
+##
+## 数值真源：src/data/techs.json —— `total_nodes` / `pity.{threshold,cap}` / `fog_gate`
+## / `domain_flags` / 节点级 `opening_researchable`；ADR-0013 零默认值纪律，
+## 缺键即 push_error 熔断（禁止代码默认值兜底）。
 
 signal fog_changed(payload: Dictionary)
 
@@ -15,23 +19,24 @@ const STATE_VISIBLE: String = "visible"
 const STATE_RESEARCHABLE: String = "researchable"
 const STATE_LIT: String = "lit"
 
-const TOTAL_NODES: int = 14
-const PITY_THRESHOLD: int = 8
-const PITY_CAP: int = 12
+## 状态单向推进序列（数组索引即序数，替代旧的状态→魔法数映射表）
+const STATE_SEQUENCE: Array[String] = [
+	STATE_HIDDEN,
+	STATE_RUMORED,
+	STATE_VISIBLE,
+	STATE_RESEARCHABLE,
+	STATE_LIT,
+]
 
 const DEFAULT_TECHS_PATH: String = "res://src/data/techs.json"
 
-const OPENING_RESEARCHABLE_NODES: Array[String] = [
-	"silver_leash",
-	"cot_sketch",
-	"distill_garden",
-	"hand_tutor",
-]
-
 var _nodes_data: Dictionary = {}
 var _domain_enum: Array = []
-var _fog_gate_rumored: int = 200
-var _fog_gate_visible: int = 600
+var _domain_flags: Dictionary = {}
+var _total_nodes: int = 0
+var _pity_cap: int = 0
+var _fog_gate_rumored: int = 0
+var _fog_gate_visible: int = 0
 
 # 状态字典：tech_id -> 状态字符串
 var _fog_states: Dictionary = {}
@@ -40,16 +45,19 @@ var _crossover_progress: int = 0
 
 
 func _init(techs_path: String = DEFAULT_TECHS_PATH) -> void:
-	_load_config(techs_path)
+	_apply_config(DataLoader.load_json(techs_path))
 	reset()
 
 
 ## 允许外部传入字典配置重置（对齐其他实体 setup 约定）
 func setup(config: Dictionary) -> void:
-	_fog_gate_rumored = int(config.get("fog_gate", {}).get("rumored", 200))
-	_fog_gate_visible = int(config.get("fog_gate", {}).get("visible", 600))
-	_nodes_data = config.get("nodes", {}).duplicate(true)
+	_apply_config(config)
 	reset()
+
+
+## 节点总数真源（事件引擎/UI 均经此取值，禁止各自硬编码）
+func get_total_nodes() -> int:
+	return _total_nodes
 
 
 ## 获取所有已点亮科技 ID 列表
@@ -68,11 +76,10 @@ func reset() -> void:
 
 	for node_id: String in _nodes_data:
 		var node: Dictionary = _nodes_data[node_id]
-		var domain: String = str(node.get("domain", ""))
-		if domain == "elsewhere":
-			# 他者道路开局保持 rumored 传闻占位
+		if not _is_researchable_domain(str(node.get("domain", ""))):
+			# 不可研域（他者道路）开局保持 rumored 传闻占位
 			_fog_states[node_id] = STATE_RUMORED
-		elif OPENING_RESEARCHABLE_NODES.has(node_id):
+		elif bool(node.get("opening_researchable", false)):
 			_fog_states[node_id] = STATE_RESEARCHABLE
 		else:
 			_fog_states[node_id] = STATE_HIDDEN
@@ -87,8 +94,7 @@ func advance(cumulative_rp: int) -> bool:
 	# 通路 1: 周 RP 累积达到 fog_gate.rumored 与 visible 揭示翻态
 	for node_id: String in _nodes_data:
 		var node: Dictionary = _nodes_data[node_id]
-		var domain: String = str(node.get("domain", ""))
-		if domain == "elsewhere":
+		if not _is_researchable_domain(str(node.get("domain", ""))):
 			continue
 
 		var current_state: String = get_state(node_id)
@@ -107,13 +113,13 @@ func advance(cumulative_rp: int) -> bool:
 	if unlocked_to_researchable:
 		any_revealed = true
 
-	# 保底逻辑（Pity 计数器与 cap=12 硬保底）
+	# 保底逻辑（Pity 计数器与 cap 硬保底）
 	if any_revealed:
 		_pity_counter = 0
 	else:
 		_pity_counter += 1
-		# 硬保底：连续无翻雾达到 cap=12 周，必触发翻雾
-		if _pity_counter >= PITY_CAP:
+		# 硬保底：连续无翻雾达到 cap 周，必触发翻雾
+		if _pity_counter >= _pity_cap:
 			var pity_revealed: bool = _trigger_pity_reveal()
 			if pity_revealed:
 				any_revealed = true
@@ -133,8 +139,8 @@ func spill_reveal(tech_id: String, target_state: String = STATE_VISIBLE) -> bool
 		return false
 
 	var node: Dictionary = _nodes_data[tech_id]
-	var domain: String = str(node.get("domain", ""))
-	if domain == "elsewhere" and target_state == STATE_RESEARCHABLE:
+	var researchable_domain: bool = _is_researchable_domain(str(node.get("domain", "")))
+	if not researchable_domain and target_state == STATE_RESEARCHABLE:
 		push_warning("TechFog.spill_reveal: 他者道路不允许提升为 researchable")
 		return false
 
@@ -143,16 +149,8 @@ func spill_reveal(tech_id: String, target_state: String = STATE_VISIBLE) -> bool
 		return false
 
 	# 状态单向推进：hidden -> rumored -> visible -> researchable -> lit
-	var state_order: Dictionary = {
-		STATE_HIDDEN: 0,
-		STATE_RUMORED: 1,
-		STATE_VISIBLE: 2,
-		STATE_RESEARCHABLE: 3,
-		STATE_LIT: 4,
-	}
-
-	var current_val: int = state_order.get(current_state, 0)
-	var target_val: int = state_order.get(target_state, 0)
+	var current_val: int = maxi(STATE_SEQUENCE.find(current_state), 0)
+	var target_val: int = maxi(STATE_SEQUENCE.find(target_state), 0)
 
 	if target_val > current_val:
 		_fog_states[tech_id] = target_state
@@ -172,8 +170,7 @@ func set_lit(tech_id: String) -> bool:
 		return false
 
 	var node: Dictionary = _nodes_data[tech_id]
-	var domain: String = str(node.get("domain", ""))
-	if domain == "elsewhere":
+	if not _is_researchable_domain(str(node.get("domain", ""))):
 		push_error("TechFog.set_lit: 他者道路不可置为 lit")
 		return false
 
@@ -271,17 +268,40 @@ func restore(data: Dictionary) -> void:
 	_emit_fog_changed()
 
 
-func _load_config(path: String) -> void:
-	var data: Dictionary = DataLoader.load_json(path)
-	if data.is_empty():
-		push_error("TechFog: 无法从 '%s' 加载科技数据" % path)
+## 配置装载（techs.json 全量：域枚举/域标志/节点表/节点总数/pity/fog_gate）。
+func _apply_config(config: Dictionary) -> void:
+	if config.is_empty():
+		push_error("TechFog: 配置为空（真源 %s）" % DEFAULT_TECHS_PATH)
 		return
 
-	_domain_enum = data.get("domain_enum", [])
-	var fog_gate: Dictionary = data.get("fog_gate", {})
-	_fog_gate_rumored = int(fog_gate.get("rumored", 200))
-	_fog_gate_visible = int(fog_gate.get("visible", 600))
-	_nodes_data = data.get("nodes", {})
+	_domain_enum = config.get("domain_enum", [])
+	_domain_flags = config.get("domain_flags", {})
+	_nodes_data = config.get("nodes", {}).duplicate(true)
+
+	var total: Variant = DataLoader.require_key(config, "total_nodes", DEFAULT_TECHS_PATH)
+	_total_nodes = int(total) if total != null else 0
+
+	var pity: Dictionary = config.get("pity", {})
+	var pity_cap: Variant = DataLoader.require_key(pity, "cap", DEFAULT_TECHS_PATH)
+	_pity_cap = int(pity_cap) if pity_cap != null else 0
+
+	var fog_gate: Dictionary = config.get("fog_gate", {})
+	var rumored: Variant = DataLoader.require_key(fog_gate, "rumored", DEFAULT_TECHS_PATH)
+	_fog_gate_rumored = int(rumored) if rumored != null else 0
+	var visible: Variant = DataLoader.require_key(fog_gate, "visible", DEFAULT_TECHS_PATH)
+	_fog_gate_visible = int(visible) if visible != null else 0
+
+
+## 域是否可研（techs.json `domain_flags`；未列出的域默认可研）
+func _is_researchable_domain(domain: String) -> bool:
+	var flags: Dictionary = _domain_flags.get(domain, {})
+	return bool(flags.get("researchable", true))
+
+
+## 域是否计入主干（techs.json `domain_flags`；未列出的域默认计入）
+func _counts_mainline(domain: String) -> bool:
+	var flags: Dictionary = _domain_flags.get(domain, {})
+	return bool(flags.get("counts_mainline", true))
 
 
 func _evaluate_researchable_transitions() -> bool:
@@ -293,8 +313,7 @@ func _evaluate_researchable_transitions() -> bool:
 		keep_checking = false
 		for node_id: String in _nodes_data:
 			var node: Dictionary = _nodes_data[node_id]
-			var domain: String = str(node.get("domain", ""))
-			if domain == "elsewhere":
+			if not _is_researchable_domain(str(node.get("domain", ""))):
 				continue
 
 			var current_state: String = get_state(node_id)
@@ -310,15 +329,18 @@ func _evaluate_researchable_transitions() -> bool:
 	return changed
 
 
-func _can_become_researchable(node_id: String, node: Dictionary) -> bool:
+func _can_become_researchable(_node_id: String, node: Dictionary) -> bool:
 	var parents: Array = node.get("parents", [])
-	var domain: String = str(node.get("domain", ""))
+	var unlock: Dictionary = node.get("unlock", {})
 
-	# 特殊交叉节点条件：mirror_mind
-	if node_id == "mirror_mind":
-		var unlock: Dictionary = node.get("unlock", {})
-		var req_count: int = int(unlock.get("params", {}).get("required_lit_count", 6))
-		return _count_lit_mainline_nodes() >= req_count
+	# 交叉节点条件：由 techs.json 节点级 unlock 声明（predicate=crossover_count）
+	if str(unlock.get("predicate", "")) == "crossover_count":
+		var required: Variant = DataLoader.require_key(
+			unlock.get("params", {}), "required_lit_count", DEFAULT_TECHS_PATH
+		)
+		if required == null:
+			return false
+		return _count_lit_mainline_nodes() >= int(required)
 
 	# 通用条件：parents 必须全部已点亮 (lit)
 	if parents.is_empty():
@@ -335,9 +357,8 @@ func _count_lit_mainline_nodes() -> int:
 	var count: int = 0
 	for node_id: String in _nodes_data:
 		var node: Dictionary = _nodes_data[node_id]
-		var domain: String = str(node.get("domain", ""))
-		# 主干节点排除 elsewhere 和 crossover
-		if domain != "elsewhere" and domain != "crossover":
+		# 主干节点：由 techs.json domain_flags.counts_mainline 决定（排除 elsewhere/crossover）
+		if _counts_mainline(str(node.get("domain", ""))):
 			if get_state(node_id) == STATE_LIT:
 				count += 1
 	return count
@@ -352,8 +373,7 @@ func _trigger_pity_reveal() -> bool:
 	# 硬保底：从处于 hidden 态的节点中挑选第一个表序节点翻为 visible (或 rumored)
 	for node_id: String in _nodes_data:
 		var node: Dictionary = _nodes_data[node_id]
-		var domain: String = str(node.get("domain", ""))
-		if domain == "elsewhere":
+		if not _is_researchable_domain(str(node.get("domain", ""))):
 			continue
 
 		if get_state(node_id) == STATE_HIDDEN:
@@ -368,7 +388,7 @@ func _trigger_pity_reveal() -> bool:
 func _emit_fog_changed() -> void:
 	var payload: Dictionary = {
 		"discovered_count": get_discovered_count(),
-		"total_nodes": TOTAL_NODES,
+		"total_nodes": _total_nodes,
 		"fog_states": _fog_states.duplicate(),
 		"domain_counts": get_domain_counts(),
 		"crossover_progress": _crossover_progress,

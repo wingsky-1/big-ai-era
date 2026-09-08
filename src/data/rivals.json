@@ -4,6 +4,9 @@
 	"spill_fields": ["dandelion", "deep_thought"],
 	"spill_rp_gate": 300,
 	"jitter_pct": 0.15,
+	"jitter_span": 2.0,
+	"warn_red_weeks": 2,
+	"warn_yellow_factor": 0.15,
 	"timeline": [
 		{
 			"id": "rv_paper_1",

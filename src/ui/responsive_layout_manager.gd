@@ -14,13 +14,13 @@ extends RefCounted
 signal layout_folded(folded: bool, folded_elements: Array[String])
 signal l3_animation_triggered(anim_id: String, used_count: int, remaining: int)
 
-const MAX_L3_ANIMATIONS_PER_GAME: int = 3
+const MAX_L3_ANIMATIONS_PER_GAME: int = 3  # num-ok: L3 动画上限（表现层）
 
 # 竖屏内容基准（v0.1.2）：canvas_items+expand 下逻辑宽恒等于基准宽，
 # 1280 基准会让 390 物理宽的手机整体缩到 ~0.3 倍（字小如蚁）。
 # 竖屏改用 480 基准：390/480 ≈ 0.81 缩放，字号恢复可读。
-const PORTRAIT_CONTENT_SCALE: Vector2i = Vector2i(480, 854)
-const LANDSCAPE_CONTENT_SCALE: Vector2i = Vector2i(1280, 720)
+const PORTRAIT_CONTENT_SCALE: Vector2i = Vector2i(480, 854)  # num-ok: 竖屏内容基准分辨率（表现层）
+const LANDSCAPE_CONTENT_SCALE: Vector2i = Vector2i(1280, 720)  # num-ok: 横屏内容基准分辨率（表现层）
 
 var _is_portrait: bool = false
 var _resource_subrow_folded: bool = false

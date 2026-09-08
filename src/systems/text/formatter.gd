@@ -9,7 +9,7 @@ extends RefCounted
 
 const MONEY_PREFIX: String = "¥"
 const MONEY_UNIT_WAN: String = "万"
-const WAN_THRESHOLD: int = 10000
+const WAN_THRESHOLD: int = 10000  ## num-ok: 格式化系数（万元缩写阈值，非游戏数值）
 const STAT_LINE_SEPARATOR: String = "｜"
 
 
@@ -21,7 +21,7 @@ static func format_money(amount: int) -> String:
 		magnitude_text = str(magnitude)
 	else:
 		var wan := magnitude / float(WAN_THRESHOLD)
-		if wan < 100.0:
+		if wan < 100.0:  ## num-ok: 格式化系数（10 万以上取整，非游戏数值）
 			magnitude_text = _trim_trailing_zero("%.1f" % wan) + MONEY_UNIT_WAN
 		else:
 			magnitude_text = str(int(round(wan))) + MONEY_UNIT_WAN

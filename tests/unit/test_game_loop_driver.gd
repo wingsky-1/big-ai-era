@@ -101,11 +101,14 @@ func test_speed_multipliers_data_matches_contract() -> void:
 
 
 func test_clock_json_beats_loaded() -> void:
-	# 节拍数值在 L4 clock.json（红线 3），语义与 ClockMath/GameClock 契约一致。
+	# 节拍数值在 L4 clock.json（红线 3），GameClock 直接注入消费（无代码默认值/常量）。
 	var config := DataLoader.load_json("res://src/data/clock.json")
+	var clock := GameClock.new()
+	autofree(clock)
+	clock.setup(config, self)
 	assert_eq(
-		int(config.get("ticks_per_week", 0)),
-		GameClock.TICKS_PER_WEEK,
-		"clock.json ticks_per_week 应与 GameClock 语义值一致"
+		clock.ticks_per_week,
+		int(config["ticks_per_week"]),
+		"GameClock 应从 clock.json 注入 ticks_per_week（死键已收口）"
 	)
-	assert_gt(float(config.get("tick_seconds", 0.0)), 0.0, "tick_seconds 应为正数")
+	assert_gt(clock.tick_seconds, 0.0, "tick_seconds 应为正数")

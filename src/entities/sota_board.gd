@@ -7,17 +7,28 @@ extends RefCounted
 
 signal sota_record_broken(model_name: String, new_score: float, old_score: float)
 
+const OPENING_PATH: String = "res://src/data/opening.json"
+
 var _best_score: float = 0.0
 var _best_model: String = ""
 var _rival_best: float = 0.0
 var _by_key: Dictionary = {}
 
 
-func setup(opening_data: Dictionary, benchmarks_data: Dictionary = {}) -> void:
-	var bench: Dictionary = benchmarks_data.get("bench_gkp", {})
-	_rival_best = float(opening_data.get("rival_best", bench.get("baseline", 24.0)))
+## 注入开局数据（rival_baseline 真源=opening.json）；benchmarks 参数保留签名兼容，
+## 出分参数改由 GameWorld 注入 TrainingProject，不再作基线兜底（消除双真源）。
+func setup(opening_data: Dictionary, _benchmarks_data: Dictionary = {}) -> void:
+	var rival_best_variant: Variant = DataLoader.require_key(
+		opening_data, "rival_best", OPENING_PATH
+	)
+	var model_name_variant: Variant = DataLoader.require_key(
+		opening_data, "rival_model_name", OPENING_PATH
+	)
+	if rival_best_variant != null:
+		_rival_best = float(rival_best_variant)
 	_best_score = _rival_best
-	_best_model = str(opening_data.get("rival_model_name", bench.get("rival_model", "灵犀 Chat")))
+	if model_name_variant != null:
+		_best_model = str(model_name_variant)
 	_by_key = {}
 
 

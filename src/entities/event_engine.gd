@@ -5,11 +5,13 @@ extends RefCounted
 ## - 8 张事件卡（谓词触发+加权抽取，RNG 域 event_roll）
 ## - 9 种效果枚举与显式 timing（immediate / delayed 于周结第 3 步消费）
 ## - 决策卡阻塞与 pending 入档（单周至多 1 张决策卡，双卡触发自动顺延入 week_due）
-## - 灵感三键：base=0.10 / pity=8 / cap=12 硬保底
+## - 灵感三键（base/pity/cap）与权重全部来自 src/data/events.json（ADR-0013 零默认值纪律）
 
 signal event_triggered(event_data: Dictionary)
 signal decision_pending_set(card: Dictionary)
 signal effects_applied(effects: Array)
+
+const EVENTS_PATH: String = "res://src/data/events.json"
 
 var _events_cfg: Array = []
 var _inspiration_spec: Dictionary = {}
@@ -21,18 +23,9 @@ var _inspiration_pity: int = 0
 
 func setup(config: Dictionary) -> void:
 	_events_cfg = config.get("events", []).duplicate(true)
-	_inspiration_spec = (
-		config
-		. get(
-			"inspiration_spec",
-			{
-				"base": 0.1,
-				"pity": 8,
-				"cap": 12,
-			}
-		)
-		. duplicate(true)
-	)
+	_inspiration_spec = config.get("inspiration_spec", {}).duplicate(true)
+	if _inspiration_spec.is_empty():
+		push_error("EventEngine: 缺少 inspiration_spec（真源 %s）" % EVENTS_PATH)
 	_fired_events.clear()
 	_pending_card.clear()
 	_effects_pending.clear()
@@ -63,16 +56,35 @@ func consume_delayed_effects(world: RefCounted) -> void:
 ## 周结管线第 8 步：灵感判定与触发（RNG 域 inspiration）
 func evaluate_inspiration(rng: RngStream, fog: TechFog) -> Dictionary:
 	_inspiration_pity += 1
-	var cap: int = int(_inspiration_spec.get("cap", 12))
-	var base: float = float(_inspiration_spec.get("base", 0.1))
-	var pity: int = int(_inspiration_spec.get("pity", 8))
+	var cap_variant: Variant = DataLoader.require_key(_inspiration_spec, "cap", EVENTS_PATH)
+	var base_variant: Variant = DataLoader.require_key(_inspiration_spec, "base", EVENTS_PATH)
+	var pity_variant: Variant = DataLoader.require_key(_inspiration_spec, "pity", EVENTS_PATH)
+	var boost_variant: Variant = DataLoader.require_key(
+		_inspiration_spec, "pity_boost_factor", EVENTS_PATH
+	)
+	var skip_variant: Variant = DataLoader.require_key(
+		_inspiration_spec, "pity_skip_step", EVENTS_PATH
+	)
+	if (
+		cap_variant == null
+		or base_variant == null
+		or pity_variant == null
+		or boost_variant == null
+		or skip_variant == null
+	):
+		return {"triggered": false}
+	var cap: int = int(cap_variant)
+	var base: float = float(base_variant)
+	var pity: int = int(pity_variant)
+	var pity_boost: float = float(boost_variant)
+	var pity_skip: int = int(skip_variant)
 
 	var hit: bool = false
 	# cap 硬保底：since >= cap 必触发
 	if _inspiration_pity >= cap:
 		hit = true
 	elif _inspiration_pity >= pity:
-		hit = rng.hit_domain(RngStream.DOMAIN_INSPIRATION, base * 2.0)
+		hit = rng.hit_domain(RngStream.DOMAIN_INSPIRATION, base * pity_boost)
 	else:
 		hit = rng.hit_domain(RngStream.DOMAIN_INSPIRATION, base)
 
@@ -80,9 +92,9 @@ func evaluate_inspiration(rng: RngStream, fog: TechFog) -> Dictionary:
 		return {"triggered": false}
 
 	# 检查当前是否有可研/可揭示节点
-	# 若触发但无可用目标或触发>可研节点数：跳过并顺延 pity 减 2
-	if fog != null and fog.get_discovered_count() >= 14:
-		_inspiration_pity = maxi(0, _inspiration_pity - 2)
+	# 若触发但无可用目标或触发>可研节点数：跳过并顺延 pity
+	if fog != null and fog.get_discovered_count() >= fog.get_total_nodes():
+		_inspiration_pity = maxi(0, _inspiration_pity - pity_skip)
 		return {"triggered": false, "skipped_overflow": true}
 
 	# 灵感成功触发，重置计数器
@@ -124,7 +136,10 @@ func evaluate_events(
 				continue
 
 			candidates.append(ev)
-			total_weight += int(trigger.get("weight", 10))
+			var weight_variant: Variant = DataLoader.require_key(trigger, "weight", EVENTS_PATH)
+			if weight_variant == null:
+				continue
+			total_weight += int(weight_variant)
 
 	if candidates.is_empty() or total_weight <= 0:
 		return {}
@@ -134,7 +149,7 @@ func evaluate_events(
 	var accumulated: int = 0
 	var chosen: Dictionary = candidates[0]
 	for cand: Dictionary in candidates:
-		var w: int = int(cand.get("trigger", {}).get("weight", 10))
+		var w: int = int(cand["trigger"]["weight"])
 		accumulated += w
 		if roll <= accumulated:
 			chosen = cand

@@ -37,11 +37,11 @@ func _render() -> void:
 		"领域探明: 模型架构 (%d/%d) | 算法演进 (%d/%d) | 工程基建 (%d/%d)"
 		% [
 			int(counts.get("architecture", {}).get("lit", 0)),
-			int(counts.get("architecture", {}).get("total", 4)),
+			int(counts.get("architecture", {}).get("total", 4)),  # num-ok: 域计数分母占位（B18，待 #81 收口）
 			int(counts.get("algorithm", {}).get("lit", 0)),
-			int(counts.get("algorithm", {}).get("total", 5)),
+			int(counts.get("algorithm", {}).get("total", 5)),  # num-ok: 域计数分母占位（B18，待 #81 收口）
 			int(counts.get("infrastructure", {}).get("lit", 0)),
-			int(counts.get("infrastructure", {}).get("total", 5)),
+			int(counts.get("infrastructure", {}).get("total", 5)),  # num-ok: 域计数分母占位（B18，待 #81 收口）
 		]
 	)
 
@@ -52,7 +52,7 @@ func _render() -> void:
 	for tech_id: String in nodes_data:
 		var state: String = fog.get_state(tech_id)
 		var item_hbox := HBoxContainer.new()
-		item_hbox.add_theme_constant_override("separation", 10)
+		item_hbox.add_theme_constant_override("separation", 10)  # num-ok: 布局间距（表现层）
 
 		var node_info: Dictionary = nodes_data[tech_id]
 		var name_label := Label.new()
@@ -74,7 +74,7 @@ func _render() -> void:
 					+ ", %dRP)" % rp
 				)
 				var btn := Button.new()
-				btn.custom_minimum_size = Vector2(48, 48)
+				btn.custom_minimum_size = Vector2(48, 48)  # num-ok: 触控最小热区（表现层）
 				btn.text = "研发"
 				var tid: String = tech_id
 				btn.pressed.connect(func() -> void: _on_research_clicked(tid))

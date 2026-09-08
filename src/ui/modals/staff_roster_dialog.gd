@@ -38,7 +38,7 @@ func _render() -> void:
 		var info: Dictionary = staff_dict[staff_id]
 		var card := PanelContainer.new()
 		var card_vbox := VBoxContainer.new()
-		card_vbox.add_theme_constant_override("separation", 6)
+		card_vbox.add_theme_constant_override("separation", 6)  # num-ok: 布局间距（表现层）
 
 		var name_label := Label.new()
 		var assigned: String = str(info.get("assigned", ""))
@@ -55,10 +55,10 @@ func _render() -> void:
 		card_vbox.add_child(name_label)
 
 		var btn_hbox := HBoxContainer.new()
-		btn_hbox.add_theme_constant_override("separation", 8)
+		btn_hbox.add_theme_constant_override("separation", 8)  # num-ok: 布局间距（表现层）
 
 		var assign_task_btn := Button.new()
-		assign_task_btn.custom_minimum_size = Vector2(48, 48)
+		assign_task_btn.custom_minimum_size = Vector2(48, 48)  # num-ok: 触控最小热区（表现层）
 		assign_task_btn.text = "指派常规任务"
 		var sid: String = staff_id
 		assign_task_btn.pressed.connect(
@@ -69,7 +69,7 @@ func _render() -> void:
 		btn_hbox.add_child(assign_task_btn)
 
 		var assign_training_btn := Button.new()
-		assign_training_btn.custom_minimum_size = Vector2(48, 48)
+		assign_training_btn.custom_minimum_size = Vector2(48, 48)  # num-ok: 触控最小热区（表现层）
 		assign_training_btn.text = "指派模型训练"
 		assign_training_btn.pressed.connect(
 			func() -> void:
@@ -79,7 +79,7 @@ func _render() -> void:
 		btn_hbox.add_child(assign_training_btn)
 
 		var unassign_btn := Button.new()
-		unassign_btn.custom_minimum_size = Vector2(48, 48)
+		unassign_btn.custom_minimum_size = Vector2(48, 48)  # num-ok: 触控最小热区（表现层）
 		unassign_btn.text = "休假撤岗"
 		unassign_btn.pressed.connect(
 			func() -> void:
