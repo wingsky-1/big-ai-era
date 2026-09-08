@@ -67,6 +67,7 @@ func test_all_modal_design_sizes_fit_landscape_base() -> void:
 		"tech_tree_dialog": Vector2(520, 440),
 		"staff_roster_dialog": Vector2(440, 400),
 		"game_over_dialog": Vector2(360, 280),
+		"pause_menu_dialog": Vector2(360, 280),
 	}
 	for key: String in expected:
 		assert_true(ModalSizing.DESIGN_SIZES.has(key), "DESIGN_SIZES 应包含 %s" % key)
