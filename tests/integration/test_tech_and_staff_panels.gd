@@ -20,12 +20,13 @@ func test_tech_tree_dialog_c_plan_features() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	# 1. 验证领域计数信息
+	# 1. 验证领域计数信息（#78：域与分母改由 L2 数据面出数，删硬编码/磁盘读）
 	var summary_lbl: Label = dialog.get_node("%DomainSummaryLabel")
 	assert_not_null(summary_lbl, "领域统计标签应存在")
-	assert_string_contains(summary_lbl.text, "模型架构", "应包含模型架构计数")
-	assert_string_contains(summary_lbl.text, "算法演进", "应包含算法演进计数")
-	assert_string_contains(summary_lbl.text, "工程基建", "应包含工程基建计数")
+	assert_string_contains(summary_lbl.text, "深度思考", "应包含深度思考域计数")
+	assert_string_contains(summary_lbl.text, "蒲公英", "应包含蒲公英域计数")
+	assert_string_contains(summary_lbl.text, "总探明", "应含总探明汇总（n/节点总数）")
+	assert_false(summary_lbl.text.contains("模型架构"), "不得再显与 techs.json 不符的旧域名")
 
 	# 2. 验证列表内包含 ??? 深层迷雾占位行
 	var list_vbox: VBoxContainer = dialog.get_node("%TechListVBox")

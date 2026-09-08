@@ -68,6 +68,7 @@ func _update_all_views() -> void:
 	var snap: Dictionary = _world.get_ui_snapshot()
 	var res: Dictionary = snap.get("resources", {})
 	var comp: Dictionary = res.get("compute", {})
+	var staff_view: Dictionary = snap.get("staff_view", {})
 
 	_resource_view = {
 		"week": int(snap.get("week", 0)),
@@ -77,21 +78,24 @@ func _update_all_views() -> void:
 		"influence": int(res.get("influence", 0)),
 		"research_eff": int(snap.get("research_eff", 0)),
 		"tech_bonus": float(snap.get("tech_bonus", 0.0)),
+		"forecast": (snap.get("forecast", {}) as Dictionary).duplicate(true),
+		"forecast_text": _format_forecast_row(snap.get("forecast", {})),
+		"forecast_lines": _format_forecast_lines(snap.get("forecast", {})),
 	}
 
-	var staff_rows: Array = snap.get("staff", [])
 	_workspace_view = {
 		"tasks": snap.get("tasks", {}),
-		"staff": staff_rows,
+		"staff": staff_view.get("rows", []),
 		"training": snap.get("training", {}),
+		"staff_total": int(staff_view.get("total", 0)),
+		"staff_assigned": int(staff_view.get("assigned", 0)),
+		"staff_idle": int(staff_view.get("idle", 0)),
+		"naming": (snap.get("naming", {}) as Dictionary).duplicate(true),
 	}
-	_refresh_staff_stats()
 
-	_rival_view = {
-		"sota_best": float(snap.get("sota", {}).get("best", 0.0)),
-		"rival_best": float(snap.get("sota", {}).get("rival_best", 0.0)),
-		"cursor": int(snap.get("rivals", {}).get("cursor", 0)),
-	}
+	_rival_view = _build_rival_view(
+		snap.get("rival_view", {}), float(snap.get("sota", {}).get("best", 0.0))
+	)
 
 	_dock_view = {
 		"has_unread_report": false,
@@ -99,25 +103,109 @@ func _update_all_views() -> void:
 	}
 
 
-## 员工三口径统计（v0.1.3 反馈①）：total/assigned/idle。
-## 指派与撤岗经 resources_changed 信号驱动本刷新（GameWorld._emit_resources）。
-func _refresh_staff_stats() -> void:
-	var staff_rows: Array = _world.get_ui_snapshot().get("staff", [])
-	var assigned_count: int = 0
-	for row: Dictionary in staff_rows:
-		if str(row.get("assigned", "")) != "":
-			assigned_count += 1
-	_workspace_view["staff"] = staff_rows
-	_workspace_view["staff_total"] = staff_rows.size()
-	_workspace_view["staff_assigned"] = assigned_count
-	_workspace_view["staff_idle"] = staff_rows.size() - assigned_count
+## 竞对条视图（消费 L2 rival_view；L3 只拼接排版，ADR-0016）。
+func _build_rival_view(view: Dictionary, sota_best: float) -> Dictionary:
+	var display: Dictionary = view.get("score_display", {})
+	var label: String = str(display.get("label", ""))
+	var separator: String = str(display.get("separator", ""))
+	var score_line: String = label
+	if bool(display.get("reveal_truth", false)):
+		score_line = label + separator + str(display.get("score_text", ""))
+	return {
+		"sota_best": sota_best,
+		"rival_best": float(view.get("rival_best", 0.0)),
+		"rival_name": str(view.get("rival_name", "")),
+		"player_model": str(view.get("player_model", "")),
+		"player_score": float(view.get("player_score", 0.0)),
+		"score_line": score_line,
+		"reveal_truth": bool(display.get("reveal_truth", false)),
+		"rival_progress": float(view.get("rival_progress", 0.0)),
+		"warn_level": str(view.get("warn_level", "")),
+		"warn_weeks_left": int(view.get("warn_weeks_left", 0)),
+	}
+
+
+## 竞对条刷新（出分/竞对发版/命名后；数据面仍由 L2 出数）。
+func _refresh_rival_view() -> void:
+	if _world == null:
+		return
+	var latest: Variant = _rival_view.get("latest_sota")
+	_rival_view = _build_rival_view(_world.get_rival_view(), _world.sota_best)
+	if latest != null:
+		_rival_view["latest_sota"] = latest
+
+
+## 净流入预告副行文本（数值与文案键均由 L2 提供，L3 只格式化拼接）。
+func _format_forecast_row(forecast: Dictionary) -> String:
+	var display: Dictionary = forecast.get("display", {})
+	if not bool(forecast.get("available", false)):
+		return str(display.get("unavailable_text", ""))
+	return (
+		str(display.get("row_label", ""))
+		+ str(display.get("net_separator", ""))
+		+ str(display.get("approx_prefix", ""))
+		+ Formatter.format_delta(int(forecast.get("net", 0)))
+	)
+
+
+## 收支结构展开行（工资 / 运维 / 任务 = 净；零值行不渲染）。
+func _format_forecast_lines(forecast: Dictionary) -> Array[String]:
+	var lines: Array[String] = []
+	if not bool(forecast.get("available", false)):
+		return lines
+	var display: Dictionary = forecast.get("display", {})
+	var labels: Dictionary = display.get("line_labels", {})
+	var separator: String = str(display.get("line_separator", ""))
+	var approx: String = str(display.get("approx_prefix", ""))
+	var parts: Array[String] = []
+	for line_variant: Variant in forecast.get("lines", []):
+		var line: Dictionary = line_variant
+		var amount: int = int(line.get("amount", 0))
+		if amount == 0:
+			continue
+		var line_id: String = str(line.get("id", ""))
+		parts.append(
+			str(labels.get(line_id, line_id)) + " " + approx + Formatter.format_delta(amount)
+		)
+	var total: String = (
+		str(display.get("net_label", ""))
+		+ " "
+		+ approx
+		+ Formatter.format_delta(int(forecast.get("net", 0)))
+	)
+	lines.append(
+		(
+			"".join(parts)
+			if parts.is_empty()
+			else separator.join(parts) + str(display.get("net_separator", "")) + total
+		)
+	)
+	return lines
+
+
+## 员工三口径刷新（数据面在 L2，L3 只透传；ADR-0016）。
+func _refresh_staff_view() -> void:
+	var view: Dictionary = _world.get_staff_view()
+	_workspace_view["staff"] = view.get("rows", [])
+	_workspace_view["staff_total"] = int(view.get("total", 0))
+	_workspace_view["staff_assigned"] = int(view.get("assigned", 0))
+	_workspace_view["staff_idle"] = int(view.get("idle", 0))
+
+
+## 净流入预告刷新（资源/周结变化时重算，刷新断言=周结后重算）。
+func _refresh_forecast_view() -> void:
+	var forecast: Dictionary = _world.get_income_forecast()
+	_resource_view["forecast"] = forecast.duplicate(true)
+	_resource_view["forecast_text"] = _format_forecast_row(forecast)
+	_resource_view["forecast_lines"] = _format_forecast_lines(forecast)
 
 
 func _on_resources_changed(money: int, compute_hours: float, influence: int) -> void:
 	_resource_view["money"] = money
 	_resource_view["compute_hours"] = compute_hours
 	_resource_view["influence"] = influence
-	_refresh_staff_stats()
+	_refresh_staff_view()
+	_refresh_forecast_view()
 
 
 func _on_progress_ticked(progress: Dictionary) -> void:
@@ -131,10 +219,28 @@ func _on_task_state_changed(task_id: String, state: String) -> void:
 func _on_week_settled(report: Dictionary) -> void:
 	_resource_view["week"] = int(report.get("week", _resource_view.get("week", 0)))
 	_dock_view["has_unread_report"] = true
+	# 刷新断言：周结后重算净流入预告（ADR-0015 账期翻页进入新账期）
+	_refresh_forecast_view()
 
 	# 周报双挂载之 1：周结自动弹 z2（阻塞停喂 tick）
 	if _stack != null:
 		_stack.push_panel(PanelStack.PanelId.AUTO_REPORT, PanelStack.Layer.BLOCKING, report)
+
+	# 命名仪式（X7）：出分且未命名 → 推 NAMING_DIALOG
+	_refresh_naming_view()
+
+
+## 命名仪式挂载（L2 出 pending 判定，L3 只负责挂载；幂等不叠层）。
+func _refresh_naming_view() -> void:
+	if _world == null:
+		return
+	var naming: Dictionary = _world.get_naming_view()
+	_workspace_view["naming"] = naming.duplicate(true)
+	if not bool(naming.get("pending", false)) or _stack == null:
+		return
+	if _stack.get_z2_stack().has(PanelStack.PanelId.NAMING_DIALOG):
+		return
+	_stack.push_panel(PanelStack.PanelId.NAMING_DIALOG, PanelStack.Layer.BLOCKING)
 
 
 func _on_game_over(summary: Dictionary) -> void:
@@ -145,11 +251,14 @@ func _on_game_over(summary: Dictionary) -> void:
 
 func _on_sota_updated(headline: Dictionary) -> void:
 	_rival_view["latest_sota"] = headline.duplicate(true)
-	_rival_view["sota_best"] = float(headline.get("score", _rival_view.get("sota_best", 0.0)))
+	_refresh_rival_view()
 
 
 func _on_model_named(final_name: String) -> void:
 	_workspace_view["named_model"] = final_name
+	# 榜单显示新名（玩家模型名 + 竞对条刷新）
+	_refresh_rival_view()
+	_workspace_view["naming"] = _world.get_naming_view() if _world != null else {}
 
 
 func _on_toast_queued(toast_data: Dictionary) -> void:

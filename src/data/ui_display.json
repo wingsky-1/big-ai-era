@@ -1,0 +1,81 @@
+{
+	"_meta": {
+		"note": "呈现层显示口径真源（#78 / DR-031 呈现层⑥）：显示分级阈值 + 净流入预告文案 + 域显示名。仅 L2（GameWorld）消费，L3 只格式化（ADR-0016）。",
+		"scope": "显示阈值均为呈现层口径（非玩法数值），不参与任何经济/出分计算"
+	},
+	"score_tiers": [
+		{
+			"id": "t0",
+			"min_score": 0.0,
+			"label": "起步档·榜外",
+			"reveal_truth": false,
+			"_comment": "出处：需求 RU-01「score < ~10 主台只显分档标签，周报留真值」"
+		},
+		{
+			"id": "t1",
+			"min_score": 10.0,
+			"label": "新星档",
+			"reveal_truth": true,
+			"_comment": "出处：需求 RU-01 硬阈值 10（≥10 出真值）"
+		},
+		{
+			"id": "t2",
+			"min_score": 35.0,
+			"label": "中坚档",
+			"reveal_truth": true,
+			"_comment": "出处：rivals.json rv_launch_l1 深巷·小寒 1b = 35.0"
+		},
+		{
+			"id": "t3",
+			"min_score": 58.0,
+			"label": "第一梯队",
+			"reveal_truth": true,
+			"_comment": "出处：rivals.json rv_launch_l2 深巷·惊蛰 7b = 58.0"
+		},
+		{
+			"id": "t4",
+			"min_score": 75.0,
+			"label": "登顶档",
+			"reveal_truth": true,
+			"_comment": "出处：rivals.json rv_launch_l3 深巷·芒种 13b = 75.0"
+		}
+	],
+	"score_display": {
+		"tier_separator": " · ",
+		"unavailable_text": "—"
+	},
+	"forecast": {
+		"row_label": "下周净流入",
+		"expanded_label": "收支结构",
+		"unavailable_text": "—",
+		"approx_prefix": "~",
+		"line_separator": " / ",
+		"net_separator": " = ",
+		"net_label": "净",
+		"line_labels": {
+			"wage": "工资",
+			"opex": "运维",
+			"task": "任务"
+		},
+		"check_label": "预告对账",
+		"check_template": "上周预告 {predicted} · 实际 {actual}",
+		"check_matched_mark": "✓",
+		"check_mismatch_mark": "✗"
+	},
+	"report_score_label": "评测分数",
+	"domain_labels": {
+		"deep_thought": "深度思考",
+		"dandelion": "蒲公英",
+		"long_memory": "长忆",
+		"synesthesia": "通感",
+		"tool_use": "工具",
+		"crossover": "交叉",
+		"elsewhere": "他者道路"
+	},
+	"domain_summary": {
+		"label": "领域探明",
+		"label_separator": ": ",
+		"total_label": "总探明",
+		"separator": " · "
+	}
+}

@@ -28,39 +28,26 @@ func _ready() -> void:
 
 
 func _render() -> void:
-	if _world == null or _world.tech_fog == null or _world.tech_tree == null:
+	if _world == null:
 		return
 
-	var fog: TechFog = _world.tech_fog
-	var counts: Dictionary = fog.get_domain_counts()
-	domain_summary_label.text = (
-		"领域探明: 模型架构 (%d/%d) | 算法演进 (%d/%d) | 工程基建 (%d/%d)"
-		% [
-			int(counts.get("architecture", {}).get("lit", 0)),
-			int(counts.get("architecture", {}).get("total", 4)),  # num-ok: 域计数分母占位（B18，待 #81 收口）
-			int(counts.get("algorithm", {}).get("lit", 0)),
-			int(counts.get("algorithm", {}).get("total", 5)),  # num-ok: 域计数分母占位（B18，待 #81 收口）
-			int(counts.get("infrastructure", {}).get("lit", 0)),
-			int(counts.get("infrastructure", {}).get("total", 5)),  # num-ok: 域计数分母占位（B18，待 #81 收口）
-		]
-	)
+	domain_summary_label.text = _build_domain_summary()
 
 	for child in tech_list_vbox.get_children():
 		child.queue_free()
 
-	var nodes_data: Dictionary = DataLoader.load_json("res://src/data/techs.json").get("nodes", {})
-	for tech_id: String in nodes_data:
-		var state: String = fog.get_state(tech_id)
+	# 节点元数据与状态一律来自 L2 数据面（ADR-0016 决策②：L3 禁读 L4 数据表）
+	for node_info: Dictionary in _world.get_tech_list_view():
+		var state: String = str(node_info.get("state", TechFog.STATE_HIDDEN))
 		var item_hbox := HBoxContainer.new()
 		item_hbox.add_theme_constant_override("separation", 10)  # num-ok: 布局间距（表现层）
 
-		var node_info: Dictionary = nodes_data[tech_id]
 		var name_label := Label.new()
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 		match state:
 			TechFog.STATE_LIT:
-				name_label.text = "✓ " + str(node_info.get("name", tech_id)) + " [已点亮]"
+				name_label.text = "✓ " + str(node_info.get("name", "")) + " [已点亮]"
 				item_hbox.add_child(name_label)
 
 			TechFog.STATE_RESEARCHABLE:
@@ -68,7 +55,7 @@ func _render() -> void:
 				var rp: int = int(node_info.get("rp_cost", 0))
 				name_label.text = (
 					"● "
-					+ str(node_info.get("name", tech_id))
+					+ str(node_info.get("name", ""))
 					+ " (需: "
 					+ Formatter.format_money(cost)
 					+ ", %dRP)" % rp
@@ -76,7 +63,7 @@ func _render() -> void:
 				var btn := Button.new()
 				btn.custom_minimum_size = Vector2(48, 48)  # num-ok: 触控最小热区（表现层）
 				btn.text = "研发"
-				var tid: String = tech_id
+				var tid: String = str(node_info.get("id", ""))
 				btn.pressed.connect(func() -> void: _on_research_clicked(tid))
 				item_hbox.add_child(name_label)
 				item_hbox.add_child(btn)
@@ -84,13 +71,13 @@ func _render() -> void:
 			TechFog.STATE_VISIBLE:
 				name_label.text = (
 					"○ "
-					+ str(node_info.get("name", tech_id))
-					+ " [前置: %s]" % str(node_info.get("prerequisites", []))
+					+ str(node_info.get("name", ""))
+					+ " [前置: %s]" % str(node_info.get("parents", []))
 				)
 				item_hbox.add_child(name_label)
 
 			TechFog.STATE_RUMORED:
-				name_label.text = "? [传闻] " + str(node_info.get("name", "未知技术"))
+				name_label.text = "? [传闻] " + str(node_info.get("name", ""))
 				item_hbox.add_child(name_label)
 
 			_:  # STATE_HIDDEN
@@ -98,6 +85,50 @@ func _render() -> void:
 				item_hbox.add_child(name_label)
 
 		tech_list_vbox.add_child(item_hbox)
+
+
+## 域进度行（真值来自 L2 get_domain_progress：逐域 {lit,total} 由技术数据表统计，
+## 不再硬编码域 id 与分母——旧实现显示 architecture/algorithm/infrastructure 三域，
+## 与数据表的 domain_enum 完全不符，属"显示错误值"缺陷）。
+func _build_domain_summary() -> String:
+	var progress: Dictionary = _world.get_domain_progress()
+	var summary: Dictionary = progress.get("summary", {})
+	var separator: String = str(summary.get("separator", ""))
+	var parts: Array[String] = []
+	for domain_variant: Variant in progress.get("domains", []):
+		var domain: Dictionary = domain_variant
+		if not bool(domain.get("mainline", false)):
+			continue
+		(
+			parts
+			. append(
+				(
+					"%s %d/%d"
+					% [
+						str(domain.get("label", "")),
+						int(domain.get("lit", 0)),
+						int(domain.get("total", 0)),
+					]
+				)
+			)
+		)
+	var text: String = (
+		str(summary.get("label", ""))
+		+ str(summary.get("label_separator", ""))
+		+ separator.join(parts)
+	)
+	return (
+		text
+		+ separator
+		+ (
+			"%s %d/%d"
+			% [
+				str(summary.get("total_label", "")),
+				int(progress.get("lit_total", 0)),
+				int(progress.get("total_nodes", 0)),
+			]
+		)
+	)
 
 
 func _on_research_clicked(tech_id: String) -> void:
