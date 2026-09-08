@@ -14,9 +14,9 @@ extends RefCounted
 signal warned(amount: int)
 signal compute_upgraded(new_tier: int, new_capacity: int)
 
-const WARNED_NONE: int = 0
-const WARNED_SOFT: int = 1
-const WARNED_BANKRUPT: int = 2
+enum { WARNED_NONE, WARNED_SOFT, WARNED_BANKRUPT }
+
+const ECONOMY_PATH: String = "res://src/data/economy.json"
 
 var money: int = 0
 var influence: int = 0
@@ -108,8 +108,12 @@ func get_week_ledger() -> Dictionary:
 
 ## 双线判定：0=正常 1=警告线（提示） 2=破产线（判负）。
 func check_lines() -> int:
-	var warn_line := int(_config.get("warn_line", -30000))
-	var bankruptcy_line := int(_config.get("bankruptcy_line", -200000))
+	var warn_variant: Variant = DataLoader.require_key(_config, "warn_line", ECONOMY_PATH)
+	var bankrupt_variant: Variant = DataLoader.require_key(_config, "bankruptcy_line", ECONOMY_PATH)
+	if warn_variant == null or bankrupt_variant == null:
+		return WARNED_NONE
+	var warn_line := int(warn_variant)
+	var bankruptcy_line := int(bankrupt_variant)
 	if money <= bankruptcy_line:
 		return WARNED_BANKRUPT
 	if money <= warn_line:
@@ -200,7 +204,11 @@ func get_r_curve() -> float:
 	return _stage_depr_r
 
 
-## 训练折价（0.15k/卡时占位）：返回本周训练成本（卡时×单价），调用方过账。
+## 训练折价（卡时×单价）：返回本周训练成本，调用方过账。
 func training_cost(hours: int) -> int:
-	var unit := int(_config.get("training_cost_per_compute_hour", 150))
-	return hours * unit
+	var unit_variant: Variant = DataLoader.require_key(
+		_config, "training_cost_per_compute_hour", ECONOMY_PATH
+	)
+	if unit_variant == null:
+		return 0
+	return hours * int(unit_variant)

@@ -39,7 +39,7 @@ enum PanelId {
 ## 面板所在操作层级（z0/z3 为概念层，不入栈操作）
 enum Layer {
 	NORMAL = 1,  ## z1 常规互斥层
-	BLOCKING = 2,  ## z2 阻塞层
+	BLOCKING = 2,  ## z2 阻塞层  # num-ok: z 层枚举值（纯逻辑）
 }
 
 var _z1_panel: PanelId = PanelId.NONE
@@ -204,8 +204,8 @@ func _update_mask() -> void:
 
 
 ## 发送 Toast：同屏最多 3 条，超出则顶出最旧一条，不入档
-func push_toast(text: String, duration_seconds: float = 3.0) -> void:
-	if _toasts.size() >= 3:
+func push_toast(text: String, duration_seconds: float = 3.0) -> void:  # num-ok: toast 默认时长（表现层）
+	if _toasts.size() >= 3:  # num-ok: toast 同屏上限（表现层）
 		_toasts.pop_front()
 
 	(

@@ -19,7 +19,7 @@ var _settled_weeks: Array = []
 func before_each() -> void:
 	_clock = GameClock.new()
 	_settled_weeks = []
-	_clock.setup({"tick_seconds": 0.25}, self)
+	_clock.setup(DataLoader.load_json("res://src/data/clock.json"), self)
 	_clock.week_boundary_reached.connect(func(w: int) -> void: _settled_weeks.append(w))
 	autofree(_clock)
 
@@ -108,7 +108,7 @@ func test_settle_target_weakref_lost_reports_error() -> void:
 	autofree(orphan)
 	var host := Node.new()
 	autofree(host)
-	orphan.setup({"tick_seconds": 0.25}, host)
+	orphan.setup(DataLoader.load_json("res://src/data/clock.json"), host)
 	host.free()
 	orphan.advance(WEEK_SECONDS)
 	assert_push_error("周结宿主不可用", "宿主失效应有明确错误提示")

@@ -10,43 +10,47 @@ extends GutTest
 ## 5. research_eff=0 不可训练断言
 
 var _world: GameWorld
+var _params: Dictionary
 
 
 func before_each() -> void:
 	_world = GameWorld.new()
 	_world.start_new_game(42)
+	# 出分参数真源 = benchmarks.json（批 0 数据化后 ScoreMath 零数值字面量）
+	var benchmarks := DataLoader.load_json("res://src/data/benchmarks.json")
+	_params = ScoreMath.normalize_params(benchmarks[GameWorld.BENCHMARK_KEY])
 
 
 func test_acceptance_point_1_formula_boundary_vectors() -> void:
 	# [T] 验收点 1：公式边界向量断言（eff=0 / m 档位边界 / sigmoid 端点）
 	# 1. eff=0 边界
-	var a_eff0: float = ScoreMath.calculate_ability(0, 0.0, 1, 0.55)
-	# A = 4.0 * (1+0)^0.7 * (1+0)^0.3 * 0.6 * 0.55 = 4 * 1 * 1 * 0.6 * 0.55 = 1.32
+	var a_eff0: float = ScoreMath.calculate_ability(0, 0.0, 1, 0.55, _params)
+	# A = ability_scale * (1+0)^e_eff * (1+0)^e_tech * m(1) * q = 4 * 1 * 1 * 0.6 * 0.55 = 1.32
 	assert_almost_eq(a_eff0, 1.32, 0.01, "eff=0 边界计算正确")
 
-	# 2. m(compute_tier) 四档乘子边界 [0.6, 0.75, 0.9, 1.05]
-	assert_eq(ScoreMath.get_compute_multiplier(1), 0.6)
-	assert_eq(ScoreMath.get_compute_multiplier(2), 0.75)
-	assert_eq(ScoreMath.get_compute_multiplier(3), 0.9)
-	assert_eq(ScoreMath.get_compute_multiplier(4), 1.05)
+	# 2. m(compute_tier) 四档乘子边界 [0.6, 0.75, 0.9, 1.05]（数据键驱动）
+	assert_eq(ScoreMath.get_compute_multiplier(_params, 1), 0.6)
+	assert_eq(ScoreMath.get_compute_multiplier(_params, 2), 0.75)
+	assert_eq(ScoreMath.get_compute_multiplier(_params, 3), 0.9)
+	assert_eq(ScoreMath.get_compute_multiplier(_params, 4), 1.05)
 
 	# 3. sigmoid 端点（防越界溢出）：超高值逼近 100，极低值逼近 0
-	var s_high: float = ScoreMath.calculate_score(1000.0)
+	var s_high: float = ScoreMath.calculate_score(1000.0, _params)
 	assert_eq(s_high, 100.0, "超高能力值分数为 100")
-	var s_low: float = ScoreMath.calculate_score(-1000.0)
+	var s_low: float = ScoreMath.calculate_score(-1000.0, _params)
 	assert_eq(s_low, 0.0, "极低能力值分数为 0")
 
 
 func test_acceptance_point_2_sigmoid_truth_values() -> void:
-	# [T] 验收点 2：sigmoid 真值断言（theta=95, k=13）
+	# [T] 验收点 2：sigmoid 真值断言（theta/k 来自 benchmarks.json：95/13）
 	# A=80 -> 24.0 / 95 -> 50.0 / 110 -> 76.0
-	var s_80: float = ScoreMath.calculate_score(80.0, 95.0, 13.0)
+	var s_80: float = ScoreMath.calculate_score(80.0, _params)
 	assert_almost_eq(s_80, 24.0, 0.1, "A=80 时 score 必须精确为 24.0")
 
-	var s_95: float = ScoreMath.calculate_score(95.0, 95.0, 13.0)
+	var s_95: float = ScoreMath.calculate_score(95.0, _params)
 	assert_almost_eq(s_95, 50.0, 0.1, "A=95 时 score 必须精确为 50.0")
 
-	var s_110: float = ScoreMath.calculate_score(110.0, 95.0, 13.0)
+	var s_110: float = ScoreMath.calculate_score(110.0, _params)
 	assert_almost_eq(s_110, 76.0, 0.1, "A=110 时 score 必须精确为 76.0")
 
 

@@ -2,7 +2,9 @@
 	"inspiration_spec": {
 		"base": 0.1,
 		"pity": 8,
-		"cap": 12
+		"cap": 12,
+		"pity_boost_factor": 2.0,
+		"pity_skip_step": 2
 	},
 	"events": [
 		{

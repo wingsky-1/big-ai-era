@@ -9,7 +9,7 @@ extends Node
 
 signal fed(delta_seconds: float)
 
-const SPEED_MULTIPLIERS: PackedFloat32Array = [1.0, 2.0, 4.0]
+const SPEED_MULTIPLIERS: PackedFloat32Array = [1.0, 2.0, 4.0]  # num-ok: 变速档（ADR-0006：变速属 View）
 const DEFAULT_SPEED_INDEX: int = 0
 
 var speed_index: int = DEFAULT_SPEED_INDEX

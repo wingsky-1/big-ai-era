@@ -15,33 +15,53 @@ const WARN_NONE: String = "none"
 const WARN_YELLOW: String = "yellow"
 const WARN_RED: String = "red"
 
+const RIVALS_PATH: String = "res://src/data/rivals.json"
+
 var _config: Dictionary = {}
 var _timeline: Array = []
 var _action_actual_weeks: Dictionary = {}
 var _cursor: int = 0
-var _jitter_pct: float = 0.15
+var _jitter_pct: float = 0.0
+var _jitter_span: float = 0.0
+var _warn_red_weeks: int = 0
+var _warn_yellow_factor: float = 0.0
 
 
 func setup(config: Dictionary, rng: RngStream) -> void:
 	_config = config.duplicate(true)
 	_timeline = _config.get("timeline", []).duplicate(true)
-	_jitter_pct = float(_config.get("jitter_pct", 0.15))
+	var jitter_variant: Variant = DataLoader.require_key(_config, "jitter_pct", RIVALS_PATH)
+	var span_variant: Variant = DataLoader.require_key(_config, "jitter_span", RIVALS_PATH)
+	var red_variant: Variant = DataLoader.require_key(_config, "warn_red_weeks", RIVALS_PATH)
+	var yellow_variant: Variant = DataLoader.require_key(_config, "warn_yellow_factor", RIVALS_PATH)
+	if (
+		jitter_variant == null
+		or span_variant == null
+		or red_variant == null
+		or yellow_variant == null
+	):
+		return
+	_jitter_pct = float(jitter_variant)
+	_jitter_span = float(span_variant)
+	_warn_red_weeks = int(red_variant)
+	_warn_yellow_factor = float(yellow_variant)
 	_cursor = 0
 	_action_actual_weeks.clear()
 
-	# 初始化每个动作的实际触发周（±15% 扰动由 RNG 域 rival_jitter 确定性计算）
+	# 初始化每个动作的实际触发周（±jitter 扰动由 RNG 域 rival_jitter 确定性计算）
 	for action_variant: Variant in _timeline:
 		if action_variant is Dictionary:
 			var act: Dictionary = action_variant
 			var base_week: int = int(act.get("week", 0))
 			var act_id: String = str(act.get("id", ""))
-			# 针对发版动作进行 ±15% 扰动计算
+			# 针对发版动作进行 ±jitter 扰动计算
 			if str(act.get("type", "")) == "launch":
-				var rand_f: float = 0.5
+				# 无 RNG 源时不做扰动（offset=0），保持与注入源一致的中性行为
+				var offset_pct: float = 0.0
 				if rng != null:
-					rand_f = rng.randf_domain(RngStream.DOMAIN_RIVAL_JITTER)
-				# 映射到 [-jitter, +jitter]
-				var offset_pct: float = (rand_f * 2.0 - 1.0) * _jitter_pct
+					var rand_f: float = rng.randf_domain(RngStream.DOMAIN_RIVAL_JITTER)
+					# 映射到 [-jitter, +jitter]
+					offset_pct = (rand_f * _jitter_span - 1.0) * _jitter_pct
 				var actual_week: int = maxi(1, int(round(float(base_week) * (1.0 + offset_pct))))
 				_action_actual_weeks[act_id] = actual_week
 			else:
@@ -92,13 +112,13 @@ func _evaluate_warnings(current_week: int) -> void:
 		if weeks_left <= 0:
 			continue
 
-		# 红灯判定：2 周零误报（剩余 1~2 周）
-		if weeks_left <= 2:
+		# 红灯判定：warn_red_weeks 周零误报（数据键，DR-027④）
+		if weeks_left <= _warn_red_weeks:
 			rival_warned.emit(WARN_RED, act_id, weeks_left)
 		else:
-			# 黄灯判定：提前 ⌈0.15 * nominal_week⌉ 周（配置中带 warn_weeks，如 6/9/11/13）
+			# 黄灯判定：提前 ⌈warn_yellow_factor × nominal_week⌉ 周（配置中带 warn_weeks）
 			var warn_limit: int = int(
-				act.get("warn_weeks", int(ceil(float(act.get("week", 0)) * 0.15)))
+				act.get("warn_weeks", int(ceil(float(act.get("week", 0)) * _warn_yellow_factor)))
 			)
 			if weeks_left <= warn_limit:
 				rival_warned.emit(WARN_YELLOW, act_id, weeks_left)

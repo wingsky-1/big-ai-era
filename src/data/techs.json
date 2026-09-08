@@ -1,4 +1,19 @@
 {
+	"total_nodes": 14,
+	"pity": {
+		"threshold": 8,
+		"cap": 12
+	},
+	"domain_flags": {
+		"elsewhere": {
+			"researchable": false,
+			"counts_mainline": false
+		},
+		"crossover": {
+			"researchable": true,
+			"counts_mainline": false
+		}
+	},
 	"domain_enum": [
 		"deep_thought",
 		"dandelion",
@@ -16,6 +31,7 @@
 		"silver_leash": {
 			"name": "银缰对齐",
 			"domain": "deep_thought",
+			"opening_researchable": true,
 			"rp_cost": 300,
 			"cost": 0,
 			"min_week": 0,
@@ -34,6 +50,7 @@
 		"cot_sketch": {
 			"name": "析理草图",
 			"domain": "deep_thought",
+			"opening_researchable": true,
 			"rp_cost": 360,
 			"cost": 0,
 			"min_week": 0,
@@ -74,6 +91,7 @@
 		"distill_garden": {
 			"name": "析津别院",
 			"domain": "dandelion",
+			"opening_researchable": true,
 			"rp_cost": 420,
 			"cost": 0,
 			"min_week": 0,
@@ -92,6 +110,7 @@
 		"hand_tutor": {
 			"name": "琢玉手札",
 			"domain": "dandelion",
+			"opening_researchable": true,
 			"rp_cost": 380,
 			"cost": 0,
 			"min_week": 0,

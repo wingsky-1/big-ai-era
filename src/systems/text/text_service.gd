@@ -10,18 +10,9 @@ extends RefCounted
 
 const TEXTS_PATH: String = "res://src/data/texts.json"
 const SENSITIVE_WORDS_PATH: String = "res://src/data/sensitive_words.json"
-const DEFAULT_NAMES: Array[String] = [
-	"夸父",
-	"精卫",
-	"望舒",
-	"天枢",
-	"织女",
-	"晨曦",
-	"远航",
-	"星火",
-	"启明",
-	"逐光",
-]
+const NAMING_PATH: String = "res://src/data/naming.json"
+## 默认名池键前缀（真源 texts.json：naming_fallback_01..NN，连续编号，遇空即止）
+const NAME_POOL_KEY_PREFIX: String = "naming_fallback_"
 const ERROR_MISSING_KEY: String = "missing key"
 const ERROR_MISSING_VARIABLE: String = "missing variable"
 ## 敏感词三层之①：玩家命名 Unicode 白名单（中日韩统一表意文字基本区 +
@@ -31,6 +22,7 @@ const NAME_CHARS_PATTERN: String = "^[0-9A-Za-z_一-鿿]+$"
 const TEXT_STAT_LINE_KEYS: PackedStringArray = ["report_money_row", "report_reputation_row"]
 
 static var _table: Dictionary = {}
+static var _naming_cfg: Dictionary = {}
 static var _enabled: bool = true
 static var _reported_missing: Dictionary = {}
 static var _name_chars: RegEx = null
@@ -38,6 +30,9 @@ static var _name_chars: RegEx = null
 
 ## 引擎加载脚本时执行一次：装载并校验文本表，失败则熔断（后续方法全部返回空串）。
 static func _static_init() -> void:
+	_naming_cfg = DataLoader.load_json(NAMING_PATH)
+	if _naming_cfg.is_empty():
+		push_error("TextService: 命名参数表加载失败（真源 %s）" % NAMING_PATH)
 	var raw := DataLoader.load_json(TEXTS_PATH)
 	if raw.is_empty():
 		push_error("TextService: 文本表加载失败，文本服务已熔断")
@@ -153,8 +148,14 @@ static func find_sensitive_word(text_string: String) -> String:
 	return ""
 
 
-## 命名通路校验（PR6 消费）：字数上限内 + Unicode 白名单 + 不命中否定词表。
-static func is_name_allowed(raw_name: String, limit: int = 12) -> bool:
+## 命名长度上限（真源 src/data/naming.json；零代码默认值，缺键即报错返回 0）
+static func name_max_chars() -> int:
+	var value: Variant = DataLoader.require_key(_naming_cfg, "max_chars", NAMING_PATH)
+	return int(value) if value != null else 0
+
+
+## 命名通路校验（字数上限内 + Unicode 白名单 + 不命中否定词表）。
+static func is_name_allowed(raw_name: String, limit: int) -> bool:
 	if raw_name.is_empty() or raw_name.length() > limit:
 		return false
 	if _name_chars == null or _name_chars.search(raw_name) == null:
@@ -162,9 +163,27 @@ static func is_name_allowed(raw_name: String, limit: int = 12) -> bool:
 	return find_sensitive_word(raw_name).is_empty()
 
 
+## 默认名池（真源 texts.json 的 naming_fallback_NN；确定性顺序，无 RNG 消费）
+static func default_name_pool() -> Array[String]:
+	var pool: Array[String] = []
+	var idx: int = 1
+	while true:
+		var key: String = NAME_POOL_KEY_PREFIX + ("%02d" % idx)
+		var entry: Variant = _table.get(key)
+		if entry is not Dictionary:
+			break
+		pool.append(str((entry as Dictionary).get("text", "")))
+		idx += 1
+	return pool
+
+
 ## 默认名池确定性轮转（round3 Minor：零 RNG 消费点），游标由调用方入档。
 static func default_name(cursor: int) -> String:
-	return DEFAULT_NAMES[posmod(cursor, DEFAULT_NAMES.size())]
+	var pool: Array[String] = default_name_pool()
+	if pool.is_empty():
+		push_error("TextService: 默认名池为空（真源 %s）" % TEXTS_PATH)
+		return ""
+	return pool[posmod(cursor, pool.size())]
 
 
 ## 返回表快照（测试驱动用；调用方修改不影响服务内部状态）。
