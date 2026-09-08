@@ -72,14 +72,14 @@ func test_apply_delta_is_sole_resource_mutator() -> void:
 
 
 func test_weekly_fixed_expense_and_ledger_closure() -> void:
-	# [T] 验收点 2（批 1a）：周固定支出 = 工资×人数；脉冲源退役后周结本身不产收入
+	# [T] 验收点 2（批 1a + #80）：周固定支出 = 工资×人数 + 固定运维；脉冲源退役后周结本身不产收入
 	_economy.reset_week_ledger()
 	_economy.accrue_fixed_expense(3)
 	var ledger: Dictionary = _economy.get_week_ledger()
-	assert_eq(int(ledger["expense"]), 6000, "3 人工资支出应为 6000")
+	assert_eq(int(ledger["expense"]), 9000, "3 人工资 6000 + 固定运维 3000 = 9000（#80 标定）")
 	assert_eq(int(ledger["income"]), 0, "脉冲源退役后周结不产生经营收入")
-	assert_eq(int(ledger["net"]), -6000, "净结余应为 -6000")
-	assert_eq(_economy.get_money(), 44000, "工资应经 apply_delta 过账")
+	assert_eq(int(ledger["net"]), -9000, "净结余应为 -9000")
+	assert_eq(_economy.get_money(), 41000, "固定支出应经 apply_delta 过账")
 	assert_eq(
 		int(ledger["income"]) - int(ledger["expense"]),
 		int(ledger["net"]),
@@ -95,7 +95,7 @@ func test_weekly_ledger_period_contract() -> void:
 	_economy.apply_delta("influence", 30, "event_rp_grant")
 	_economy.accrue_fixed_expense(3)
 	var ledger: Dictionary = _economy.get_week_ledger()
-	assert_eq(int(ledger["expense"]), 8000, "非周结支出应计入本周未结算账")
+	assert_eq(int(ledger["expense"]), 11000, "非周结支出 + 固定支出（9000）应计入本周未结算账")
 	assert_eq(int(ledger["influence_delta"]), 30, "非周结影响力过账应计入本周")
 	assert_eq(int(ledger["income"]) - int(ledger["expense"]), int(ledger["net"]), "收支必须闭合")
 	_economy.reset_week_ledger()
@@ -143,7 +143,7 @@ func test_warn_and_bankruptcy_lines() -> void:
 	# 验证在周结触发警告时发射 warned 信号
 	_economy.init_resources(-25000, 0, 1, 8.0)
 	watch_signals(_economy)
-	# 工资扣除 6000 后资金变为 -31000，触发 WARNED_SOFT
+	# 固定支出扣除 9000 后资金变为 -34000，触发 WARNED_SOFT
 	_economy.accrue_fixed_expense(3)
 	_economy.emit_week_warning(_economy.get_week_ledger())
 	assert_signal_emitted(_economy, "warned", "周结越过警告线应发射 warned 信号")

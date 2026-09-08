@@ -162,15 +162,26 @@ func check_lines() -> int:
 ## ============ 周结管线（settle 步序 1 收支）============
 
 
-## 周结固定支出（工资 × 在册人数），经 apply_delta 过账。
+## 周结固定支出（工资 × 在册人数 + 固定运维），经 apply_delta 过账。
 ## 经营收入改由"占槽任务结算"在 GameWorld 侧过账（DR-031/C1：脉冲源退役）。
 func accrue_fixed_expense(headcount: int) -> void:
-	var wage_variant: Variant = DataLoader.require_key(_config, "wage_per_staff", ECONOMY_PATH)
-	if wage_variant == null:
-		return
-	var wage: int = int(wage_variant) * headcount
+	var fixed: Dictionary = get_weekly_fixed_expense(headcount)
+	var wage: int = int(fixed.get("wage", 0))
+	var upkeep: int = int(fixed.get("upkeep", 0))
 	if wage != 0:
 		apply_delta("money", -wage, "wage")
+	if upkeep != 0:
+		apply_delta("money", -upkeep, "upkeep")
+
+
+## 每周固定支出分解（工资 + 固定运维，真源 economy.json）；
+## 周结扣款与"下周净流入预告"共用此口径（防两处漂移，DR-031/C3）。
+func get_weekly_fixed_expense(headcount: int) -> Dictionary:
+	var wage_variant: Variant = DataLoader.require_key(_config, "wage_per_staff", ECONOMY_PATH)
+	var wage: int = int(wage_variant) * headcount if wage_variant != null else 0
+	var upkeep_variant: Variant = DataLoader.require_key(_config, "upkeep_weekly", ECONOMY_PATH)
+	var upkeep: int = int(upkeep_variant) if upkeep_variant != null else 0
+	return {"wage": wage, "upkeep": upkeep, "total": wage + upkeep}
 
 
 ## 账期翻页（ADR-0015 账期契约）：周结步序 1–2 结束后重置周账，
