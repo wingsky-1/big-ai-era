@@ -639,7 +639,9 @@ func unassign_staff(staff_id: String) -> void:
 		_emit_resources()
 
 
-func enqueue_task(task_id: String) -> void:
+## 接单（契约命令；#104 起返回 bool 供 UI 反馈，调用方不依赖返回值亦兼容）。
+## 去重/资金门（#101/#104）一律在 TaskQueue.can_enqueue 单点判定（ADR-0014）。
+func enqueue_task(task_id: String) -> bool:
 	var context := {
 		"money": get_money(),
 		# 已点亮科技集合（unlock=tech_lit 的谓词真源）；此前恒传空数组 →
@@ -648,13 +650,13 @@ func enqueue_task(task_id: String) -> void:
 	}
 	var check := task_queue.can_enqueue(task_id, context)
 	if not check.get("ok", false):
-		return
+		return false
 	var tasks_config: Dictionary = DataLoader.load_json("res://src/data/tasks.json")
 	var task_cfg: Dictionary = tasks_config.get(task_id, {})
 	var cost := int(task_cfg.get("cost", 0))
 	if cost > 0:
 		if not economy.apply_delta("money", -cost, "task_cost"):
-			return
+			return false
 		_emit_resources()
 	if task_queue.enqueue(task_id, context):
 		var active := task_queue.get_active_task()
@@ -662,6 +664,78 @@ func enqueue_task(task_id: String) -> void:
 			task_state_changed.emit(task_id, "active")
 		else:
 			task_state_changed.emit(task_id, "enqueued")
+		return true
+	return false
+
+
+## 任务板只读数据面（#104 / ADR-0016）：L2 出数并依 ui_display 拼装文案，L3 只渲染。
+## 行内 `available` 即"能否接单"（去重/资金/谓词单点判定在 TaskQueue.can_enqueue）。
+func get_task_board_view() -> Dictionary:
+	var context := {"money": get_money(), "lit_techs": tech_fog.get_lit_techs()}
+	var cfg: Dictionary = _ui_display.get("task_board", {})
+	var reasons: Dictionary = cfg.get("reason_texts", {})
+	var rows: Array[Dictionary] = []
+	for row: Dictionary in task_queue.get_task_rows(context):
+		var state_text: String = str(cfg.get("ready_label", ""))
+		if bool(row["active"]):
+			state_text = str(cfg.get("active_label", ""))
+		elif bool(row["queued"]):
+			state_text = str(cfg.get("queued_label", ""))
+		elif not bool(row["ok"]):
+			state_text = str(reasons.get(str(row["reason"]), ""))
+		(
+			rows
+			. append(
+				{
+					"task_id": str(row["task_id"]),
+					"name": str(row["name"]),
+					"meta_text": _task_meta_text(row, cfg),
+					"state_text": state_text,
+					"available": bool(row["ok"]),
+					"reason": str(row["reason"]),
+				}
+			)
+		)
+	var active: Dictionary = task_queue.get_active_task()
+	var active_view: Dictionary = {}
+	if not active.is_empty():
+		active_view = {
+			"task_id": str(active.get("task_id", "")),
+			"name": task_queue.get_task_name(str(active.get("task_id", ""))),
+			"weeks_left": int(active.get("weeks_left", 0)),
+			"duration_weeks": int(active.get("duration_weeks", 0)),
+			"progress": task_queue.get_active_progress(),
+			"progress_text":
+			str(cfg.get("progress_template", "")).replace(
+				"{weeks}", str(int(active.get("weeks_left", 0)))
+			),
+		}
+	var queue_names: Array[String] = []
+	for queued_id: String in task_queue.get_queue():
+		queue_names.append(task_queue.get_task_name(queued_id))
+	return {
+		"title": str(cfg.get("title", "")),
+		"entry_label": str(cfg.get("entry_label", "")),
+		"accept_label": str(cfg.get("accept_label", "")),
+		"close_label": str(cfg.get("close_label", "")),
+		"empty_active": str(cfg.get("empty_active", "")),
+		"empty_queue": str(cfg.get("empty_queue", "")),
+		"queue_label": str(cfg.get("queue_label", "")),
+		"rows": rows,
+		"active": active_view,
+		"queue_names": queue_names,
+	}
+
+
+## 任务板行文案（L2 拼装，L3 零格式化；ADR-0016 R3）。
+func _task_meta_text(row: Dictionary, cfg: Dictionary) -> String:
+	return (
+		str(cfg.get("meta_template", ""))
+		. replace("{weeks}", str(int(row["duration_weeks"])))
+		. replace("{income}", Formatter.format_money(int(row["income"])))
+		. replace("{rp}", str(int(row["rp_output"])))
+		. replace("{cost}", Formatter.format_money(int(row["cost"])))
+	)
 
 
 func start_research(tech_id: String) -> void:

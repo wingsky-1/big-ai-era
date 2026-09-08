@@ -39,6 +39,7 @@ static func ui_snapshot(world: GameWorld) -> Dictionary:
 		"domain_progress": world.get_domain_progress(),
 		"forecast": world.get_income_forecast(),
 		"freedom": world.get_freedom_view(),
+		"task_board": world.get_task_board_view(),
 		"naming": world.get_naming_view(),
 		"pending_decision": world.pending_decision.duplicate(true),
 		"user_paused": world.user_paused,

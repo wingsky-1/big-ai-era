@@ -1,5 +1,6 @@
 {
 	"task_reproduce_paper_0": {
+		"name": "论文复现",
 		"duration_weeks": 3,
 		"rp_output": 110,
 		"income": 15000,
@@ -11,6 +12,7 @@
 		}
 	},
 	"task_research_basic": {
+		"name": "基础研究",
 		"duration_weeks": 4,
 		"rp_output": 150,
 		"income": 0,
@@ -22,6 +24,7 @@
 		}
 	},
 	"task_grant_pilot": {
+		"name": "课题试点",
 		"duration_weeks": 4,
 		"rp_output": 150,
 		"income": 60000,
@@ -35,6 +38,7 @@
 		}
 	},
 	"task_reproduce_lingxi": {
+		"name": "灵犀复现",
 		"duration_weeks": 4,
 		"rp_output": 140,
 		"income": 15000,
@@ -48,6 +52,7 @@
 		}
 	},
 	"task_deploy_placeholder": {
+		"name": "部署占位",
 		"duration_weeks": 6,
 		"rp_output": 0,
 		"income": 0,

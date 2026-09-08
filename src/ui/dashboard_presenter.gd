@@ -95,8 +95,13 @@ func _update_all_views() -> void:
 		"forecast_lines": _format_forecast_lines(snap.get("forecast", {})),
 	}
 
+	var task_board: Dictionary = snap.get("task_board", {})
 	_workspace_view = {
 		"tasks": snap.get("tasks", {}),
+		"task_board": task_board.duplicate(true),
+		# 工作区任务行（#104 P0 修复）：此前缺 active_task 键 → 接了任务仍显示
+		# "当前无进行中任务"、进度条恒 0（实现了不可见）。数值/文案均来自 L2。
+		"active_task": (task_board.get("active", {}) as Dictionary).duplicate(true),
 		"staff": staff_view.get("rows", []),
 		"training": snap.get("training", {}),
 		"staff_total": int(staff_view.get("total", 0)),
@@ -262,6 +267,8 @@ func _on_resources_changed(money: int, compute_hours: float, influence: int) -> 
 	_resource_view["influence"] = influence
 	_refresh_staff_view()
 	_refresh_forecast_view()
+	# 资金变化会影响"能否接单"（cost>0 资金门），故同步刷新任务板可接性。
+	_refresh_task_board_view()
 
 
 func _on_progress_ticked(progress: Dictionary) -> void:
@@ -270,11 +277,24 @@ func _on_progress_ticked(progress: Dictionary) -> void:
 
 func _on_task_state_changed(task_id: String, state: String) -> void:
 	_workspace_view["last_task_change"] = {"task_id": task_id, "state": state}
+	# 任务板随接单/完成刷新（#104 P0：否则工作区与任务板停在 setup 时刻的旧值）。
+	_refresh_task_board_view()
+
+
+## 任务板视图刷新（只更新两键，不整表重算；供任务/资金/周结信号调用）。
+func _refresh_task_board_view() -> void:
+	if _world == null:
+		return
+	var task_board: Dictionary = _world.get_task_board_view()
+	_workspace_view["task_board"] = task_board.duplicate(true)
+	_workspace_view["active_task"] = ((task_board.get("active", {}) as Dictionary).duplicate(true))
 
 
 func _on_week_settled(report: Dictionary) -> void:
 	_resource_view["week"] = int(report.get("week", _resource_view.get("week", 0)))
 	_dock_view["has_unread_report"] = true
+	# 周结后任务进度/队列推进（#104：工作区任务行随周结刷新）
+	_refresh_task_board_view()
 	# 刷新断言：周结后重算净流入预告（ADR-0015 账期翻页进入新账期）
 	_refresh_forecast_view()
 	# 竞对条随周结刷新（#77 / X3 根因修复）：出分、竞对发版、时间线游标都在周结变化，

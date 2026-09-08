@@ -1,0 +1,48 @@
+[gd_scene load_steps=3 format=3 uid="uid://b4tmk0taskmgr1"]
+
+[ext_resource type="Theme" path="res://src/ui/theme/dark_gold_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://src/ui/modals/task_manage_dialog.gd" id="2_script"]
+
+[node name="TaskManageDialog" type="PanelContainer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+custom_minimum_size = Vector2(420, 380)
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+metadata/modal_design_size = Vector2(420, 380)
+script = ExtResource("2_script")
+
+[node name="TaskBoardVBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TaskBoardTitle" type="Label" parent="TaskBoardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "接单 · 任务板"
+
+[node name="TaskBoardActive" type="Label" parent="TaskBoardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+text = "当前无进行中任务"
+
+[node name="TaskBoardRows" type="VBoxContainer" parent="TaskBoardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="TaskBoardCloseBtn" type="Button" parent="TaskBoardVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+text = "关闭"
