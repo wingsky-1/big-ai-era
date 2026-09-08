@@ -1264,12 +1264,12 @@ func settle_week() -> void:
 	}
 	var ev_res := event_engine.evaluate_events(week, rng_stream, event_context, self)
 	if not event_engine.get_pending_card().is_empty():
-		if has_meta(DECISION_POLICY_META):
-			set_pending_decision(event_engine.get_pending_card())
-		else:
-			# 无 policy 注入时自动默认选项消费，保障全自动模拟不卡死
-			event_engine.choose_decision_option(0, self)
-			event_engine._pending_card.clear()
+		# 决策卡入 pending 并广播（#104 P0-3 修复）：此前无 policy 注入时**自动选 0 号选项**
+		# 并清卡 → 玩家永远看不到决策卡（#REV-03 的 [P] 不可执行、事件注入任务路径永不可达）。
+		# 现在一律入 pending：真实游玩由 UI 展示并等待玩家选择（DR-022①「带卡不结周」）；
+		# headless 模拟经 simulate_weeks 注入的 policy 在下一迭代同帧应答（不卡死）。
+		set_pending_decision(event_engine.get_pending_card())
+		decision_pending.emit(pending_decision.duplicate(true))
 	# 周结第 10 步阶段软门重评
 	var stage_context := {
 		"crossover_count": tech_fog.get_crossover_progress(),

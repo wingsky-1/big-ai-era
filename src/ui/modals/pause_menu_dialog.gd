@@ -10,11 +10,13 @@ extends PanelContainer
 
 signal closed  ## 继续 / Esc：请求恢复游戏（由 AppShell 归零 user_paused）
 signal restart_requested  ## 重开：请求重新开局
+signal save_requested  ## 存档（#104 PR-C）：请求手动存档（AppShell 调 request_save 契约命令）
 signal settings_requested  ## 设置：设置面板未落地，先上报信号供宿主给反馈
 
 @onready var title_label: Label = %TitleLabel
 @onready var continue_btn: Button = %ContinueBtn
 @onready var restart_btn: Button = %RestartBtn
+@onready var save_btn: Button = %SaveBtn
 @onready var settings_btn: Button = %SettingsBtn
 
 
@@ -23,6 +25,7 @@ func _ready() -> void:
 	title_label.text = TextService.text("sys_speed_paused")
 	continue_btn.pressed.connect(func() -> void: closed.emit())
 	restart_btn.pressed.connect(func() -> void: restart_requested.emit())
+	save_btn.pressed.connect(func() -> void: save_requested.emit())
 	settings_btn.pressed.connect(func() -> void: settings_requested.emit())
 
 

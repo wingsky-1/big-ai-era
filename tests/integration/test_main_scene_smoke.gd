@@ -42,6 +42,28 @@ func test_main_scene_instantiates_and_app_shell_unique_names() -> void:
 	assert_not_null(main_scene.get_driver(), "AppShell 应初始化 GameLoopDriver")
 
 
+func test_same_panel_id_push_does_not_orphan_modals() -> void:
+	# 回归门禁（#104 PR-C）：同 id 重复入栈必须先回收旧实例——否则 _active_modals 被覆盖，
+	# 旧 modal 变孤儿永挂屏上（本轮渲染取证实测：决策卡后面压着两张旧周报）。
+	var main := MAIN_SCENE.instantiate()
+	add_child_autofree(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var stack: PanelStack = (main as MainScene).get_stack()
+	stack.pop_panel(PanelStack.PanelId.INTRO)
+	stack.push_panel(PanelStack.PanelId.REPORT_ARCHIVE)
+	await get_tree().process_frame
+	stack.push_panel(PanelStack.PanelId.REPORT_ARCHIVE)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var container: Node = main.get_node("%ModalContainer")
+	var report_count: int = 0
+	for child: Node in container.get_children():
+		if child is WeeklyReportDialog:
+			report_count += 1
+	assert_eq(report_count, 1, "同 id 重复入栈应只保留一个实例（不得孤儿化）")
+
+
 func test_theme_contrast_and_touch_target_bounds() -> void:
 	var main := MAIN_SCENE.instantiate()
 	add_child_autofree(main)

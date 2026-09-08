@@ -70,10 +70,11 @@ func test_reproduce_task_not_instant_death() -> void:
 	var world := GameWorld.new()
 	autofree(world)
 	world.start_new_game(2026)
+	var policy := AutoDecisionPolicy.new()
 	for week_idx: int in range(24):
 		if world.task_queue.get_active_task().is_empty():
 			world.enqueue_task("task_reproduce_paper_0")
-		world.simulate_weeks(1)
+		world.simulate_weeks(1, policy)
 		assert_false(world.game_over_flag, "纯复现策略第 %d 周不得破产" % (week_idx + 1))
 		assert_eq(world.week, week_idx + 1, "第 %d 周应正常推进（无卡死）" % (week_idx + 1))
 	assert_gt(world.get_money(), -200000, "24 周后资金 %d 应高于破产线" % world.get_money())
@@ -111,6 +112,7 @@ func _run_task(world: GameWorld, task_id: String) -> int:
 	)
 	var duration: int = int((_tasks_cfg.get(task_id, {}) as Dictionary).get("duration_weeks", 0))
 	assert_gt(duration, 0, "任务 %s 必须有正时长" % task_id)
+	var policy := AutoDecisionPolicy.new()
 	for _i: int in range(duration):
-		world.simulate_weeks(1)
+		world.simulate_weeks(1, policy)
 	return duration

@@ -201,9 +201,12 @@ func _run_supply(seed_value: int, priority: PackedStringArray, weeks: int) -> Di
 				)
 				acc["count"] = int(acc["count"]) + 1
 	)
+	var policy := AutoDecisionPolicy.new()
 	for _i: int in range(weeks):
 		_fill_task(world, priority)
-		world.simulate_weeks(1)
+		# #104 PR-C：决策卡改为入 pending 等玩家选择；headless 长跑注入应答策略
+		# （AutoDecisionPolicy 恒选 0 号选项，与原"自动选 0"语义一致）。
+		world.simulate_weeks(1, policy)
 		if world.game_over_flag:
 			break
 	return acc
