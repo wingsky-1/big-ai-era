@@ -37,6 +37,24 @@ whenToUse: 编码前预防、审查发现可疑旧语法、调试引擎行为异
 9. **`.tres` 手改 ID**：sub_resource/ext_resource 的 id 冲突 = 静默丢属性。
 10. **Dictionary 顺序**：Godot 4 字典保持插入序（可依赖），但 JSON 解析出的
     数字键全为 String，取值注意类型。
+11. **`project.godot` 是 ConfigFile 格式**：注释必须用 `;`——`#` 不是注释，会被
+    解析器一路吞进键名（v0.1.2 实证：`# 注释...\ntheme/custom=...` 使键变成
+    "注释...theme/custom" 复合键，`get_setting` 静默返回空，无任何报错）。
+12. **Theme 类工程设置冷导入必炸**（v0.1.2 CI 实证）：`gui/theme/custom` 指向的
+    Theme 若引用需导入的资产（如字体），冷环境首次 `--import` 时编辑器启动路径
+    会先解析该设置，此刻资产未导入 → 资源断链 ERROR。本地 `.godot` 恒为热态
+    永远暴露不了；**必须 `rm -rf .godot` 冷环境复验**。本仓库裁决：移除该兜底
+    设置，字体收口走场景级 theme 挂载（ADR-0010）。
+13. **enum 名避开内置类**（v0.1.3 实证）：`enum Panel {}` 与内置 `Panel` 控件类
+    撞名，外部脚本解析 `XX.Panel.FOO` 报 "Could not resolve external class member"
+    且类型两边不一致。命名前查 ClassDB（`ClassDB.class_exists("名字")`）。
+14. **导出要求目标目录预先存在**：`--export-release` 前先 `mkdir -p`（报错
+    "Target folder does not exist"）；CI release-build 与截图管线均已内置。
+15. **get_stack() 撞名**（v0.1.3 实证）：类内裸调 `get_stack()` 解析到 GDScript
+    内置全局函数（返回调试栈 Array），自己的方法被遮蔽且报错指向诡异；类内
+    调用一律写 `self.get_stack()` 或直接引用成员变量。
+16. **内置 WebSocket 是 EventTarget**（v0.1.3 实证，适用于本仓库 Node E2E 管线）：
+    Node ≥22 原生 `WebSocket` 没有 `.once()`，用 `addEventListener(ev, fn, { once: true })`。
 
 ## 引擎版本升级检查单
 
