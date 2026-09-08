@@ -685,6 +685,7 @@ func restore(data: Dictionary) -> void:
 	var flags: Dictionary = data.get("flags", {})
 	game_over_flag = bool(flags.get("game_over", false))
 	_named_cursor = int(flags.get("name_cursor", 0))
+	economy.set_cum_influence(int(flags.get("cum_influence", 0)))  # 翻雾供给源（RK-04）
 	# 呈现层读档还原（#78）：出分标记与玩家最高分（分级显示/命名仪式判定数据源）
 	_scored_once = bool(flags.get("scored", false))
 	_player_best_score = float(flags.get("player_best_score", 0.0))
@@ -827,8 +828,8 @@ func settle_week() -> void:
 				sota_best = sota_board.get_best_score()
 				rival_best = r_score
 				sota_updated.emit({"model": r_model, "score": r_score, "rival": true})
-	# 周结第 7 步迷雾翻雾推进
-	tech_fog.advance(get_influence())
+	# 周结第 7 步迷雾翻雾推进（RK-04：供给源 = 累计获得影响力，非当前余额）
+	tech_fog.advance_with_context({"cum_influence": economy.get_cum_influence()})
 	# 周结第 8 步灵感触发与第 9 步事件抽取
 	event_engine.evaluate_inspiration(rng_stream, tech_fog)
 	var event_context := {

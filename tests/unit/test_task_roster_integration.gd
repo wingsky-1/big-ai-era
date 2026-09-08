@@ -78,7 +78,7 @@ func test_acceptance_point_3_three_task_types_and_deploy_placeholder() -> void:
 	# 1. 复现类：经典论文复现
 	var rep_cfg: Dictionary = tasks_config["task_reproduce_paper_0"]
 	assert_eq(int(rep_cfg["duration_weeks"]), 3, "复现任务时长 3 周")
-	assert_eq(int(rep_cfg["rp_output"]), 50, "复现任务产出 50 RP")
+	assert_eq(int(rep_cfg["rp_output"]), 110, "复现任务产出 110 RP（#76 供给标定）")
 	assert_eq(int(rep_cfg["income"]), 8000, "复现任务产出 8000 资金")
 
 	# 2. 研究类：基础架构探究
@@ -90,7 +90,7 @@ func test_acceptance_point_3_three_task_types_and_deploy_placeholder() -> void:
 	# 3. 课题类：先导课题申报
 	var grant_cfg: Dictionary = tasks_config["task_grant_pilot"]
 	assert_eq(int(grant_cfg["duration_weeks"]), 4, "课题任务时长 4 周")
-	assert_eq(int(grant_cfg["rp_output"]), 0, "课题任务不产出 RP")
+	assert_eq(int(grant_cfg["rp_output"]), 150, "课题任务产出 150 RP（#76 标定：破除钱/RP 互斥）")
 	assert_eq(int(grant_cfg["income"]), 35000, "课题任务产出 35000 资金")
 
 	# 4. deploy 占位行：enabled: false，拒绝入队

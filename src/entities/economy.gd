@@ -33,6 +33,8 @@ var _stage_depr_r: float = 1.0
 var _week_revenue: int = 0
 var _week_expense: int = 0
 var _week_influence: int = 0
+## 累计获得影响力（只增不减；翻雾供给源单一真源，RK-04 / DR-031 §2.9）。
+var _cum_influence: int = 0
 
 
 ## 注入经济参数表（economy.json；每次 start_new_game 重建）。
@@ -49,6 +51,7 @@ func setup(config: Dictionary) -> void:
 	_reproduce_factor = float(stage_depr.get("reproduce_factor", 1.0))
 	_grant_interval_add_weeks = int(stage_depr.get("grant_interval_add_weeks", 0))
 	_stage_depr_r = _reproduce_factor  # r 与 stage_depr 起点同值；扰动后各自独立
+	_cum_influence = 0  # 新局/读档前先归零，读档值由 GameWorld 经 set_cum_influence 注入
 
 
 ## ============ 唯一过账口（M3）============
@@ -74,6 +77,10 @@ func apply_delta(resource: String, amount: int, reason: String) -> bool:
 		"influence":
 			influence += amount
 			_week_influence += amount
+			if amount > 0:
+				# 累计计数器只吃正向过账（点树消耗是负向，故"点树不拖慢翻雾"）；
+				# 开局基线经 init_resources 注入，不计入累计（真源 opening.json）。
+				_cum_influence += amount
 		"compute":
 			# amount=卡时余量调整（消费传负数）；拒绝超档位容量
 			if compute_hours_remaining + amount < 0.0:
@@ -96,6 +103,16 @@ func get_money() -> int:
 
 func get_influence() -> int:
 	return influence
+
+
+## 累计获得影响力（只增不减；翻雾供给源，GameWorld 经此出数并写入 flags）。
+func get_cum_influence() -> int:
+	return _cum_influence
+
+
+## 读档还原累计计数器（存档 flags.cum_influence；负值归零防脏档）。
+func set_cum_influence(value: int) -> void:
+	_cum_influence = maxi(0, value)
 
 
 func get_compute() -> Dictionary:

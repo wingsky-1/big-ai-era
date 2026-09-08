@@ -4,7 +4,7 @@ extends GutTest
 ## PR10 (issue #20) 数值断言区间收窄冻结与蒙卡模拟专项测试
 ## 覆盖 5 个 [T] 验收点：
 ## 1. V1 双断言冻结：基线破 30 周率 <1% 且标准扩张剧本 ∈[0.5%,8%]
-## 2. V6 分供给档冻结：P10>=5 / P50∈[7,9] / P90<=11（按三阶段占比曲线口径，锚 12.3k）
+## 2. V6 分供给档冻结：P10>=5 / P50∈[7,9] / P90<=11（供给带 [4910,6810) 任务 rp_output 口径）
 ## 3. V10 冻结：最长无新结项空窗 <=40 周
 ## 4. V2 区间单调性断言（点亮随供给单调不减）
 ## 5. 万次模拟同 seed 双跑哈希一致断言
@@ -31,7 +31,9 @@ func test_acceptance_point_2_v6_tech_lit_distribution_bounds() -> void:
 	assert_eq(int(v6.get("p50_min")), 7, "P50 >= 7")
 	assert_eq(int(v6.get("p50_max")), 9, "P50 <= 9")
 	assert_eq(int(v6.get("p90_max")), 11, "P90 <= 11")
-	assert_eq(int(v6.get("supply_anchor_rp")), 12300, "供给锚 12.3k RP（三阶段占比口径）")
+	assert_eq(int(v6.get("supply_band_rp_min")), 4910, "供给带下界 4910（任务 rp_output 口径，#76）")
+	assert_eq(int(v6.get("supply_band_rp_max")), 6810, "供给带上界 6810（半开区间，点亮 7 个，#76）")
+	assert_false(v6.has("supply_anchor_rp"), "旧供给锚 12300 已随 #76 撤销（无产出通路）")
 
 
 func test_acceptance_point_3_v10_max_gap_weeks() -> void:

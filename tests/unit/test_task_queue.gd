@@ -138,7 +138,7 @@ func test_three_task_types_and_placeholder_refusal() -> void:
 	var s3: Dictionary = _task_queue.settle_week()
 	assert_true(bool(s3.get("completed", false)))
 	assert_eq(str(s3.get("task_id", "")), "task_reproduce_paper_0")
-	assert_eq(int(s3.get("rp_output", 0)), 50)
+	assert_eq(int(s3.get("rp_output", 0)), 110)
 	assert_eq(int(s3.get("income", 0)), 8000)
 	assert_true(_task_queue.get_active_task().is_empty(), "任务完成后队列为空，无激活任务")
 
@@ -159,7 +159,7 @@ func test_three_task_types_and_placeholder_refusal() -> void:
 	var s_grant: Dictionary = _task_queue.settle_week()
 	assert_true(bool(s_grant.get("completed", false)))
 	assert_eq(str(s_grant.get("task_id", "")), "task_grant_pilot")
-	assert_eq(int(s_grant.get("rp_output", 0)), 0)
+	assert_eq(int(s_grant.get("rp_output", 0)), 150)
 	assert_eq(int(s_grant.get("income", 0)), 35000)
 
 
