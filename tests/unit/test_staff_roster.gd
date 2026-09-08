@@ -77,17 +77,85 @@ func test_single_staff_single_slot() -> void:
 	assert_eq(roster.get_staff("r_lin").get("assigned"), StaffRoster.SLOT_TRAINING)
 
 
-func test_single_slot_exclusive() -> void:
+func test_multi_slot_occupants_coexist() -> void:
+	# 批 1b（#73）：单槽独占 → 多人槽；上桌人数上限由 model_bases.max_staff 校验
 	var roster := StaffRoster.new()
 	roster.setup(_staff_data, _opening_data)
 
-	# lin 先占 task，wen 随后也分到 task
 	assert_true(roster.assign_staff("r_lin", StaffRoster.SLOT_TASK))
 	assert_true(roster.assign_staff("r_wen", StaffRoster.SLOT_TASK))
 
-	assert_eq(roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_wen", "task 槽位应被 wen 独占")
-	assert_eq(roster.get_staff("r_lin").get("assigned"), "", "lin 的 assigned 应被重置为空")
+	assert_eq(roster.get_slot_count(StaffRoster.SLOT_TASK), 2, "task 槽应有 2 人（多人槽）")
+	assert_eq(roster.get_staff("r_lin").get("assigned"), StaffRoster.SLOT_TASK, "lin 仍在槽内")
 	assert_eq(roster.get_staff("r_wen").get("assigned"), StaffRoster.SLOT_TASK)
+	assert_eq(roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_lin", "单人语义返回首个上桌者")
+
+	# 幂等：重复指派不产生重复占位
+	assert_true(roster.assign_staff("r_lin", StaffRoster.SLOT_TASK), "重复指派应幂等成功")
+	assert_eq(roster.get_slot_count(StaffRoster.SLOT_TASK), 2, "幂等指派不应重复计数")
+
+
+func test_research_eff_sums_all_assigned() -> void:
+	# [T] #73 验收点 1：两人同槽 → eff = 两者 research 之和（严禁均值）
+	var roster := StaffRoster.new()
+	roster.setup(_staff_data, _opening_data)
+	assert_eq(roster.get_research_eff(StaffRoster.SLOT_TRAINING), 0, "空槽 eff=0")
+
+	assert_true(roster.assign_staff("r_lin", StaffRoster.SLOT_TRAINING))
+	assert_eq(roster.get_research_eff(StaffRoster.SLOT_TRAINING), 70, "单人 eff=70")
+
+	assert_true(roster.assign_staff("r_wen", StaffRoster.SLOT_TRAINING))
+	assert_eq(
+		roster.get_research_eff(StaffRoster.SLOT_TRAINING),
+		70 + 55,
+		"两人同槽 eff = 70 + 55 = 125（Σ，严禁均值）"
+	)
+
+	assert_true(roster.assign_staff("r_bai", StaffRoster.SLOT_TRAINING))
+	assert_eq(roster.get_research_eff(StaffRoster.SLOT_TRAINING), 70 + 55 + 62, "三人同槽 eff = 187")
+
+	assert_true(roster.unassign_staff("r_wen"))
+	assert_eq(roster.get_research_eff(StaffRoster.SLOT_TRAINING), 70 + 62, "撤一人后 Σ 同步")
+
+
+func test_multi_assign_save_restore_roundtrip() -> void:
+	# [T] #73 验收点 3：多人同槽经 to_save/restore 往返一致，且形状仍为 staff→slot
+	var roster := StaffRoster.new()
+	roster.setup(_staff_data, _opening_data)
+	roster.assign_staff("r_lin", StaffRoster.SLOT_TRAINING)
+	roster.assign_staff("r_wen", StaffRoster.SLOT_TRAINING)
+	roster.assign_staff("r_bai", StaffRoster.SLOT_TASK)
+
+	var assigned: Dictionary = roster.to_save()["assigned"]
+	assert_eq(assigned["r_lin"], StaffRoster.SLOT_TRAINING, "存档形状保持 staff→slot")
+	assert_eq(assigned["r_wen"], StaffRoster.SLOT_TRAINING, "多人同槽 = 多对一映射")
+	assert_eq(assigned["r_bai"], StaffRoster.SLOT_TASK)
+	assert_true(assigned["r_lin"] is String, "值必须是字符串 slot_id（禁改 slot→数组）")
+
+	var restored := StaffRoster.new()
+	restored.setup(_staff_data, _opening_data)
+	restored.restore(roster.to_save())
+	assert_eq(restored.get_slot_count(StaffRoster.SLOT_TRAINING), 2, "往返后 training 槽 2 人")
+	assert_eq(restored.get_research_eff(StaffRoster.SLOT_TRAINING), 125, "往返后 Σeff 一致")
+	assert_eq(restored.get_staff("r_bai")["assigned"], StaffRoster.SLOT_TASK)
+
+
+func test_single_occupant_api_preserved() -> void:
+	# [T] #73 验收点 4：get_slot_occupant 仍返回单值（restore/测试依赖），新增聚合方法
+	var roster := StaffRoster.new()
+	roster.setup(_staff_data, _opening_data)
+	assert_eq(roster.get_slot_occupant(StaffRoster.SLOT_TASK), "", "空槽返回空串")
+
+	roster.assign_staff("r_lin", StaffRoster.SLOT_TASK)
+	assert_eq(roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_lin")
+	assert_eq(roster.get_slot_occupants(StaffRoster.SLOT_TASK).size(), 1, "单人也走聚合方法")
+
+	roster.assign_staff("r_wen", StaffRoster.SLOT_TASK)
+	assert_eq(roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_lin", "多人时返回首个上桌者（单值语义）")
+	var occupants: Array[String] = roster.get_slot_occupants(StaffRoster.SLOT_TASK)
+	assert_eq(occupants.size(), 2, "get_slot_occupants 返回全部")
+	assert_eq(occupants[0], "r_lin")
+	assert_eq(occupants[1], "r_wen")
 
 
 func test_research_eff_and_dr005r_aggregate() -> void:

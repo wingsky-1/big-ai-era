@@ -38,27 +38,29 @@ func test_acceptance_point_1_research_eff_sum_aggregate() -> void:
 	_world.assign_staff("r_lin", StaffRoster.SLOT_TRAINING)
 	assert_eq(_world.research_eff, 70, "分配林拾光后，训练研究力为 70")
 
-	# 白鹿鸣 (r_bai, research=62) 抢占训练位
+	# 白鹿鸣 (r_bai, research=62) 上桌：多人槽下 Σ 累加（批 1b #73）
 	_world.assign_staff("r_bai", StaffRoster.SLOT_TRAINING)
-	assert_eq(_world.research_eff, 62, "白鹿鸣入槽后单槽重算为 62")
+	assert_eq(_world.research_eff, 70 + 62, "白鹿鸣入槽后 Σeff = 70 + 62 = 132")
 
 
 func test_acceptance_point_2_staff_assignment_state_machine() -> void:
-	# [T] 验收点 2：分配状态机断言（单槽独占/空槽重算 eff/unassign 回退）
+	# [T] 验收点 2：分配状态机断言（多人槽共存/单人单槽转移/空槽重算 eff/unassign 回退）
 	# 1. 单人分配任务槽
 	_world.assign_staff("r_lin", StaffRoster.SLOT_TASK)
 	assert_eq(_world.roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_lin", "任务槽为 r_lin")
 	assert_eq(_world.roster.get_staff("r_lin")["assigned"], StaffRoster.SLOT_TASK, "r_lin 标记在任务槽")
 
-	# 2. 单槽独占：r_wen 分配到同一个 SLOT_TASK，抢占并踢出 r_lin
+	# 2. 多人槽（批 1b #73）：r_wen 加入同一 SLOT_TASK，两人共存
 	_world.assign_staff("r_wen", StaffRoster.SLOT_TASK)
-	assert_eq(_world.roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_wen", "任务槽被 r_wen 抢占")
-	assert_eq(_world.roster.get_staff("r_wen")["assigned"], StaffRoster.SLOT_TASK, "r_wen 标记在任务槽")
-	assert_eq(_world.roster.get_staff("r_lin")["assigned"], "", "r_lin 被踢出，assigned 置空")
+	assert_eq(_world.roster.get_slot_count(StaffRoster.SLOT_TASK), 2, "任务槽容纳两人")
+	assert_eq(_world.roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_lin", "单人语义返回首个上桌者")
+	assert_eq(_world.roster.get_staff("r_wen")["assigned"], StaffRoster.SLOT_TASK, "r_wen 也在任务槽")
+	assert_eq(_world.roster.get_staff("r_lin")["assigned"], StaffRoster.SLOT_TASK, "r_lin 仍在槽内")
 
 	# 3. 单人单槽转移：r_wen 从 SLOT_TASK 换到 SLOT_TRAINING
 	_world.assign_staff("r_wen", StaffRoster.SLOT_TRAINING)
-	assert_eq(_world.roster.get_slot_occupant(StaffRoster.SLOT_TASK), "", "旧任务槽变空")
+	assert_eq(_world.roster.get_slot_count(StaffRoster.SLOT_TASK), 1, "r_wen 离开后任务槽剩 1 人")
+	assert_eq(_world.roster.get_slot_occupant(StaffRoster.SLOT_TASK), "r_lin", "任务槽剩 r_lin")
 	assert_eq(_world.roster.get_slot_occupant(StaffRoster.SLOT_TRAINING), "r_wen", "新训练位为 r_wen")
 	assert_eq(_world.research_eff, 55, "训练研究力更新为 r_wen 的 55")
 

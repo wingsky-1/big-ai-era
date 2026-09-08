@@ -120,3 +120,50 @@ func test_acceptance_point_5_zero_research_eff_rejection() -> void:
 	# 启动训练成功
 	_world.start_training("base_pushi_1b")
 	assert_true(_world.training.is_training(), "research_eff > 0 允许启动训练")
+
+
+func test_training_headcount_bounded_by_base() -> void:
+	# [T] #73 验收点 2：上桌人数受基座 max_staff 约束（璞石 1 / 玄冰 2 / 深渊 3）
+	var world := GameWorld.new()
+	autofree(world)
+	world.start_new_game(1)
+	world.economy.init_resources(500000, 0, 4, 64.0)
+	world.assign_staff("r_lin", StaffRoster.SLOT_TRAINING)
+	world.assign_staff("r_wen", StaffRoster.SLOT_TRAINING)
+	assert_eq(world.roster.get_slot_count(StaffRoster.SLOT_TRAINING), 2, "两人已上桌")
+	assert_eq(world.research_eff, 70 + 55, "上桌 Σeff = 125")
+
+	var two_on_table: Dictionary = {
+		"research_eff": world.research_eff,
+		"compute_tier": 4,
+		"money": world.get_money(),
+		"economy": world.economy,
+		"training_headcount": 2,
+	}
+
+	# 璞石 max_staff=1：2 人上桌 → 拒绝且原因可见
+	var pushi: Dictionary = world.training.can_start_training("base_pushi_1b", two_on_table)
+	assert_false(bool(pushi["ok"]), "璞石超编（2 > 1）应拒绝开训")
+	assert_eq(
+		str(pushi["reason"]), "headcount_exceeds_base_limit", "原因应为 headcount_exceeds_base_limit"
+	)
+
+	# 玄冰 max_staff=2：2 人上桌 → 允许
+	var xuanbing: Dictionary = world.training.can_start_training("base_xuanbing_7b", two_on_table)
+	assert_true(bool(xuanbing["ok"]), "玄冰 2 人上桌应允许")
+
+	# 深渊 max_staff=3：2 人允许；4 人拒绝
+	var shenyuan: Dictionary = world.training.can_start_training("base_shenyuan_70b", two_on_table)
+	assert_true(bool(shenyuan["ok"]), "深渊 2 人上桌应允许")
+
+	var four_on_table: Dictionary = two_on_table.duplicate(true)
+	four_on_table["training_headcount"] = 4
+	var overflow: Dictionary = world.training.can_start_training("base_shenyuan_70b", four_on_table)
+	assert_false(bool(overflow["ok"]), "深渊超编（4 > 3）应拒绝")
+	assert_eq(str(overflow["reason"]), "headcount_exceeds_base_limit", "原因一致")
+
+	# 数据键核对（min_staff 本版不启用，max_staff 为唯一上限真源）
+	var bases: Dictionary = DataLoader.load_json("res://src/data/model_bases.json")
+	assert_eq(int(bases["base_pushi_1b"]["max_staff"]), 1, "璞石 max_staff=1")
+	assert_eq(int(bases["base_xuanbing_7b"]["max_staff"]), 2, "玄冰 max_staff=2")
+	assert_eq(int(bases["base_shenyuan_70b"]["max_staff"]), 3, "深渊 max_staff=3")
