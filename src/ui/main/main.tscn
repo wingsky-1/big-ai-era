@@ -153,6 +153,17 @@ text = "当前任务"
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="ActionRow" type="HBoxContainer" parent="ShellVBox/Workspace/WorkspaceVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TaskAcceptBtn" type="Button" parent="ShellVBox/Workspace/WorkspaceVBox/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "接单"
+
 [node name="StaffRow" type="HBoxContainer" parent="ShellVBox/Workspace/WorkspaceVBox"]
 layout_mode = 2
 

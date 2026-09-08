@@ -14,6 +14,7 @@ const INTRO_SCENE: PackedScene = preload("res://src/ui/modals/intro_dialog.tscn"
 const PAUSE_MENU_SCENE: PackedScene = preload("res://src/ui/modals/pause_menu_dialog.tscn")
 const NAMING_DIALOG_SCENE: PackedScene = preload("res://src/ui/modals/naming_dialog.tscn")
 const FINALE_SCENE: PackedScene = preload("res://src/ui/modals/finale_dialog.tscn")
+const TASK_MANAGE_SCENE: PackedScene = preload("res://src/ui/modals/task_manage_dialog.tscn")
 const TOKENS_COLORS: Resource = preload("res://src/ui/theme/tokens_colors.tres")
 
 var _world: GameWorld
@@ -65,6 +66,7 @@ var _freedom_panel_body: Label
 
 @onready var task_title_label: Label = %TaskTitleLabel
 @onready var task_progress_bar: ProgressBar = %TaskProgressBar
+@onready var task_accept_btn: Button = %TaskAcceptBtn
 @onready var staff_count_label: Label = %StaffCountLabel
 @onready var idle_staff_label: Label = %IdleStaffLabel
 @onready var toast_label: Label = %ToastLabel
@@ -119,7 +121,7 @@ func _notification(what: int) -> void:
 
 
 ## 截图/试玩自动化驱动（仅 Web 且显式查询参数时激活，正常游玩零影响）：
-## ?shot=<id>：合成指定弹层截图（home/tech/report/gameover）+ 就绪标志；
+## ?shot=<id>：合成指定弹层截图（home/tech/report/gameover/task）+ 就绪标志；
 ## ?selftest=1：仅启用面板栈信标供交互自测断言。两者均冻结时钟、丢弃挂起决策卡。
 func _setup_debug_shot_driver() -> void:
 	if OS.has_feature("web") == false:
@@ -150,6 +152,9 @@ func _setup_debug_shot_driver() -> void:
 		"gameover":
 			# 终局弹层为合成布局证据（world 并未真破产），保持暂停避免 tick 污染画面
 			stack.push_panel(PanelStack.PanelId.GAME_OVER)
+		"task":
+			# 任务板（#104）：接单入口的渲染证据
+			stack.push_panel(PanelStack.PanelId.TASK_MGMT)
 	# 面板栈信标：截图与自测脚本共用（_process 每帧同步）
 	_debug_beacon_enabled = true
 	_update_debug_beacon()
@@ -435,6 +440,26 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			_active_modals[panel_id] = modal
 			_mount_modal(modal)
 
+		PanelStack.PanelId.TASK_MGMT:
+			# 任务板（#104）：同 id 重复 push 时复用既有实例（防孤儿 modal 泄漏）
+			var existing: Variant = _active_modals.get(panel_id)
+			if existing != null and is_instance_valid(existing):
+				(existing as TaskManageDialog).setup(
+					_presenter.get_workspace_view().get("task_board", {})
+				)
+				return
+			var task_modal: TaskManageDialog = TASK_MANAGE_SCENE.instantiate()
+			task_modal.setup(_presenter.get_workspace_view().get("task_board", {}))
+			task_modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
+			task_modal.accept_requested.connect(
+				func(task_id: String) -> void:
+					world.enqueue_task(task_id)
+					task_modal.setup(_presenter.get_workspace_view().get("task_board", {}))
+					_update_views()
+			)
+			_active_modals[panel_id] = task_modal
+			_mount_modal(task_modal)
+
 		PanelStack.PanelId.PAUSE_MENU:
 			var modal: PauseMenuDialog = PAUSE_MENU_SCENE.instantiate()
 			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
@@ -520,6 +545,7 @@ func _connect_ui_events() -> void:
 	dock_tech_btn.pressed.connect(_on_dock_tech_pressed)
 	dock_report_btn.pressed.connect(_on_dock_report_pressed)
 	dock_pause_btn.pressed.connect(_on_dock_pause_pressed)
+	task_accept_btn.pressed.connect(_on_task_accept_pressed)
 	compute_upgrade_btn.pressed.connect(_on_compute_upgrade_pressed)
 	staff_count_label.gui_input.connect(_on_staff_label_clicked)
 	idle_staff_label.gui_input.connect(_on_staff_label_clicked)
@@ -578,6 +604,13 @@ func _update_speed_buttons() -> void:
 
 func _on_dock_tech_pressed() -> void:
 	_stack.push_panel(PanelStack.PanelId.TECH_TREE)
+
+
+## 接单入口（#104 P0）：工作区轻键 → z1 任务板。
+## 入口放工作区而非 Dock：Dock 三键是 GDD §13 冻结裁决（DR-020），
+## 且 selftest_web.mjs 的 Dock 点击坐标硬编码，加键会打断自测。
+func _on_task_accept_pressed() -> void:
+	_stack.push_panel(PanelStack.PanelId.TASK_MGMT)
 
 
 func _on_staff_label_clicked(event: InputEvent) -> void:
@@ -643,13 +676,20 @@ func _update_views() -> void:
 	compute_upgrade_btn.disabled = not bool(upgrade_view.get("available", false))
 
 	var ws_view: Dictionary = _presenter.get_workspace_view()
+	var task_board: Dictionary = ws_view.get("task_board", {})
 	var active_task: Dictionary = ws_view.get("active_task", {})
 	if active_task.is_empty():
-		task_title_label.text = "当前无进行中任务"
+		task_title_label.text = str(task_board.get("empty_active", "当前无进行中任务"))
 		task_progress_bar.value = 0.0
 	else:
-		task_title_label.text = str(active_task.get("title", "未命名任务"))
+		# 任务名/进度/剩余周文案全部来自 L2 任务板数据面（#104 P0：此前读不存在的
+		# title/progress 键 → 恒显"未命名任务"且进度条恒 0）。
+		task_title_label.text = (
+			"%s · %s"
+			% [str(active_task.get("name", "")), str(active_task.get("progress_text", ""))]
+		)
 		task_progress_bar.value = float(active_task.get("progress", 0.0)) * 100.0  # num-ok: 百分比换算
+	task_accept_btn.text = str(task_board.get("entry_label", "接单"))
 
 	# 员工双口径：在岗=已指派任务/训练槽，待命=已入职未指派（W0 三人全员待命）
 	var staff_total: int = int(ws_view.get("staff_total", 0))

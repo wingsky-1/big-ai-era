@@ -135,5 +135,27 @@
 		"gap_separator": " ",
 		"gap_unavailable": "—",
 		"_comment": "竞对条差距文案（#77 / X3 字段修复）：gap = 竞对分 − 玩家分；>0 落后、≤0 领先。数值格式化用 benchmarks.json.score_precision。"
+	},
+	"task_board": {
+		"title": "接单 · 任务板",
+		"active_label": "进行中",
+		"queued_label": "排队中",
+		"accept_label": "接单",
+		"ready_label": "可接",
+		"close_label": "关闭",
+		"entry_label": "接单",
+		"empty_active": "当前无进行中任务",
+		"empty_queue": "无排队任务",
+		"meta_template": "工期 {weeks} 周 · 收入 {income} · 声望 {rp} · 成本 {cost}",
+		"progress_template": "剩余 {weeks} 周",
+		"queue_label": "排队",
+		"reason_texts": {
+			"insufficient_funds": "资金不足",
+			"predicate_not_met": "未满足解锁条件",
+			"never_unlocked": "不可接取",
+			"disabled_or_not_found": "不可接取",
+			"already_active_or_queued": "已在进行/排队中"
+		},
+		"_comment": "出处：issue #104（P0 玩家入口）+ 需求 §2.3 RT-01 / §1.3。L2 依本表拼装 meta_text/state_text（ADR-0016 R3：L3 不查表、不自算）。"
 	}
 }
