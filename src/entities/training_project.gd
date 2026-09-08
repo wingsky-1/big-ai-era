@@ -48,7 +48,29 @@ func can_start_training(base_id: String, context: Dictionary) -> Dictionary:
 			reason = "insufficient_compute_tier"
 		elif int(context.get("money", 0)) < int(base_data.get("cost", 0)):
 			reason = "insufficient_money"
+		else:
+			var hours_variant: Variant = DataLoader.require_key(
+				base_data, "hours_per_week", BASES_PATH
+			)
+			var economy: Economy = context.get("economy")
+			if hours_variant == null:
+				reason = "invalid_base_config"
+			elif economy != null and int(hours_variant) > economy.get_compute_supply():
+				reason = "insufficient_weekly_compute"
 	return {"ok": reason.is_empty(), "reason": reason}
+
+
+## 当前训练每周占用的卡时（model_bases.hours_per_week；占用=门槛，不过账 money）
+func get_weekly_hours() -> int:
+	if not is_training():
+		return 0
+	var base_id: String = str(_active_training.get("base_id", ""))
+	if not _bases_cfg.has(base_id):
+		return 0
+	var hours_variant: Variant = DataLoader.require_key(
+		_bases_cfg[base_id], "hours_per_week", BASES_PATH
+	)
+	return int(hours_variant) if hours_variant != null else 0
 
 
 ## 启动训练检查与执行

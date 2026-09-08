@@ -1,3 +1,5 @@
+# gdlint:ignore = max-public-methods
+## 门面/资源服务类：方法即契约面与只读数据面，数量随功能增长，故豁免该上限。
 class_name GameWorld
 extends RefCounted
 
@@ -29,6 +31,7 @@ const CONTRACT_COMMANDS: PackedStringArray = [
 	"enqueue_task",
 	"start_research",
 	"start_training",
+	"upgrade_compute",
 	"choose_decision",
 	"submit_model_name",
 	"set_paused",
@@ -84,7 +87,6 @@ var pending_decision: Dictionary = {}
 var _named_ids: Dictionary = {}
 var _named_cursor: int = 0
 var _last_signal_report: Dictionary = {}
-var _income_roll_seed: int = 0
 var _last_emitted_progress: Dictionary = {}
 
 
@@ -153,7 +155,6 @@ func get_compute() -> Dictionary:
 ## 建档（B1/GW8）：seed 定格开局态（灵犀 Chat 已发布+三研究员+W0 态）。
 func start_new_game(seed: int = 0) -> void:
 	rng_seed = seed
-	_income_roll_seed = seed + 1  # 收入脉冲随机源种子（PR7 换 rng_stream）
 	rng_stream.setup(seed)
 	week = 0
 	cum_income = 0
@@ -178,6 +179,7 @@ func start_new_game(seed: int = 0) -> void:
 		int(compute.get("tier", 1)),
 		float(compute.get("hours_remaining", 0.0))
 	)
+	economy.recharge_weekly()  # 开局即满周预算（Q-R2/P6）
 	rival_best = float(opening.get("rival_best", rival_best))
 	var staff_table := DataLoader.load_json("res://src/data/staff.json")
 	roster.setup(staff_table, opening)
@@ -193,7 +195,6 @@ func start_new_game(seed: int = 0) -> void:
 	rival_best = sota_board.get_rival_best()
 	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream)
 	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
-	_income_roll_seed = rng_seed
 	_named_ids.clear()
 	_last_signal_report = {}
 	_recalculate_research_eff()
@@ -279,6 +280,20 @@ func start_training(base_id: String) -> void:
 	var res := training.start_training(base_id, context)
 	if res.get("ok", false):
 		_emit_resources()
+
+
+## 买卡只读视图（UI 按钮三态数据面；非契约命令）
+func get_compute_upgrade_view() -> Dictionary:
+	return economy.get_upgrade_view()
+
+
+## 买卡契约命令（N9，命令面 11→12）：升档经 Economy.upgrade_compute 过账，
+## 资源信号驱动 UI 刷新（compute_tier 经快照读取）。
+func upgrade_compute(target_tier: int) -> bool:
+	var ok: bool = economy.upgrade_compute(target_tier)
+	if ok:
+		_emit_resources()
+	return ok
 
 
 func choose_decision(pending_id: String, option_idx: int) -> void:
@@ -369,7 +384,8 @@ func restore(data: Dictionary) -> void:
 	var training_data: Dictionary = data.get("training", {})
 	training.restore(training_data)
 	var rivals_data: Dictionary = data.get("rivals", {})
-	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream)
+	# 读档路径不重抽 jitter（consume_rng=false）：否则 RNG 序列多消费 4 次后漂移（架构复审 D3）
+	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream, false)
 	rival_track.restore(rivals_data)
 	var staff_data: Dictionary = data.get("staff", {})
 	var opening := DataLoader.load_json("res://src/data/opening.json")
@@ -470,25 +486,9 @@ func _sync_card_block() -> void:
 ## 接线；PR6 出分；PR7 竞对/迷雾/灵感/事件；PR5 阶段重评。
 func settle_week() -> void:
 	week += 1
-	var roll := RandomNumberGenerator.new()
-	roll.seed = hash(str(_income_roll_seed, ":", week))
-	var headcount := staff.size()
-	var ledger := economy.accrue_week(headcount, _DeterministicRoll.new(roll))
-	# cum_income 经营性收入累计（课题+复现等经营性净收入，融资/IPO 不计）
-	var weekly_income: int = int(ledger.get("income", 0))
-	if weekly_income > 0:
-		cum_income += weekly_income
 
-	# 步序 2: Game Over 短路判定（写死在收支后，B3 / DR-021）
-	if economy.check_lines() == Economy.WARNED_BANKRUPT:
-		game_over_flag = true
-		var summary: Dictionary = get_game_over_summary()
-		# 终局档落盘（三保险之一，经 SaveSystem 唯一写入口）
-		request_save("game_over")
-		game_over.emit(summary)
-		# 短路：跳过出分/SOTA/竞对/迷雾/事件/阶段/周报，直接返回
-		return
-
+	# 步序 1: 卡时预算重置（ADR-0011）+ 经营收入结算（占槽任务，DR-031/C1）+ 固定支出
+	economy.recharge_weekly()
 	var task_settle := task_queue.settle_week()
 	if task_settle.get("completed", false):
 		var rp := int(task_settle.get("rp_output", 0))
@@ -502,9 +502,28 @@ func settle_week() -> void:
 		var next_active := task_queue.get_active_task()
 		if not next_active.is_empty():
 			task_state_changed.emit(str(next_active.get("task_id", "")), "active")
+	economy.accrue_fixed_expense(staff.size())
+	var ledger := economy.get_week_ledger()
+	economy.emit_week_warning(ledger)
+
+	# 步序 2: Game Over 短路判定（在全部经营收入结算之后；ADR-0015 / DR-021 B3）
+	if economy.check_lines() == Economy.WARNED_BANKRUPT:
+		game_over_flag = true
+		var summary: Dictionary = get_game_over_summary()
+		# 终局档落盘（三保险之一，经 SaveSystem 唯一写入口）
+		request_save("game_over")
+		game_over.emit(summary)
+		# 短路：跳过出分/SOTA/竞对/迷雾/事件/阶段/周报，直接返回
+		return
+
+	# 账期翻页：步序 3 起的过账计入下一个未结算周（ADR-0015 账期契约）
+	economy.reset_week_ledger()
+
 	# 周结第 3 步：消费 delayed 效果队列（在出分前消费）
 	event_engine.consume_delayed_effects(self)
-	# 周结第 4 步出分与第 5 步 SOTA 判定
+	# 周结第 4 步出分与第 5 步 SOTA 判定（训练先占用本周卡时预算；不过账 money）
+	if training.is_training():
+		economy.apply_delta("compute", -training.get_weekly_hours(), "training_compute")
 	var train_res := training.settle_week(research_eff, tech_bonus, economy.get_compute()["tier"])
 	if train_res.get("completed", false):
 		var score: float = float(train_res.get("score", 0.0))
@@ -560,6 +579,7 @@ func settle_week() -> void:
 			"expense": Formatter.format_money(int(ledger["expense"])),
 			"net": Formatter.format_delta(int(ledger["net"])),
 		},
+		"rows": _build_report_rows(ledger),
 		"line_state": economy.check_lines(),
 	}
 	_last_signal_report = report
@@ -569,18 +589,52 @@ func settle_week() -> void:
 	request_save("weekly_auto")
 
 
-## 收入脉冲确定性随机源（PR7 前 MVP 占位：随机源接口与 rng_stream 对齐，
-## World 按 seed+week 播种，同 seed 双跑哈希一致的确定性由此保证）。
-class _DeterministicRoll:
-	extends RefCounted
+## 最近一次周结报告（周报 UI 唯一数据源；非契约命令，只读）。
+## 修复 RE-02 的 UI 侧断裂：此前 UI 传 get_resource_view()（无 rows 键）→ 恒显兜底文案。
+func get_last_report() -> Dictionary:
+	return _last_signal_report.duplicate(true)
 
-	var _rng: RandomNumberGenerator
 
-	func _init(rng: RandomNumberGenerator) -> void:
-		_rng = rng
+## 周报文本行（TextService 单真源；L3 只渲染不拼装）
+func _build_report_rows(ledger: Dictionary) -> Array[String]:
+	var rows: Array[String] = []
+	(
+		rows
+		. append(
+			(
+				TextService
+				. format(
+					"report_money_row",
+					{
+						"income": Formatter.format_money(int(ledger.get("income", 0))),
+						"expense": Formatter.format_money(int(ledger.get("expense", 0))),
+						"net": Formatter.format_delta(int(ledger.get("net", 0))),
+					}
+				)
+			)
+		)
+	)
+	(
+		rows
+		. append(
+			(
+				TextService
+				. format(
+					"report_reputation_row",
+					{
+						"influence": str(get_influence()),
+						"influence_delta":
+						Formatter.format_delta(int(ledger.get("influence_delta", 0))),
+					}
+				)
+			)
+		)
+	)
+	return rows
 
-	func randi_in_range(low: int, high: int) -> int:
-		return _rng.randi_range(low, high)
+
+## 收入脉冲确定性随机源已在批 1a 随脉冲源退役删除（DR-031/C1 + ADR-0008 决策 3：
+## RNG 消费点回到 3 处，全部经 RngStream 域；`entities/` 内禁止新建 RandomNumberGenerator）。
 
 
 func _recalculate_tech_bonus() -> void:

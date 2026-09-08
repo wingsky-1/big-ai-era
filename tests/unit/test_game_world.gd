@@ -54,12 +54,12 @@ func _poured(name_string: String) -> Array:
 
 
 func test_command_and_signal_contract_accounting() -> void:
-	# 11 命令+11 信号对账（v1.1 §B，DR-026）：方法存在+信号声明+清单一致。
+	# 12 命令+11 信号对账（v1.1 §B / DR-026 / 批 1c 买卡命令）：方法存在+信号声明+清单一致。
 	for command: String in GameWorld.CONTRACT_COMMANDS:
 		assert_true(_world.has_method(command), "GameWorld 应有命令 %s" % command)
 	for signal_name: String in GameWorld.CONTRACT_SIGNALS:
 		assert_true(_world.has_signal(signal_name), "GameWorld 应声明信号 %s" % signal_name)
-	assert_eq(GameWorld.CONTRACT_COMMANDS.size(), 11, "契约命令数=11")
+	assert_eq(GameWorld.CONTRACT_COMMANDS.size(), 12, "契约命令数=12（批 1c 加买卡命令）")
 	assert_eq(GameWorld.CONTRACT_SIGNALS.size(), 11, "契约信号数=11")
 	assert_true(GameWorld.CONTRACT_SIGNALS.has("progress_ticked"), "progress_ticked（M7）应在契约")
 
@@ -126,7 +126,13 @@ func test_ten_thousand_week_simulation_deterministic_and_fast() -> void:
 	var digest_b := _run_thousand_week_digest()
 	assert_eq(digest_a, digest_b, "同 seed 双跑状态摘要应一致（确定性）")
 	var start_time: float = Time.get_ticks_msec() as float
-	var reports := _world.simulate_weeks(10000)
+	# 批 1a：经营收入只来自占槽任务结算 → 万周回归需持续接任务（否则 290 周内破产）
+	var tasks := AutoTaskPolicy.new()
+	var policy := AutoDecisionPolicy.new()
+	var reports: Array[Dictionary] = []
+	for i: int in range(10000):
+		tasks.fill(_world)
+		reports.append_array(_world.simulate_weeks(1, policy))
 	assert_eq(_world.week, 10000, "万周模拟应完整推进")
 	assert_eq(reports.size(), 10000, "逐周报告应完整")
 	# 30s 防呆线：本地实测 ~10s；曾因自测残留 Chrome 抢 CPU 触发 15s 线 flaky，
@@ -138,7 +144,11 @@ func _run_thousand_week_digest() -> String:
 	var fresh := GameWorld.new()
 	autofree(fresh)
 	fresh.start_new_game(42)
-	fresh.simulate_weeks(1000)
+	var tasks := AutoTaskPolicy.new()
+	var policy := AutoDecisionPolicy.new()
+	for i: int in range(1000):
+		tasks.fill(fresh)
+		fresh.simulate_weeks(1, policy)
 	return SnapshotCodec.state_digest(fresh)
 
 

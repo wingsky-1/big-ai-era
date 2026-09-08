@@ -1,3 +1,5 @@
+# gdlint:ignore = max-public-methods
+## 门面/资源服务类：方法即契约面与只读数据面，数量随功能增长，故豁免该上限。
 class_name Economy
 extends RefCounted
 
@@ -30,6 +32,7 @@ var _grant_interval_add_weeks: int = 0
 var _stage_depr_r: float = 1.0
 var _week_revenue: int = 0
 var _week_expense: int = 0
+var _week_influence: int = 0
 
 
 ## 注入经济参数表（economy.json；每次 start_new_game 重建）。
@@ -40,6 +43,7 @@ func setup(config: Dictionary) -> void:
 		_tiers[int(tier_row.get("tier", 0))] = {
 			"price": int(tier_row.get("price", 0)),
 			"capacity": int(tier_row.get("capacity", 0)),
+			"weekly_supply": int(tier_row.get("weekly_supply", 0)),
 		}
 	var stage_depr: Dictionary = _config.get("stage_depr", {})
 	_reproduce_factor = float(stage_depr.get("reproduce_factor", 1.0))
@@ -69,6 +73,7 @@ func apply_delta(resource: String, amount: int, reason: String) -> bool:
 				_week_revenue += amount
 		"influence":
 			influence += amount
+			_week_influence += amount
 		"compute":
 			# amount=卡时余量调整（消费传负数）；拒绝超档位容量
 			if compute_hours_remaining + amount < 0.0:
@@ -102,8 +107,24 @@ func get_compute_capacity() -> int:
 	return int(tier.get("capacity", 0))
 
 
+## 本周卡时预算（ADR-0011：周预算而非卡池余量；档位数据键 weekly_supply）
+func get_compute_supply() -> int:
+	var tier: Dictionary = _tiers.get(compute_tier, {})
+	return int(tier.get("weekly_supply", 0))
+
+
+## 周结步序 1：卡时预算重置为本周供给（不累计、不递减）
+func recharge_weekly() -> void:
+	compute_hours_remaining = float(get_compute_supply())
+
+
 func get_week_ledger() -> Dictionary:
-	return {"income": _week_revenue, "expense": _week_expense, "net": _week_revenue - _week_expense}
+	return {
+		"income": _week_revenue,
+		"expense": _week_expense,
+		"net": _week_revenue - _week_expense,
+		"influence_delta": _week_influence,
+	}
 
 
 ## 双线判定：0=正常 1=警告线（提示） 2=破产线（判负）。
@@ -124,32 +145,50 @@ func check_lines() -> int:
 ## ============ 周结管线（settle 步序 1 收支）============
 
 
-## 周收支聚合：固定支出（工资×人数+ upkeep）+ 双来源脉冲收入期望占位，
-## 全部经 apply_delta 过账。随机收入由注入的随机源提供（World 按 seed 播种；
-## PR7 换 rng_stream 零重构）。返回周报收支行。
-func accrue_week(headcount: int, random_source: Object) -> Dictionary:
-	_week_revenue = 0
-	_week_expense = 0
-	var wage := int(_config.get("wage_per_staff", 0)) * headcount
+## 周结固定支出（工资 × 在册人数），经 apply_delta 过账。
+## 经营收入改由"占槽任务结算"在 GameWorld 侧过账（DR-031/C1：脉冲源退役）。
+func accrue_fixed_expense(headcount: int) -> void:
+	var wage_variant: Variant = DataLoader.require_key(_config, "wage_per_staff", ECONOMY_PATH)
+	if wage_variant == null:
+		return
+	var wage: int = int(wage_variant) * headcount
 	if wage != 0:
 		apply_delta("money", -wage, "wage")
-	if _source_enabled("reproduce"):
-		var amount := _roll_income(random_source, _config.get("reproduce", {}))
-		amount = int(round(amount * _reproduce_factor))
-		if amount > 0:
-			apply_delta("money", amount, "reproduce")
-	if _source_enabled("grant"):
-		var amount_grant := _roll_income(random_source, _config.get("grant", {}))
-		if amount_grant > 0:
-			apply_delta("money", amount_grant, "grant")
-	var ledger := get_week_ledger()
-	var line_state := check_lines()
-	if line_state == WARNED_SOFT:
-		warned.emit(ledger["net"])
-	return ledger
 
 
-## 算力升档（买卡）：价格从资金扣（经 apply_delta），余量补到新档容量。
+## 账期翻页（ADR-0015 账期契约）：周结步序 1–2 结束后重置周账，
+## 此后发生的非周结过账（买卡/研究/入队/事件）计入**下一个未结算周**。
+func reset_week_ledger() -> void:
+	_week_revenue = 0
+	_week_expense = 0
+	_week_influence = 0
+
+
+## 软警告广播（破产线短路由 GameWorld 步序 2 处理）
+func emit_week_warning(ledger: Dictionary) -> void:
+	if check_lines() == WARNED_SOFT:
+		warned.emit(int(ledger.get("net", 0)))
+
+
+## 买卡只读视图（UI 按钮三态：下一档价格 / 可否购买 / 原因）
+func get_upgrade_view() -> Dictionary:
+	var next_tier: int = compute_tier + 1
+	var tier: Dictionary = _tiers.get(next_tier, {})
+	if tier.is_empty():
+		return {"available": false, "next_tier": 0, "price": 0, "reason": "max_tier"}
+	var price := int(tier.get("price", 0))
+	if money < price:
+		return {
+			"available": false,
+			"next_tier": next_tier,
+			"price": price,
+			"reason": "insufficient_money",
+		}
+	return {"available": true, "next_tier": next_tier, "price": price, "reason": ""}
+
+
+## 算力升档（买卡）：价格从资金扣（经 apply_delta），本周预算重置为新档供给。
+## capacity 仅作 apply_delta("compute") 的上限校验（ADR-0011）。
 func upgrade_compute(target_tier: int) -> bool:
 	var tier: Dictionary = _tiers.get(target_tier, {})
 	if tier.is_empty() or target_tier <= compute_tier:
@@ -158,30 +197,12 @@ func upgrade_compute(target_tier: int) -> bool:
 	if money < price or not apply_delta("money", -price, "compute_upgrade"):
 		return false
 	compute_tier = target_tier
-	compute_hours_remaining = float(get_compute_capacity())
+	compute_hours_remaining = float(get_compute_supply())
 	compute_upgraded.emit(target_tier, get_compute_capacity())
 	return true
 
 
 ## ============ 内部 ============
-
-
-func _source_enabled(name_string: String) -> bool:
-	var sources: Dictionary = _config.get("sources", {})
-	var source: Dictionary = sources.get(name_string, {})
-	return bool(source.get("enabled", false))
-
-
-## 收入脉冲 roll：amount/duration 均匀抽样（占位随机源经 random_source.randi()）。
-func _roll_income(random_source: Object, spec: Variant) -> int:
-	if not (spec is Dictionary):
-		return 0
-	var spec_dict: Dictionary = spec
-	var low := int(spec_dict.get("amount_min", 0))
-	var high := int(spec_dict.get("amount_max", 0))
-	if high <= low or random_source == null or not random_source.has_method("randi_in_range"):
-		return 0
-	return random_source.call("randi_in_range", low, high)
 
 
 ## r 曲线与 stage_depr 独立扰动（EC4 职责分离测试锚点；数值校准归 PR10 前收口）。

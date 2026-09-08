@@ -49,6 +49,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "声誉: 0"
 
+[node name="ComputeUpgradeBtn" type="Button" parent="ShellVBox/ResourceBar/ResourceVBox/ResourceMainRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "升级算力"
+
 [node name="ResourceSubrow" type="HBoxContainer" parent="ShellVBox/ResourceBar/ResourceVBox"]
 unique_name_in_owner = true
 layout_mode = 2

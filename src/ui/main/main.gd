@@ -38,6 +38,7 @@ var _debug_shot_mode: bool = false
 @onready var research_eff_label: Label = %ResearchEffLabel
 @onready var tech_bonus_label: Label = %TechBonusLabel
 @onready var week_label: Label = %WeekLabel
+@onready var compute_upgrade_btn: Button = %ComputeUpgradeBtn
 
 @onready var speed_pause_btn: Button = %SpeedPauseBtn
 @onready var speed_1x_btn: Button = %Speed1xBtn
@@ -279,7 +280,9 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			_mount_modal(modal)
 
 		PanelStack.PanelId.AUTO_REPORT, PanelStack.PanelId.REPORT_ARCHIVE:
-			var report_data: Dictionary = _presenter.get_resource_view()
+			# 周报唯一数据源 = GameWorld 最近一次周结报告（RE-02 UI 侧修复：
+			# 此前传 get_resource_view() 无 rows 键 → 恒显兜底文案，收支行不可见）
+			var report_data: Dictionary = world.get_last_report()
 			var modal: WeeklyReportDialog = WEEKLY_REPORT_SCENE.instantiate()
 			modal.setup(report_data)
 			modal.confirmed.connect(func() -> void: _stack.pop_panel(panel_id))
@@ -376,6 +379,7 @@ func _connect_ui_events() -> void:
 	dock_tech_btn.pressed.connect(_on_dock_tech_pressed)
 	dock_report_btn.pressed.connect(_on_dock_report_pressed)
 	dock_pause_btn.pressed.connect(_on_dock_pause_pressed)
+	compute_upgrade_btn.pressed.connect(_on_compute_upgrade_pressed)
 	staff_count_label.gui_input.connect(_on_staff_label_clicked)
 	idle_staff_label.gui_input.connect(_on_staff_label_clicked)
 
@@ -386,6 +390,15 @@ func _connect_ui_events() -> void:
 	_world.task_state_changed.connect(func(_tid: String, _st: String) -> void: _update_views())
 	_world.week_settled.connect(func(_report: Dictionary) -> void: _update_views())
 	_world.toast_queued.connect(_on_toast_queued)
+
+
+## 买卡入口（RC-02：资源栏按钮，不新增面板/不注册 PanelStack）
+func _on_compute_upgrade_pressed() -> void:
+	var view: Dictionary = _world.get_compute_upgrade_view()
+	if not bool(view.get("available", false)):
+		return
+	_world.upgrade_compute(int(view.get("next_tier", 0)))
+	_update_views()
 
 
 func _on_speed_pause_pressed() -> void:
@@ -470,6 +483,17 @@ func _update_views() -> void:
 
 	var week_num: int = int(res_view.get("week", 1))
 	week_label.text = "准备周" if week_num == 0 else "第 %d 周" % week_num
+
+	# 买卡入口三态（N9）：可买/置灰 + 顶档提示（文案走 TextService）
+	var upgrade_view: Dictionary = _world.get_compute_upgrade_view()
+	if str(upgrade_view.get("reason", "")) == "max_tier":
+		compute_upgrade_btn.text = TextService.text("compute_upgrade_maxed")
+	else:
+		compute_upgrade_btn.text = TextService.format(
+			"compute_upgrade_button",
+			{"price": Formatter.format_money(int(upgrade_view.get("price", 0)))}
+		)
+	compute_upgrade_btn.disabled = not bool(upgrade_view.get("available", false))
 
 	var ws_view: Dictionary = _presenter.get_workspace_view()
 	var active_task: Dictionary = ws_view.get("active_task", {})
