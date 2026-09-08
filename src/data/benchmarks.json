@@ -19,5 +19,11 @@
 		"score_precision": 0.1,
 		"baseline": 24.0,
 		"rival_model": "灵犀 Chat"
+	},
+	"saturation": {
+		"first99_week_min": 50,
+		"score_threshold": 99.0,
+		"tier2_never_saturates": true,
+		"_comment": "出处：DR-031/B1 第 2/3 条 + 纪要 §2.4 实算。饱和旋钮 = tier3+ × 深渊 q=1.0 × 3 人上桌（tier3+ 时 tb=0 即 97.1 分，tb>=0.3748 即 99 分；tier2 需 tb>~1.5 而满树仅 1.40 → 永不饱和；玄冰 q=0.8 需 tb>~1.9 → 永不饱和）。first99_week_min = 饱和护栏下界（#79 test_saturation_first99_week）；score_threshold 的 99.0/99.5 口径见需求 §8.5（本单取 99.0，与 DR-031/B1 一致）。"
 	}
 }

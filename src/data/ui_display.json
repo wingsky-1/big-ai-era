@@ -76,6 +76,8 @@
 		"label": "领域探明",
 		"label_separator": ": ",
 		"total_label": "总探明",
-		"separator": " · "
+		"separator": " · ",
+		"unresearchable_note": "不可研",
+		"_comment_unresearchable_note": "DR-031/D3 分母口径 (b)：逐域显示 n/该域实表节点数，非可研域（elsewhere）标注此注记，不把分母改成 11。"
 	}
 }
