@@ -139,3 +139,17 @@ static func calculate_score(ability: float, params: Dictionary) -> float:
 		return score_max
 	var raw_score: float = score_max / (1.0 + exp(exponent))
 	return snappedf(raw_score, float(params["score_precision"]))
+
+
+## 由目标分反解所需能力分 A（竞对死表标定用；sigmoid 反函数，DR-031 §十二.2 / #77）：
+## score = score_max / (1 + exp(-(A - theta)/k)) ⇒ A = theta - k·ln(score_max/score - 1)
+## 边界：score ≤ 0 或 ≥ score_max → 返回 INF（不可达/已饱和），调用方按"不可达"处理。
+static func ability_for_score(score: float, params: Dictionary) -> float:
+	if params.is_empty():
+		push_error("ScoreMath.ability_for_score: 出分参数为空（未注入 benchmarks.json）")
+		return 0.0
+	var score_max: float = float(params["score_max"])
+	if score <= 0.0 or score >= score_max:
+		return INF
+	var ratio: float = score_max / score - 1.0
+	return float(params["theta"]) - float(params["k"]) * log(ratio)

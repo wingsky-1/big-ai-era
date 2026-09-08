@@ -661,8 +661,9 @@ func _update_views() -> void:
 
 	var rival_view: Dictionary = _presenter.get_rival_view()
 	rival_name_label.text = str(rival_view.get("rival_name", ""))
-	# 显示分级（RU-01）：<阈值只显档位标签，真值由周报保留（score_line 由 L2 出数、L3 拼接）
-	rival_gap_label.text = str(rival_view.get("score_line", ""))
+	# 竞对条差距（#77/X3 字段对齐）：名次+差距文本由 L2 出数、L3 只透传；
+	# 未出分时为占位符（不再用玩家分数档位冒充"差距"）。
+	rival_gap_label.text = str(rival_view.get("gap_text", ""))
 	rival_progress_bar.value = float(rival_view.get("rival_progress", 0.0)) * 100.0  # num-ok: 百分比换算
 
 	_update_forecast_row()

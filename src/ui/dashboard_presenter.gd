@@ -136,6 +136,13 @@ func _build_rival_view(view: Dictionary, sota_best: float) -> Dictionary:
 		"rival_progress": float(view.get("rival_progress", 0.0)),
 		"warn_level": str(view.get("warn_level", "")),
 		"warn_weeks_left": int(view.get("warn_weeks_left", 0)),
+		# 竞对条字段对齐（#77 / X3）：差距/名次与时间线游标原样透传 L2 出数——
+		# 修复"gap 未透传 → 竞对条只显玩家分数档位、看不到差距"的链路断裂。
+		"gap": float(view.get("gap", 0.0)),
+		"gap_text": str(view.get("gap_text", "")),
+		"has_scored": bool(view.get("has_scored", false)),
+		"rival_cursor": int(view.get("rival_cursor", 0)),
+		"rival_total": int(view.get("rival_total", 0)),
 	}
 
 
@@ -270,6 +277,9 @@ func _on_week_settled(report: Dictionary) -> void:
 	_dock_view["has_unread_report"] = true
 	# 刷新断言：周结后重算净流入预告（ADR-0015 账期翻页进入新账期）
 	_refresh_forecast_view()
+	# 竞对条随周结刷新（#77 / X3 根因修复）：出分、竞对发版、时间线游标都在周结变化，
+	# 此前只在 sota_updated（破纪录）时刷新 → 未破纪录时竞对条停在上一次状态（恒 0%）。
+	_refresh_rival_view()
 
 	# 周报双挂载之 1：周结自动弹 z2（阻塞停喂 tick）
 	if _stack != null:

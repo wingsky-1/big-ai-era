@@ -128,5 +128,12 @@
 		"verdict_plain": "你走完了这一局",
 		"continue_label": "继续自由期",
 		"_comment": "出处：需求 §11.3 RF-03（终局屏六项 + 关键决策回溯 3 条 + 一句话评价）+ Q-R3（W160 自动弹、可继续自由期、与破产卡两套并存）。"
+	},
+	"rival_bar": {
+		"gap_ahead_prefix": "领先 ",
+		"gap_behind_prefix": "落后 ",
+		"gap_separator": " ",
+		"gap_unavailable": "—",
+		"_comment": "竞对条差距文案（#77 / X3 字段修复）：gap = 竞对分 − 玩家分；>0 落后、≤0 领先。数值格式化用 benchmarks.json.score_precision。"
 	}
 }
