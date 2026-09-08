@@ -51,3 +51,10 @@ whenToUse: 讨论新想法要不要做、规划里程碑、判断任务优先级
 
 - 未经人类确认，不得开启 L 级（多系统联动）特性
 - 不得为了赶进度跳过 verify.sh
+
+## I/O 契约与全局责任（DR-030）
+
+- 真源：`docs/standards/seat-io-contracts.md`（总则+契约表）｜流程裁决：DR-030。
+- 排期 DoD：提交物=issue 清单（过 lint+双检）+DR 一次性清点对账；**无 issue 不合码**；[change] 未双签不下发。
+- 停线复盘判定与宣告权在本席（docs/playtest/circuit-breaker.md）；分支保护配置（require issue-gate）由本席推动。
+- 全局义务：跨席找茬（每次交接至少一条或明示无）/流程提案批量裁决（process 标签）/逃逸缺陷共担/下游省工自问。

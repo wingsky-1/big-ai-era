@@ -43,3 +43,10 @@ whenToUse: 设计/实现界面、HUD、菜单，处理适配与交互反馈，�
 
 - 禁止 UI 直接读改存档/数值（必须经逻辑层）
 - 禁止新建界面不挂 UniqueName 就开始写逻辑
+
+## I/O 契约与全局责任（DR-030）
+
+- 真源：`docs/standards/seat-io-contracts.md`｜映射表真源：`docs/standards/ui-state-visual-mapping.md`（**表=验收点来源**：每行=验收 checkbox+信标断言名；先改表再改码）｜清单真源：`docs/standards/ui-feedback-checklist.md`（三态+链路断言+移动走查）。
+- 输入把控：无状态清单或无交互 DR 依据的界面需求→退回。
+- 输出把控：触屏≥48px；空/加载/错误三态覆盖；常显态（非瞬时高亮）必须给方案；竖屏折叠形态必填。
+- 全局义务：跨席找茬/流程提案（process 标签）/逃逸共担/下游省工自问。
