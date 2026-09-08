@@ -21,6 +21,10 @@ const REQUIRED_KEYS: PackedStringArray = [
 	"k",
 ]
 
+## 阶段可覆盖的出分键白名单（RS-04 θ/k 参数通路，issue #79）：
+## v1.0 仅 θ/k 允许按阶段覆盖，其余键（K/m/score_max…）一律沿用 benchmarks.json 基准。
+const STAGE_OVERRIDE_KEYS: PackedStringArray = ["theta", "k"]
+
 
 ## JSON 行 → 规范化出分参数（compute_multipliers 的字符串键转 int；缺键返回空字典）。
 static func normalize_params(benchmark_row: Dictionary) -> Dictionary:
@@ -54,6 +58,44 @@ static func normalize_params(benchmark_row: Dictionary) -> Dictionary:
 		"score_max": float(benchmark_row["score_max"]),
 		"score_precision": float(benchmark_row["score_precision"]),
 	}
+
+
+## 基准出分参数 × 阶段覆盖（RS-04 θ/k 参数通路，issue #79；L0 纯函数零副作用）。
+## - stage_data 无 "score_params" 键 → 原样返回基准副本（v1.0 真表零覆盖，零数值变更）；
+## - 只覆盖部分键 → 缺键沿用基准（可只覆盖 θ 或只覆盖 k）；
+## - 非法（非字典 / 非白名单键 / 非数值 / k == 0）→ push_error 熔断返回 {}（零默认值纪律）。
+static func merge_stage_params(base_params: Dictionary, stage_data: Dictionary) -> Dictionary:
+	if base_params.is_empty():
+		push_error("ScoreMath.merge_stage_params: 基准出分参数为空（未注入 benchmarks.json）")
+		return {}
+	var merged: Dictionary = base_params.duplicate(true)
+	if not stage_data.has("score_params"):
+		return merged
+	var override_variant: Variant = stage_data["score_params"]
+	if not (override_variant is Dictionary):
+		push_error("ScoreMath.merge_stage_params: score_params 必须是字典（真源 stages.json）")
+		return {}
+	var override: Dictionary = override_variant
+	for key_variant: Variant in override:
+		var key: String = str(key_variant)
+		if not STAGE_OVERRIDE_KEYS.has(key):
+			push_error(
+				(
+					"ScoreMath.merge_stage_params: 非法覆盖键 '%s'（仅允许 %s）"
+					% [key, ", ".join(STAGE_OVERRIDE_KEYS)]
+				)
+			)
+			return {}
+		var value_variant: Variant = override[key_variant]
+		if not (value_variant is float or value_variant is int):
+			push_error("ScoreMath.merge_stage_params: 覆盖键 '%s' 必须为数值" % key)
+			return {}
+		var value: float = float(value_variant)
+		if key == "k" and is_zero_approx(value):
+			push_error("ScoreMath.merge_stage_params: k 不得为 0（sigmoid 分母）")
+			return {}
+		merged[key] = value
+	return merged
 
 
 ## 获取算力档位质量乘子 m(compute_tier)；档位缺失返回 0（调用方按 0 分处理）。
