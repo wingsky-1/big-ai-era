@@ -18,6 +18,8 @@ var _workspace_view: Dictionary = {}
 var _rival_view: Dictionary = {}
 var _dock_view: Dictionary = {}
 var _game_over_summary: Dictionary = {}
+var _freedom_view: Dictionary = {}
+var _finale_summary: Dictionary = {}
 
 
 func setup(world: GameWorld, stack: PanelStack) -> void:
@@ -45,6 +47,16 @@ func get_dock_view() -> Dictionary:
 
 func get_game_over_summary() -> Dictionary:
 	return _game_over_summary.duplicate(true)
+
+
+## 自由期三线视图（#82 RF-01/02；数据面在 L2，L3 只拼接排版）。
+func get_freedom_view() -> Dictionary:
+	return _freedom_view.duplicate(true)
+
+
+## 终局收尾屏数据（#82 RF-03；由周结载荷 finale 段透传，非独立数据源）。
+func get_finale_summary() -> Dictionary:
+	return _finale_summary.duplicate(true)
 
 
 func _connect_world_signals() -> void:
@@ -97,6 +109,8 @@ func _update_all_views() -> void:
 		snap.get("rival_view", {}), float(snap.get("sota", {}).get("best", 0.0))
 	)
 
+	_freedom_view = _build_freedom_view(snap.get("freedom", {}))
+
 	_dock_view = {
 		"has_unread_report": false,
 		"active_z1": _stack.get_z1_panel() if _stack != null else PanelStack.PanelId.NONE,
@@ -123,6 +137,41 @@ func _build_rival_view(view: Dictionary, sota_best: float) -> Dictionary:
 		"warn_level": str(view.get("warn_level", "")),
 		"warn_weeks_left": int(view.get("warn_weeks_left", 0)),
 	}
+
+
+## 自由期三线视图（#82 RF-01/02；消费 L2 freedom_view，L3 只拼接排版，ADR-0016）。
+func _build_freedom_view(view: Dictionary) -> Dictionary:
+	var label_sep: String = str(view.get("label_separator", ": "))
+	var line_sep: String = str(view.get("line_separator", " "))
+	var lines_text: Array[String] = []
+	var parts: Array[String] = []
+	for line_variant: Variant in view.get("lines", []):
+		var line: Dictionary = line_variant
+		var label: String = str(line.get("label", ""))
+		var value_text: String = str(line.get("value_text", ""))
+		lines_text.append(label + label_sep + value_text)
+		parts.append(label + " " + value_text)
+	return {
+		"visible": bool(view.get("visible", false)),
+		"primary": bool(view.get("primary", false)),
+		"stage": str(view.get("stage", "")),
+		"section_label": str(view.get("section_label", "")),
+		"row_text": line_sep.join(parts),
+		"lines_text": lines_text,
+		"banner_text": str(view.get("banner_text", "")),
+		"king_weeks": int(view.get("king_weeks", 0)),
+		"sota_times": int(view.get("sota_times", 0)),
+		"tree_n": int(view.get("tree_n", 0)),
+		"tree_total": int(view.get("tree_total", 0)),
+		"influence": int(view.get("influence", 0)),
+	}
+
+
+## 三线刷新（资源/周结变化后；数据面仍由 L2 出数）。
+func _refresh_freedom_view() -> void:
+	if _world == null:
+		return
+	_freedom_view = _build_freedom_view(_world.get_freedom_view())
 
 
 ## 竞对条刷新（出分/竞对发版/命名后；数据面仍由 L2 出数）。
@@ -225,6 +274,16 @@ func _on_week_settled(report: Dictionary) -> void:
 	# 周报双挂载之 1：周结自动弹 z2（阻塞停喂 tick）
 	if _stack != null:
 		_stack.push_panel(PanelStack.PanelId.AUTO_REPORT, PanelStack.Layer.BLOCKING, report)
+
+	# 自由期三线刷新（#82 RF-01/02）
+	_refresh_freedom_view()
+
+	# 终局收尾屏挂载（#82 RF-03 / Q-R3）：走满单局周数当周自动弹，与破产卡两套并存
+	var finale: Dictionary = report.get("finale", {})
+	if not finale.is_empty():
+		_finale_summary = finale.duplicate(true)
+		if _stack != null and not _stack.get_z2_stack().has(PanelStack.PanelId.FINALE):
+			_stack.push_panel(PanelStack.PanelId.FINALE, PanelStack.Layer.BLOCKING)
 
 	# 命名仪式（X7）：出分且未命名 → 推 NAMING_DIALOG
 	_refresh_naming_view()

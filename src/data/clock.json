@@ -1,4 +1,6 @@
 {
 	"tick_seconds": 0.25,
-	"ticks_per_week": 40
+	"ticks_per_week": 40,
+	"run_weeks": 160,
+	"_run_weeks_comment": "出处：DR-031/纪要 §十二「一局 160 周 ≈26.7 分钟（10s/周 @1x）」。单局周数上限，供 RF-04 时长守卫与 RF-03 终局触发读取（禁代码硬编码 160）。"
 }
