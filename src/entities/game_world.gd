@@ -210,12 +210,15 @@ func assign_staff(staff_id: String, slot_id: String) -> void:
 	if roster.assign_staff(staff_id, slot_id):
 		staff = roster.get_all_staff()
 		_recalculate_research_eff()
+		# 指派影响研发力与员工统计口径，广播资源信号驱动 UI 刷新（v0.1.3 反馈①）
+		_emit_resources()
 
 
 func unassign_staff(staff_id: String) -> void:
 	if roster.unassign_staff(staff_id):
 		staff = roster.get_all_staff()
 		_recalculate_research_eff()
+		_emit_resources()
 
 
 func enqueue_task(task_id: String) -> void:

@@ -85,9 +85,9 @@ func test_app_shell_dock_and_staff_entry_opens_panels() -> void:
 	# 1. 点击 Dock 科技键打开科技树
 	var dock_tech_btn: Button = main.get_node("%DockTechBtn")
 	dock_tech_btn.emit_signal("pressed")
-	assert_eq(stack.get_z1_panel(), PanelStack.PANEL_TECH_TREE, "Dock 科技键应打开科技树")
+	assert_eq(stack.get_z1_panel(), PanelStack.PanelId.TECH_TREE, "Dock 科技键应打开科技树")
 
 	# 2. 点击 Dock 周报键打开周报重看
 	var dock_report_btn: Button = main.get_node("%DockReportBtn")
 	dock_report_btn.emit_signal("pressed")
-	assert_eq(stack.get_z1_panel(), PanelStack.PANEL_REPORT_ARCHIVE, "Dock 周报键应以 z1 打开历史周报")
+	assert_eq(stack.get_z1_panel(), PanelStack.PanelId.REPORT_ARCHIVE, "Dock 周报键应以 z1 打开历史周报")

@@ -20,7 +20,7 @@ const GODOT_BIN = process.env.GODOT_BIN ?? "godot";
 const CHROME_BIN = process.env.CHROME_BIN ?? "google-chrome";
 const HOST = "127.0.0.1";
 const PORT = 8973;
-const OUT_DIR = path.join(REPO_ROOT, "docs/playtest/screenshots/2026-09-08-v0.1.2-selftest");
+const OUT_DIR = path.join(REPO_ROOT, "docs/playtest/screenshots/2026-09-08-v0.1.3-selftest");
 const SETTLE_MS = 900;
 
 const MIME = {
@@ -145,6 +145,16 @@ const evalJs = async (expr) => {
   return r?.result?.value;
 };
 const panelState = () => evalJs("window.__DSH_PANEL_STATE__.depth");
+const waitForDepth = async (expected, timeoutMs = 5000) => {
+  const deadline = Date.now() + timeoutMs;
+  let last = await panelState();
+  while (Date.now() < deadline) {
+    last = await panelState();
+    if (last === expected) return true;
+    await sleep(150);
+  }
+  return false;
+};
 const click = (x, y) => cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 }, sessionId)
   .then(() => cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 }, sessionId));
 const shot = async (name) => {
@@ -157,37 +167,43 @@ const shot = async (name) => {
 
 console.log("交互体验自测（390x844 竖屏，真实鼠标事件）:");
 
-// S1 主工作台
-check("S1 主工作台就绪，面板栈为空", (await panelState()) === 0, `depth=${await panelState()}`);
+// S0 开场引导（v0.1.3）：正常游玩启动即推入 z1 INTRO，点击"开始经营"关闭
+check("S0 开场引导自动弹出，面板深度 1", await waitForDepth(1), `depth=${await panelState()}`);
+await shot("S0-intro");
+
+// S1 关闭开场引导 → 主工作台（开始经营按钮中心实测 CSS 坐标，见 S0 截图）
+await click(195, 507);
+check("S1 点击开始经营 → 面板栈清空", await waitForDepth(0), `depth=${await panelState()}`);
 await shot("S1-home");
 
 // S2 打开科技树
-await click(78, 804); await sleep(SETTLE_MS);
-check("S2 点击科技键 → 面板深度 1", (await panelState()) === 1, `depth=${await panelState()}`);
+await click(78, 804);
+check("S2 点击科技键 → 面板深度 1", await waitForDepth(1), `depth=${await panelState()}`);
 await shot("S2-tech-open");
 
 // S3 关闭科技树
-await click(352, 244); await sleep(SETTLE_MS);
-check("S3 点击关闭 → 面板栈清空", (await panelState()) === 0, `depth=${await panelState()}`);
+await click(352, 244);
+check("S3 点击关闭 → 面板栈清空", await waitForDepth(0), `depth=${await panelState()}`);
 
 // S4 打开周报
-await click(195, 804); await sleep(SETTLE_MS);
-check("S4 点击周报键 → 面板深度 1", (await panelState()) === 1, `depth=${await panelState()}`);
+await click(195, 804);
+check("S4 点击周报键 → 面板深度 1", await waitForDepth(1), `depth=${await panelState()}`);
 await shot("S4-report-open");
 
 // S5 确认周报（按钮中心实测 CSS 坐标，见 S4 截图）
-await click(195, 537); await sleep(SETTLE_MS);
-check("S5 点击确认 → 面板栈清空", (await panelState()) === 0, `depth=${await panelState()}`);
+await click(195, 537);
+check("S5 点击确认 → 面板栈清空", await waitForDepth(0), `depth=${await panelState()}`);
 
 // S6 暂停菜单（已知缺陷 #67 现场取证）
-await click(312, 804); await sleep(SETTLE_MS);
+await click(312, 804);
+await waitForDepth(1);
 const depthAfterPause = await panelState();
 check("S6 点击暂停键（#67 取证）", true, `depth=${depthAfterPause}（预期 1；若 0 即 #67 无面板缺陷现场）`);
 await shot("S6-pause-issue67");
 
 // S7 遮罩点击恢复
-await click(195, 500); await sleep(SETTLE_MS);
-check("S7 点击遮罩 → 面板栈清空", (await panelState()) === 0, `depth=${await panelState()}`);
+await click(195, 500);
+check("S7 点击遮罩 → 面板栈清空", await waitForDepth(0), `depth=${await panelState()}`);
 
 // 清理
 cdp.ws.close();

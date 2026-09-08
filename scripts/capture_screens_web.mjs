@@ -41,7 +41,7 @@ const VIEWPORTS = [
   { tag: "portrait-390x844", width: 390, height: 844, dsf: 2, mobile: true },
   { tag: "desktop-1280x720", width: 1280, height: 720, dsf: 1, mobile: false },
 ];
-const SHOTS = ["home", "tech", "report", "gameover"];
+const SHOTS = ["home", "intro", "tech", "report", "gameover"];
 
 // ---------- 参数 ----------
 function parseArgs(argv) {

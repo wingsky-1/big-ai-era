@@ -23,18 +23,18 @@ func test_panel_stack_depth_and_feeding_gate_integration() -> void:
 	assert_not_null(driver, "GameLoopDriver 应存在")
 
 	# 1. 常规面板互斥，栈深 1
-	stack.push_panel(PanelStack.PANEL_ROSTER, PanelStack.LAYER_NORMAL)
-	assert_eq(stack.get_z1_panel(), PanelStack.PANEL_ROSTER, "打开名册")
-	stack.push_panel(PanelStack.PANEL_TECH_TREE, PanelStack.LAYER_NORMAL)
-	assert_eq(stack.get_z1_panel(), PanelStack.PANEL_TECH_TREE, "打开科技树应顶替名册，栈深保持 1")
+	stack.push_panel(PanelStack.PanelId.ROSTER, PanelStack.Layer.NORMAL)
+	assert_eq(stack.get_z1_panel(), PanelStack.PanelId.ROSTER, "打开名册")
+	stack.push_panel(PanelStack.PanelId.TECH_TREE, PanelStack.Layer.NORMAL)
+	assert_eq(stack.get_z1_panel(), PanelStack.PanelId.TECH_TREE, "打开科技树应顶替名册，栈深保持 1")
 	assert_true(driver.visible_gate, "z1 打开不阻塞，驱动保持流淌")
 
 	# 2. z2 阻塞面板开启触发停喂门控
-	stack.push_panel(PanelStack.PANEL_AUTO_REPORT, PanelStack.LAYER_BLOCKING)
+	stack.push_panel(PanelStack.PanelId.AUTO_REPORT, PanelStack.Layer.BLOCKING)
 	assert_false(stack.is_tick_feeding_allowed(), "存在 z2 时不允许喂帧")
 	assert_false(driver.visible_gate, "驱动停喂门控应关闭")
 
-	stack.pop_panel(PanelStack.PANEL_AUTO_REPORT)
+	stack.pop_panel(PanelStack.PanelId.AUTO_REPORT)
 	assert_true(stack.is_tick_feeding_allowed(), "z2 关闭后恢复喂帧")
 	assert_true(driver.visible_gate, "驱动停喂门控恢复")
 
@@ -49,23 +49,27 @@ func test_z2_mask_click_and_same_frame_signal_order() -> void:
 	var stack: PanelStack = main_scene.get_stack()
 
 	# 1. z2 决策卡遮罩点击不关闭（DR-020 回归防护）
-	stack.push_panel(PanelStack.PANEL_DECISION_CARD, PanelStack.LAYER_BLOCKING)
-	assert_eq(stack.get_z2_stack().back(), PanelStack.PANEL_DECISION_CARD)
+	stack.push_panel(PanelStack.PanelId.DECISION_CARD, PanelStack.Layer.BLOCKING)
+	assert_eq(stack.get_z2_stack().back(), PanelStack.PanelId.DECISION_CARD)
 	stack.on_mask_clicked()
-	assert_eq(stack.get_z2_stack().back(), PanelStack.PANEL_DECISION_CARD, "决策卡点击遮罩绝对不能关闭（强迫玩家交互）")
-	stack.pop_panel(PanelStack.PANEL_DECISION_CARD)
+	assert_eq(
+		stack.get_z2_stack().back(), PanelStack.PanelId.DECISION_CARD, "决策卡点击遮罩绝对不能关闭（强迫玩家交互）"
+	)
+	stack.pop_panel(PanelStack.PanelId.DECISION_CARD)
 
 	# 2. 同帧信号序：同帧触发决策卡与周报时，决策卡必须先于周报弹起
-	var order: Array[String] = []
-	stack.panel_pushed.connect(func(pid: String, _layer: int) -> void: order.append(pid))
+	var order: Array = []
+	stack.panel_pushed.connect(
+		func(pid: PanelStack.PanelId, _layer: int) -> void: order.append(pid)
+	)
 
 	# 模拟同帧信号到达：先推 decision_card，再推 auto_report
-	stack.push_panel(PanelStack.PANEL_DECISION_CARD, PanelStack.LAYER_BLOCKING)
-	stack.push_panel(PanelStack.PANEL_AUTO_REPORT, PanelStack.LAYER_BLOCKING)
+	stack.push_panel(PanelStack.PanelId.DECISION_CARD, PanelStack.Layer.BLOCKING)
+	stack.push_panel(PanelStack.PanelId.AUTO_REPORT, PanelStack.Layer.BLOCKING)
 
 	assert_eq(order.size(), 2)
-	assert_eq(order[0], PanelStack.PANEL_DECISION_CARD, "决策卡必须排在第一位响应")
-	assert_eq(order[1], PanelStack.PANEL_AUTO_REPORT, "周报排在其后")
+	assert_eq(order[0], PanelStack.PanelId.DECISION_CARD, "决策卡必须排在第一位响应")
+	assert_eq(order[1], PanelStack.PanelId.AUTO_REPORT, "周报排在其后")
 
 
 func test_l3_weakref_and_zero_write_paths() -> void:
@@ -142,11 +146,11 @@ func test_headless_full_loop_deterministic() -> void:
 			var event_id: String = str(world.pending_decision.get("id", ""))
 			world.choose_decision(event_id, 0)
 			if stack.has_blocking_panel():
-				stack.pop_panel(PanelStack.PANEL_DECISION_CARD)
+				stack.pop_panel(PanelStack.PanelId.DECISION_CARD)
 
 		# 若遭遇周报弹层，模拟玩家点击确认关闭
-		if stack.get_z2_stack().has(PanelStack.PANEL_AUTO_REPORT):
-			stack.pop_panel(PanelStack.PANEL_AUTO_REPORT)
+		if stack.get_z2_stack().has(PanelStack.PanelId.AUTO_REPORT):
+			stack.pop_panel(PanelStack.PanelId.AUTO_REPORT)
 
 	assert_true(world.week >= 1, "应经历了周界流淌推进 (周数: %d)" % world.week)
 
@@ -155,7 +159,7 @@ func test_headless_full_loop_deterministic() -> void:
 	driver.feed_frame(3.0)  # 4x 速度下 3.0s = 12.0s = 48 ticks > 40 ticks 越过周界
 
 	assert_true(world.game_over_flag, "触及破产线后短路触发破产 Game Over")
-	assert_true(stack.get_z2_stack().has(PanelStack.PANEL_GAME_OVER), "Game Over 面板应被压入 z2 栈")
+	assert_true(stack.get_z2_stack().has(PanelStack.PanelId.GAME_OVER), "Game Over 面板应被压入 z2 栈")
 	var summary: Dictionary = world.get_game_over_summary()
 	assert_eq(summary.get("reason", ""), "bankruptcy", "Game Over 原因应为破产")
 

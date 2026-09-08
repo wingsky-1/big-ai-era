@@ -79,11 +79,13 @@ func _update_all_views() -> void:
 		"tech_bonus": float(snap.get("tech_bonus", 0.0)),
 	}
 
+	var staff_rows: Array = snap.get("staff", [])
 	_workspace_view = {
 		"tasks": snap.get("tasks", {}),
-		"staff": snap.get("staff", []),
+		"staff": staff_rows,
 		"training": snap.get("training", {}),
 	}
+	_refresh_staff_stats()
 
 	_rival_view = {
 		"sota_best": float(snap.get("sota", {}).get("best", 0.0)),
@@ -93,14 +95,29 @@ func _update_all_views() -> void:
 
 	_dock_view = {
 		"has_unread_report": false,
-		"active_z1": _stack.get_z1_panel() if _stack != null else "",
+		"active_z1": _stack.get_z1_panel() if _stack != null else PanelStack.PanelId.NONE,
 	}
+
+
+## 员工三口径统计（v0.1.3 反馈①）：total/assigned/idle。
+## 指派与撤岗经 resources_changed 信号驱动本刷新（GameWorld._emit_resources）。
+func _refresh_staff_stats() -> void:
+	var staff_rows: Array = _world.get_ui_snapshot().get("staff", [])
+	var assigned_count: int = 0
+	for row: Dictionary in staff_rows:
+		if str(row.get("assigned", "")) != "":
+			assigned_count += 1
+	_workspace_view["staff"] = staff_rows
+	_workspace_view["staff_total"] = staff_rows.size()
+	_workspace_view["staff_assigned"] = assigned_count
+	_workspace_view["staff_idle"] = staff_rows.size() - assigned_count
 
 
 func _on_resources_changed(money: int, compute_hours: float, influence: int) -> void:
 	_resource_view["money"] = money
 	_resource_view["compute_hours"] = compute_hours
 	_resource_view["influence"] = influence
+	_refresh_staff_stats()
 
 
 func _on_progress_ticked(progress: Dictionary) -> void:
@@ -117,13 +134,13 @@ func _on_week_settled(report: Dictionary) -> void:
 
 	# 周报双挂载之 1：周结自动弹 z2（阻塞停喂 tick）
 	if _stack != null:
-		_stack.push_panel(PanelStack.PANEL_AUTO_REPORT, PanelStack.LAYER_BLOCKING, report)
+		_stack.push_panel(PanelStack.PanelId.AUTO_REPORT, PanelStack.Layer.BLOCKING, report)
 
 
 func _on_game_over(summary: Dictionary) -> void:
 	_game_over_summary = summary.duplicate(true)
 	if _stack != null:
-		_stack.push_panel(PanelStack.PANEL_GAME_OVER, PanelStack.LAYER_BLOCKING, summary)
+		_stack.push_panel(PanelStack.PanelId.GAME_OVER, PanelStack.Layer.BLOCKING, summary)
 
 
 func _on_sota_updated(headline: Dictionary) -> void:
@@ -144,11 +161,11 @@ func _on_toast_queued(toast_data: Dictionary) -> void:
 ## 周报双挂载之 2：玩家主动重看周报（z1 层，不暂停，不停喂）
 func open_report_archive() -> void:
 	if _stack != null:
-		_stack.push_panel(PanelStack.PANEL_REPORT_ARCHIVE, PanelStack.LAYER_NORMAL)
+		_stack.push_panel(PanelStack.PanelId.REPORT_ARCHIVE, PanelStack.Layer.NORMAL)
 		_dock_view["has_unread_report"] = false
 
 
 ## 打开命名仪式弹窗（z2 阻塞层）
 func open_naming_dialog() -> void:
 	if _stack != null:
-		_stack.push_panel(PanelStack.PANEL_NAMING_DIALOG, PanelStack.LAYER_BLOCKING)
+		_stack.push_panel(PanelStack.PanelId.NAMING_DIALOG, PanelStack.Layer.BLOCKING)
