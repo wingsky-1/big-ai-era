@@ -25,6 +25,33 @@
 | 员工 idle/assigned | resources_changed（assign/unassign） | 主台员工实体卡：名/状态/在岗位；指派后 0.5s 内刷新 | 卡片按下反馈 | 无 idle 员工时指派入口置灰+原因 | 待回填 | 折叠为横滑行或紧凑网格，触屏≥48px |
 | PAUSE_MENU 开 | dock 暂停键 | 面板实例化可见（继续/重开/速率），Esc 可关 | 遮罩淡入 | — | 待回填 | 居中弹层自适应 |
 
+## 2.5 v1.0 规划行（2026-09-08 UI 席产出，[提案·待拍板]——拍板前不作为实施验收来源）
+
+> 本区段为 v1.0 界面功能点的规划行（编号 V1-01…V1-17；V1-16/17 为 N3/N4 缺口规格补行），由 UI 席按 gd-ui-ux-designer 协议预填；
+> 信标断言名全部"待回填"（信标落地前 lint 豁免该列，同 §1 口径）；
+> 标注（既有）= 信号已在码内，（待建）= 信号/谓词随对应 issue 实施；配套界面规格全集见
+> docs/discussion/2026-09-08-ui-interface-specs-v1.md（逐节含三态覆盖/链路断言/空态/竖屏/触屏）。
+
+| 编号 | 状态值 | 触发源信号 | 常显表现 | 瞬时表现 | 禁用表现 | 信标断言名 | 竖屏折叠形态 | 对应功能点/issue |
+|---|---|---|---|---|---|---|---|---|
+| V1-01 | session_resumed→RETURN_SUMMARY(z1) 推入 / 已读关闭 | 存档时间戳差≥阈值（D-2，信号待建 session_resumed）；resources_changed（既有）刷新钱区 | 三类分组常显：钱还好吗（现金+周净流入）/要我管的（仅指向已存在待办，绝不创造新待办）/大事（上周显著事件）；待办区无待办时显示空态文案 return_summary_todo_empty | 弹层推入动画；跳转键按下反馈 | 无禁用操作（只读弹层）；"要我管的"区空=空态文案而非禁用 | 待回填 | 三区纵排满宽，大事区可收折（心智权重：钱→要我管的→大事） | 1 归来摘要弹层（D-2；N1 待建 issue） |
+| V1-02 | guide_bubble active(step N) / dismissed_step_N | tutorial_step_advanced（待建，D-1 flags 持久化，读档还原） | 当前步锚定气泡常显（guide_bubble_step_N+步骤序点），随手关、关了世界照走（不进停喂门控）；失败教学一次只弹一条 | 随手关淡出反馈；步完成时气泡内容替换或消失+锚点迁移 | 无禁用操作（只读+关闭）；同刻多步只显一条其余排队不显示 | 待回填 | 气泡锚点随目标元素折叠位重算（Container 锚定），文本满宽换行不截断 | 2 引导锚定气泡（D-3/D-5；N1 待建 issue） |
+| V1-03 | staff idle / assigned / training | resources_changed（既有，assign/unassign）+ progress_ticked（训练位） | 主台工作区员工实体卡常显：名/状态字样/在岗任务名，指派后 0.5s内刷新；训练进度刻级；未招满时占位卡 staff_slot_empty（空态非空白） | 卡片按下反馈；指派成功状态字样翻新 | 无 idle 目标或员工在岗时指派入口置灰+原因可查（staff_assign_disabled_reason） | 待回填 | 折叠为横滑行或紧凑网格，触屏≥48px（沿 §2 既有行）；工作区本体永不折叠 | 3 员工实体卡（反馈③；N7 后半，随 PR-γ） |
+| V1-04 | user_paused × speed 档（1x/2x/4x）× auto_paused(z2) | GameClock set_paused/set_speed（既有）+ tick_feeding_gate_changed（z2 停喂） | 档位文本+图形双通道常显；用户暂停"已暂停"遮罩之上可辨；z2 自动暂停"自动暂停"标识区别显示 | 流速/暂停键按下反馈 | z2 阻塞期间流速档键置灰+原因（decision_wait_reason，"决策等待中"） | 待回填 | 资源栏副行位显示（沿 §2 既有行） | 4 流速/暂停常显态（反馈②；N7 前半，随 PR-γ） |
+| V1-05 | task_slot empty / queued / in_progress（×N 槽） | task_queue_changed（待建，反馈④a 圆桌裁决项）+ progress_ticked | 每槽一卡常显：任务名/进度条（刻级）/已指派员工名；队首卡带"自动顶入"标 task_queue_head_tag；空槽显示 task_slot_empty_hint | 任务完成顶入动画；指派成功卡内 0.5s刷新 | 槽位锁定或无 idle 员工时指派入口置灰+原因（task_slot_locked_reason） | 待回填 | 工作区永不折叠（DR-009/015）；卡内纵向压缩、进度条满宽 | 5 多任务槽任务卡——依 N6 多任务槽设计稿（docs/discussion/2026-09-08-mech-design-drafts-v1.md 设计稿1，【change】未双签） |
+| V1-06 | week_settled 周报行渲染 / 回看 | week_settled（既有）→report_rows_built（待建 presenter 键） | 周报流内三行常显：名次行 report_rank_row / 宿敌行 report_rival_row / 落后为什么行 report_gap_reason_row；存档后 REPORT_ARCHIVE 回看同构渲染 | 自动周报弹出动画（≥~5% 显著变化才自动弹）；显著变化行瞬时高亮 | 无交互控件=无禁用态；首周未出分整行不渲染（空态=不出现，非"—"占位） | 待回填 | 行满宽纵排、长句自动换行、无横向滚动 | 6 总分榜名次行+宿敌行+落后为什么行（#34，周报流内） |
+| V1-07 | yearbook_pending(z2) / yearbook_archived(z1 回看) | year_ready（待建，年末周结谓词） | z2 年报卡：叙事段+关键数字块（yearbook_card_*）常显直到"收下"；z1 归档回看：历卷列表+选中卷全文；彩蛋层零效果（不触数值/成就/解锁） | 弹出/关闭动画；选卷高亮反馈 | 仅一卷时翻页键置灰；首年未过回看入口不出现（空态=无入口，非置灰） | 待回填 | z2 卡纵向滚动满宽；回看折叠为下拉选卷+全文区 | 7 玄冬年报卡+归档回看（#36，彩蛋层零效果） |
+| V1-08 | codex entry locked / unlocked / new_tag | codex_entry_unlocked（待建，flags 开放容器） | z1 面板：条目网格常显，未解锁="???"掩码行（名/描述均掩码），已解锁=名+一句话描述；头部解锁计数常显（已解锁/总数）；新解锁"新"标常显至面板打开过 | 条目按下展开详情；新标清除反馈 | 未解锁条目不可展开（掩码视觉，非置灰）；无其他禁用态 | 待回填 | 网格 2 列→1 列；计数行常显面板头 | 8 收集图鉴面板（#37 容器/#42 UI，前置 N2 设计稿；PanelStack 注册 z1，未解锁=??? 行） |
+| V1-09 | recruit_pool 刷新中 / 可签约 / 现金不足 | recruit_pool_changed（待建，rng.recruit 新域）+ resources_changed（既有） | z1 面板：候选卡列表常显（名/特质/签约金/一句话简历，贵=可见信息多）；面板头猎头门票余量+当前现金常显对照 | 签约键按下反馈；成功后候选卡移出+主台员工区联动刷新 | 现金<签约金时签约键置灰+原因（recruit_sign_disabled_reason）；门票为 0 时刷新键置灰+原因（recruit_refresh_disabled_reason） | 待回填 | 候选卡单列满宽；门票/现金常显于面板头副行 | 9 招聘市场面板（#38，候选卡+签约金+猎头门票入口） |
+| V1-10 | 榜单行激活渲染 / 未激活 | week_settled（既有）+ 各榜激活谓词（待建：斜率/考工/潮汐） | 激活后周报流内行常显：斜率效率行/考工副轴行/潮汐影子行（"影子"文本+图形双通道区别明榜）；"塞周报别塞脸"=主台零常显、零红点 | 行随自动周报出现；名次变化行瞬时高亮 | 未激活期整行不渲染（非"—"占位）；口径未定该行隐藏（开放问题②待数值稿） | 待回填 | 行满宽纵排 | 10 斜率效率榜/考工榜/潮汐影子榜周报行（#39） |
+| V1-11 | rumor_sparked / 窗口内未读 / 已归档 | rumor_sparked（待建，G-2/G-3 ±2 周窗口） | 活跃传闻=z3 toast 短显（同屏≤3，倒计时绑游戏时间）；当周周报流 rumor_row 常显兜底；通知层零红点零角标 | toast 淡入淡出；错过不复现只等周报（防漏接双通道） | 无交互控件=无禁用态；无活跃传闻=无 toast 无行（空态=静默） | 待回填 | toast 顶部横条满宽；周报行口径同 V1-06 | 11 传闻池 toast/周报行（#40；G-3 窗口显式验收点=N5） |
+| V1-12 | decision_pending(z2) / notice_toast(z3) | decision_pending（既有，events layer 字段 F-1 定层） | z2 决策卡：标题/叙事段/2–3 选项（各带效果预览句 decision_option_hint_*）常显直到选择；通知级=z3 toast 短显+归入当周周报行；通知层零红点零角标 | 弹出动画（同帧按信号到达序串行，决策卡先于周报）；选项按下反馈；选择后卡收起 | 遮罩点击不关闭（强迫处理）；未解锁选项不出现（非置灰） | 待回填 | 卡纵向滚动满宽；选项键纵排≥48px | 12 事件池扩容决策卡/通知 toast（#41，通知层零红点零角标） |
+| V1-13 | crisis_card_pending → resolved（经对抗评审 B1 修正：无倒计时/无过期态，DR-012 周结前强制选择） | crisis_triggered（待建，R-2/R-8） | z2 危机卡：标题/叙事/可选动作键组常显至玩家选择（阻塞期间世界已停；"危机 30 秒"=DR-028 三刀①试玩代理指标非界面元素，见规格 V1-13 节 B1 留痕） | 弹出动画；动作键按下反馈；选择后结果句即时刷新 | 动作不可负担时该键置灰+原因（crisis_action_disabled_reason）；无"已错过"态（必须选择） | 待回填 | 卡满宽纵排；动作键组纵排优先保全 | 13 支线危机 3 卡决策卡（#31，危机态入口） |
+| V1-14 | financing_offer pending / accepted / declined | financing_offer_pending（待建，经济稿 5 项）；resources_changed（既有） | z2 卡：融资额/出让代价/到期偿还行+两键（接受/婉拒）常显直到处理；到期未处理后果句常显 | 弹出动画（决策卡先于周报）；键按下反馈；接受后主台刻级跳动联动 | 无禁用（二选一必处理，遮罩不关；婉拒总可选） | 待回填 | 数字块+双键纵排满宽 | 14 融资决策卡（#29） |
+| V1-15 | deploy idle / deploying / online(单在线位) / accruing | deploy_state_changed（待建）+ resources_changed（既有，收支行） | 主台工作区上线行常显：在线位占用/版本名/累计收支行（动态锚，随 tick 刻级增长）；周报流内 deploy 收支行；非在线态显示引导行 deploy_ready_hint | 上线键按下反馈；在线位切换 0.5s内刷新+收支行重置 | 无可上线版本时上线键置灰+原因（deploy_no_release_reason）；在线位已占用时二次上线置灰+原因（deploy_slot_occupied_reason，"单在线位，先下线当前"） | 待回填 | 工作区内行满宽纵排（行属工作区组件，不触发工作区折叠） | 15 deploy/上线运维面板或行（#30，单在线位） |
+| V1-16 | freedom_phase active / 前自由期或三线全零=未渲染 | week_settled（既有）+ freedom_counters_changed（待建，flags 键 freedom_*：霸榜周数=SOTA 保霸周 +1 / 树已探明=fog_changed 域计数 / 影响力存量=resources.influence 快照） | 自由期激活后周报流固定槽位三行常显（至局终）：霸榜周数行/探明 n/14 行/影响力存量行，"当前值 → 目标带"格式；结构化数值行不计字数（DR-010）；禁红点零角标（被动信息，无操作） | 行随自动周报出现；数值变化行瞬时高亮 | 无交互控件=无禁用态；未进自由期或三线全零=整行不渲染（零态不 NaN 不空行）；目标带未标定（数值稿未收口）时"目标待标定"后缀非空白 | 待回填 | 行满宽纵排，三线压缩为三短行（周报行口径同 V1-06） | 16 自由期三线差距行（N3 缺口规格 docs/discussion/2026-09-08-gap-issue-specs-v1.md；DR-029 C-6，随 PR5 计数/PR9b 行；与 V1-06 边界=V1-06 是 #34 竞对缠斗行，两者并存不合并） |
+| V1-17 | gossip bubble active / pool_empty / observation_line 常显 | gossip_bubble_requested（待建：吐槽键→逻辑层 F1 池确定性轮转取文本→文本就绪信号；零新 RNG，RNG 消费点仍恰 3 处） | 员工详情区观察文本行常显（观察文本替代数值面板，condition/traits 禁数字面板——DR-029 A-8/E-1）；吐槽键常显（真空期可见）；气泡+图标双通道（色盲安全） | 点吐槽键→气泡淡入（F1 池确定性轮转，池耗尽前不重复）后自动消散；点猫→零状态彩蛋气泡（不入档，E-1） | 空池/文本键缺失时吐槽键置灰+原因（gossip_pool_empty_reason），不弹空白气泡不崩 | 待回填 | 气泡锚点随员工卡横滑位重算，不遮 Dock；观察文本行满宽 | 17 吐槽气泡/观察文本行（N4 缺口规格 docs/discussion/2026-09-08-gap-issue-specs-v1.md；DR-029 A-8/E-1+F1 池，文本归内容席管线；员工卡关联 V1-03） |
+
 ## 3. 维护纪律
 
 - **先改表再改码**：任何界面变更的 issue 必须引用将变更的表行；实施 PR 同步更新本表，code-review 核对；
