@@ -34,6 +34,7 @@ enum PanelId {
 	GAME_OVER,  ## z2 终局结算
 	PAUSE_MENU,  ## z2 暂停菜单（遮罩可关）
 	AUTO_REPORT,  ## z2 周结自动周报
+	FINALE,  ## z2 终局收尾屏（#82 RF-03；与 GAME_OVER 破产卡两套并存）
 }
 
 ## 面板所在操作层级（z0/z3 为概念层，不入栈操作）
@@ -54,7 +55,7 @@ static func is_blocking(panel: PanelId) -> bool:
 	match panel:
 		PanelId.DECISION_CARD, PanelId.NAMING_DIALOG, PanelId.GAME_OVER:
 			return true
-		PanelId.PAUSE_MENU, PanelId.AUTO_REPORT:
+		PanelId.PAUSE_MENU, PanelId.AUTO_REPORT, PanelId.FINALE:
 			return true
 		_:
 			return false

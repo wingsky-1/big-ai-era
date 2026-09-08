@@ -63,6 +63,18 @@ const ECONOMY_PATH: String = "res://src/data/economy.json"
 const RIVALS_PATH: String = "res://src/data/rivals.json"
 const TECHS_PATH: String = "res://src/data/techs.json"
 const UI_DISPLAY_PATH: String = "res://src/data/ui_display.json"
+const CLOCK_PATH: String = "res://src/data/clock.json"
+
+## 终局六项键（RF-03 / 纪要 §12.2 + DR-021 B3「summary 三项扩六项」）：
+## 周数 / SOTA 次数 / 最高分 / 霸榜周数 / 树 n（分母随 tree_total）/ 影响力存量。
+const FINAL_SUMMARY_FIELDS: PackedStringArray = [
+	"week",
+	"sota_times",
+	"player_best_score",
+	"king_weeks",
+	"tree_n",
+	"influence",
+]
 ## 预告口径：任务剩余周数 <= 该值即判定"下一周结完成"（settle_week 每周期减 1）。
 const FORECAST_SETTLE_WEEKS: int = 1
 ## 十进制底数（分数文本精度换算用）。
@@ -94,6 +106,7 @@ var sota_board: SotaBoard
 var rng_stream: RngStream
 var rival_track: RivalTrack
 var event_engine: EventEngine
+var freedom: FreedomTracker
 var pending_decision: Dictionary = {}
 
 var _named_ids: Dictionary = {}
@@ -106,6 +119,8 @@ var _tasks_cfg: Dictionary = {}
 var _techs_cfg: Dictionary = {}
 var _rivals_cfg: Dictionary = {}
 var _ui_display: Dictionary = {}
+var _clock_cfg: Dictionary = {}
+var _saturation_cfg: Dictionary = {}
 var _score_params: Dictionary = {}
 ## 当前生效的出分参数（基准 × 当前阶段覆盖，RS-04/#79）；随开局/读档/阶段晋升刷新。
 var _active_score_params: Dictionary = {}
@@ -142,6 +157,8 @@ func _init() -> void:
 	rival_track = RivalTrack.new()
 	rival_track.rival_warned.connect(_on_rival_warned)
 	event_engine = EventEngine.new()
+	freedom = FreedomTracker.new()
+	_setup_freedom()
 	tech_fog.setup(_techs_cfg)
 	tech_tree.setup(_techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
@@ -157,7 +174,26 @@ func _load_data_caches() -> void:
 	_techs_cfg = DataLoader.load_json(TECHS_PATH)
 	_rivals_cfg = DataLoader.load_json(RIVALS_PATH)
 	_ui_display = DataLoader.load_json(UI_DISPLAY_PATH)
+	_clock_cfg = DataLoader.load_json(CLOCK_PATH)
+	_saturation_cfg = DataLoader.load_json(BENCHMARKS_PATH).get("saturation", {})
 	_score_params = _load_score_params()
+
+
+## 自由期三线参数注入（#82 RF-01/02/03）：三处真源全部来自 L4 数据表，代码零硬编码。
+## 可见时点 ← ui_display.freedom.display_week；饱和阈值 ← benchmarks.saturation.score_threshold；
+## 单局周数 ← clock.run_weeks。
+func _setup_freedom() -> void:
+	var freedom_cfg: Dictionary = _ui_display.get("freedom", {})
+	(
+		freedom
+		. setup(
+			{
+				"display_week": int(freedom_cfg.get("display_week", 0)),
+				"score_threshold": float(_saturation_cfg.get("score_threshold", 0.0)),
+				"run_weeks": int(_clock_cfg.get("run_weeks", 0)),
+			}
+		)
+	)
 
 
 ## 竞对逼近预警缓存（rival_track 判定单点，L2 只做只读转述）。
@@ -436,6 +472,49 @@ func get_score_display(score: float) -> Dictionary:
 	}
 
 
+## 自由期三线只读视图（RF-01/RF-02；ADR-0016：L2 出数，L3 只格式化拼接）。
+## 树 n / 影响力存量读现成真源（TechFog 域计数 / Economy），不新增计数器。
+func get_freedom_view() -> Dictionary:
+	var cfg: Dictionary = _ui_display.get("freedom", {})
+	var labels: Dictionary = cfg.get("line_labels", {})
+	var tree_n: int = tech_fog.get_discovered_count()
+	var tree_total: int = tech_fog.get_total_nodes()
+	var lines: Array[Dictionary] = [
+		{
+			"id": FreedomTracker.LINE_KING_WEEKS,
+			"label": str(labels.get("king_weeks", "")),
+			"value_text": "%d%s" % [freedom.king_weeks, str(cfg.get("king_unit", ""))],
+		},
+		{
+			"id": "tree",
+			"label": str(labels.get("tree", "")),
+			"value_text": "%d%s%d" % [tree_n, str(cfg.get("tree_separator", "/")), tree_total],
+		},
+		{
+			"id": FreedomTracker.LINE_INFLUENCE,
+			"label": str(labels.get("influence", "")),
+			"value_text": str(get_influence()),
+		},
+	]
+	return {
+		"stage": freedom.get_stage_id(),
+		"visible": freedom.get_stage() != FreedomTracker.Stage.HIDDEN,
+		"primary": freedom.get_stage() == FreedomTracker.Stage.PRIMARY,
+		"king_weeks": freedom.king_weeks,
+		"sota_times": freedom.sota_times,
+		"tree_n": tree_n,
+		"tree_total": tree_total,
+		"influence": get_influence(),
+		"display_week": freedom.get_display_week(),
+		"lines": lines,
+		"section_label": str(cfg.get("section_label", "")),
+		"report_prefix": str(cfg.get("report_prefix", "")),
+		"line_separator": str(cfg.get("line_separator", " ")),
+		"label_separator": str(cfg.get("label_separator", ": ")),
+		"banner_text": str(cfg.get("banner_text", "")),
+	}
+
+
 ## 命名仪式视图（X7：出分且未命名 → L3 推 NAMING_DIALOG）。
 func get_naming_view() -> Dictionary:
 	return {
@@ -494,6 +573,8 @@ func start_new_game(seed: int = 0) -> void:
 	_last_ledger = {}
 	_rival_warn_level = RivalTrack.WARN_NONE
 	_rival_warn_weeks_left = 0
+	freedom.reset()
+	_setup_freedom()
 	economy.setup(_economy_cfg)
 	var opening := DataLoader.load_json("res://src/data/opening.json")
 	var compute: Dictionary = opening.get("compute", {})
@@ -591,6 +672,7 @@ func start_research(tech_id: String) -> void:
 	}
 	var res := tech_tree.start_research(tech_id, context)
 	if res.get("ok", false):
+		freedom.record_research(week, tech_id)  # 关键决策回溯②（RF-03）
 		_recalculate_tech_bonus()
 		_emit_resources()
 
@@ -605,6 +687,9 @@ func start_training(base_id: String) -> void:
 	}
 	var res := training.start_training(base_id, context)
 	if res.get("ok", false):
+		# 关键决策回溯①（RF-03）：训练成本真源 model_bases.json（禁硬编码）
+		var bases: Dictionary = DataLoader.load_json(MODEL_BASES_PATH)
+		freedom.record_training(int(bases.get(base_id, {}).get("cost", 0)), base_id)
 		_emit_resources()
 
 
@@ -665,16 +750,151 @@ func set_paused(on: bool) -> void:
 	user_paused = clock.user_paused
 
 
-## 生成 Game Over 总结字典（周数/最高分/SOTA 纪录/破产原因）
+## 生成 Game Over 总结字典（六项 + 旧有四项 + 破产原因；破产卡数据面，reason 语义不变）
 func get_game_over_summary() -> Dictionary:
+	var summary := _final_summary_base()
+	summary["reason"] = "bankruptcy"
+	return summary
+
+
+## 终局收尾屏数据面（RF-03 / Q-R3）：六项 + 三线终值行 + 关键决策回溯 3 条 + 一句话评价。
+## 与破产卡「两套并存」：本方法只产出数据，不改变 game_over 信号与破产卡语义。
+func get_finale_summary() -> Dictionary:
+	var summary := _final_summary_base()
+	summary["reason"] = "final_week"
+	summary["rows"] = _finale_rows(summary)
+	summary["review"] = _finale_review()
+	summary["verdict"] = _finale_verdict(summary)
+	summary["display"] = (_ui_display.get("finale", {}) as Dictionary).duplicate(true)
+	return summary
+
+
+## 终局公共数据面（六项 + 旧四项；破产卡与终局屏同源，避免双真源）。
+func _final_summary_base() -> Dictionary:
+	var tree_n: int = tech_fog.get_discovered_count()
 	return {
 		"week": week,
 		"best_score": sota_best,
 		"rival_best": rival_best,
 		"model_name": model_name,
 		"cum_income": cum_income,
-		"reason": "bankruptcy",
+		"sota_times": freedom.sota_times,
+		"player_best_score": _player_best_score,
+		"king_weeks": freedom.king_weeks,
+		"tree_n": tree_n,
+		"tree_total": tech_fog.get_total_nodes(),
+		"influence": get_influence(),
+		"six_fields": FINAL_SUMMARY_FIELDS.duplicate(),
+		"freedom_lines": _freedom_summary_lines(tree_n),
 	}
+
+
+## 三线终值行（破产终局边界：需求 §11.3「破产终局：三线终值 + 在第 N 周倒下」）。
+func _freedom_summary_lines(tree_n: int) -> Array[String]:
+	var cfg: Dictionary = _ui_display.get("freedom", {})
+	var labels: Dictionary = cfg.get("line_labels", {})
+	var sep: String = str(cfg.get("label_separator", ": "))
+	var king_unit: String = str(cfg.get("king_unit", ""))
+	var tree_sep: String = str(cfg.get("tree_separator", "/"))
+	return [
+		str(labels.get("king_weeks", "")) + sep + "%d%s" % [freedom.king_weeks, king_unit],
+		(
+			str(labels.get("tree", ""))
+			+ sep
+			+ "%d%s%d" % [tree_n, tree_sep, tech_fog.get_total_nodes()]
+		),
+		str(labels.get("influence", "")) + sep + str(get_influence()),
+	]
+
+
+## 终局屏六项行（文案键来自 ui_display.finale；L2 拼文本行、L3 只渲染，同周报 rows 模式）。
+func _finale_rows(summary: Dictionary) -> Array[String]:
+	var cfg: Dictionary = _ui_display.get("finale", {})
+	var labels: Dictionary = cfg.get("labels", {})
+	var sep: String = str(cfg.get("label_separator", ": "))
+	var week_unit: String = str(cfg.get("week_unit", ""))
+	var king_unit: String = str(cfg.get("king_unit", ""))
+	var tree_sep: String = str(cfg.get("tree_separator", "/"))
+	return [
+		str(labels.get("week", "")) + sep + "%d%s" % [int(summary["week"]), week_unit],
+		str(labels.get("sota_times", "")) + sep + str(int(summary["sota_times"])),
+		(
+			str(labels.get("player_best_score", ""))
+			+ sep
+			+ _format_score(float(summary["player_best_score"]))
+		),
+		str(labels.get("king_weeks", "")) + sep + "%d%s" % [int(summary["king_weeks"]), king_unit],
+		(
+			str(labels.get("tree", ""))
+			+ sep
+			+ "%d%s%d" % [int(summary["tree_n"]), tree_sep, int(summary["tree_total"])]
+		),
+		str(labels.get("influence", "")) + sep + str(int(summary["influence"])),
+	]
+
+
+## 关键决策回溯 3 条（需求 §11.3 ⑤：最贵的训练 / 最晚的一次点树 / 最险的破产边缘）。
+func _finale_review() -> Array[String]:
+	var cfg: Dictionary = _ui_display.get("finale", {})
+	var labels: Dictionary = cfg.get("review_labels", {})
+	var sep: String = str(cfg.get("label_separator", ": "))
+	var none_text: String = str(cfg.get("review_none", ""))
+	var rows: Array[String] = []
+	var training: String = none_text
+	if freedom.costliest_training_cost > 0:
+		training = (
+			str(cfg.get("review_training_template", ""))
+			. replace("{name}", _base_display_name(freedom.costliest_training_id))
+			. replace("{cost}", Formatter.format_money(freedom.costliest_training_cost))
+		)
+	rows.append(str(labels.get("training", "")) + sep + training)
+	var research: String = none_text
+	if not freedom.last_research_id.is_empty():
+		research = (
+			str(cfg.get("review_research_template", ""))
+			. replace("{week}", str(freedom.last_research_week))
+			. replace("{name}", _tech_display_name(freedom.last_research_id))
+		)
+	rows.append(str(labels.get("research", "")) + sep + research)
+	var money_line: String = none_text
+	if freedom.lowest_money_week > 0:
+		money_line = (
+			str(cfg.get("review_money_template", ""))
+			. replace("{week}", str(freedom.lowest_money_week))
+			. replace("{money}", Formatter.format_money(freedom.lowest_money))
+		)
+	rows.append(str(labels.get("money", "")) + sep + money_line)
+	return rows
+
+
+## 一句话评价（需求 §11.3 ⑥；优先级：霸榜周数 → 树探明 → 通用）。
+func _finale_verdict(summary: Dictionary) -> String:
+	var cfg: Dictionary = _ui_display.get("finale", {})
+	var king: int = int(summary.get("king_weeks", 0))
+	if king > 0:
+		return str(cfg.get("verdict_king_template", "")).replace("{weeks}", str(king))
+	var tree_n: int = int(summary.get("tree_n", 0))
+	if tree_n > 0:
+		return str(cfg.get("verdict_tree_template", "")).replace("{lit}", str(tree_n)).replace(
+			"{total}", str(int(summary.get("tree_total", 0)))
+		)
+	return str(cfg.get("verdict_plain", ""))
+
+
+## 基座显示名（回溯行文案；真源 model_bases.json，缺键退化为 id）。
+func _base_display_name(base_id: String) -> String:
+	if base_id.is_empty():
+		return ""
+	var bases: Dictionary = DataLoader.load_json(MODEL_BASES_PATH)
+	var row: Dictionary = bases.get(base_id, {})
+	return str(row.get("name", base_id))
+
+
+## 科技节点显示名（回溯行文案；真源 techs.json，缺键退化为 id）。
+func _tech_display_name(tech_id: String) -> String:
+	var nodes: Dictionary = _techs_cfg.get("nodes", {})
+	var row: Dictionary = nodes.get(tech_id, {})
+	return str(row.get("name", tech_id))
 
 
 ## 手动/退出/切后台存档触发（PR8 三保险时机；经 SaveSystem 唯一写入口）。
@@ -742,6 +962,8 @@ func restore(data: Dictionary) -> void:
 	# 呈现层读档还原（#78）：出分标记与玩家最高分（分级显示/命名仪式判定数据源）
 	_scored_once = bool(flags.get("scored", false))
 	_player_best_score = float(flags.get("player_best_score", 0.0))
+	# 自由期三线还原（#82 RF-01）：flags 开放容器缺键兜底 → 旧档零迁移
+	freedom.restore(flags)
 	var names: Array = data.get("player_model_names", [])
 	model_name = str(names.back()) if not names.is_empty() else ""
 	_named_ids.clear()
@@ -869,6 +1091,7 @@ func settle_week() -> void:
 		var current_name := model_name if model_name != "" else "未命名"
 		var broken := sota_board.submit_score(current_name, score)
 		if broken:
+			freedom.record_sota()  # RF-03 六项之「SOTA 次数」（玩家破纪录当周 +1）
 			sota_best = sota_board.get_best_score()
 			sota_updated.emit({"model": current_name, "score": sota_best, "rival": false})
 	# 周结第 6 步竞对推进（8 动作剧本 + 论文外溢 + 发版播报）
@@ -910,6 +1133,8 @@ func settle_week() -> void:
 		economy.set_stage_depr(
 			float(mod.get("reproduce_factor", 1.0)), int(mod.get("grant_interval_add_weeks", 0))
 		)
+	# 周结第 10.5 步：自由期三线结算（RF-01/02/04；周报与终局屏的唯一数据源）
+	var freedom_week: Dictionary = _settle_freedom_week()
 	var report := {
 		"week": week,
 		"money_row":
@@ -918,14 +1143,44 @@ func settle_week() -> void:
 			"expense": Formatter.format_money(int(ledger["expense"])),
 			"net": Formatter.format_delta(int(ledger["net"])),
 		},
-		"rows": _build_report_rows(ledger, forecast_before),
+		"rows": _build_report_rows(ledger, forecast_before, freedom_week),
 		"line_state": economy.check_lines(),
+		"freedom": freedom_week,
 	}
+	if bool(freedom_week.get("finale_due", false)):
+		# RF-03 终局收尾屏（Q-R3）：走满 run_weeks 当周自动弹一次，玩家可继续自由期
+		freedom.mark_finale_shown()
+		report["finale"] = get_finale_summary()
 	_last_signal_report = report
 	_emit_resources()
 	week_settled.emit(report)
 	# 步序 11: 周界自动存档（三保险之一）
 	request_save("weekly_auto")
+
+
+## 周结三线结算（RF-01/02/04）：保霸周 +1、阶段判定、变化清单、终局到期判定。
+func _settle_freedom_week() -> Dictionary:
+	var context := {
+		"week": week,
+		"player_best_score": _player_best_score,
+		"player_is_champion": _player_is_champion(),
+		"tree_n": tech_fog.get_discovered_count(),
+		"tree_total": tech_fog.get_total_nodes(),
+		"influence": get_influence(),
+	}
+	var result: Dictionary = freedom.settle_week(context)
+	freedom.record_money(week, get_money())  # 关键决策回溯③：资金低点
+	return result
+
+
+## 保霸判定（RF-01「保霸周 +1」唯一真源，零新增状态）：
+## 玩家最高分 > 0 且 ≥ 榜首分（sota_best）且 > 竞对已发版最高分（rival_best）。
+## 平局归霸主（SotaBoard.submit_score 严格大于才刷新）+ rival_best 仅在竞对破纪录时更新，
+## 故「玩家先到 99 分」判霸主、「竞对先到」因玩家分不大于榜首分而不判。
+func _player_is_champion() -> bool:
+	if _player_best_score <= 0.0:
+		return false
+	return _player_best_score >= sota_best and _player_best_score > rival_best
 
 
 ## 最近一次周结报告（周报 UI 唯一数据源；非契约命令，只读）。
@@ -937,7 +1192,9 @@ func get_last_report() -> Dictionary:
 ## 周报文本行（TextService 单真源；L3 只渲染不拼装）。
 ## 尾部两行（出分后）：分数真值行（RU-01：主台可只显档位标签，周报恒留真值）
 ## 与预告对账尾注（Δ-06：把"预告=实际"搬到玩家眼前）。
-func _build_report_rows(ledger: Dictionary, forecast_before: Dictionary = {}) -> Array[String]:
+func _build_report_rows(
+	ledger: Dictionary, forecast_before: Dictionary = {}, freedom_week: Dictionary = {}
+) -> Array[String]:
 	var rows: Array[String] = []
 	(
 		rows
@@ -977,10 +1234,25 @@ func _build_report_rows(ledger: Dictionary, forecast_before: Dictionary = {}) ->
 				str(_ui_display.get("report_score_label", "")), _format_score(_player_best_score)
 			)
 		)
+	var freedom_row: String = _build_freedom_report_row(freedom_week)
+	if not freedom_row.is_empty():
+		rows.append(freedom_row)
 	var check_row: String = _build_forecast_check_row(forecast_before, ledger)
 	if not check_row.is_empty():
 		rows.append(check_row)
 	return rows
+
+
+## 周报三线行（RF-02：封顶升主权重后周报固定携带三线；弱展示期不占周报版面）。
+func _build_freedom_report_row(freedom_week: Dictionary) -> String:
+	if str(freedom_week.get("stage_id", "")) != FreedomTracker.STAGE_PRIMARY:
+		return ""
+	var view: Dictionary = get_freedom_view()
+	var parts: Array[String] = []
+	for line_variant: Variant in view.get("lines", []):
+		var line: Dictionary = line_variant
+		parts.append(str(line.get("label", "")) + " " + str(line.get("value_text", "")))
+	return str(view.get("report_prefix", "")) + str(view.get("line_separator", " ")).join(parts)
 
 
 ## 预告对账尾注（文案键在 ui_display.json；不一致时同样如实标注，不美化）。

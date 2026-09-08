@@ -38,6 +38,7 @@ static func ui_snapshot(world: GameWorld) -> Dictionary:
 		"rival_view": world.get_rival_view(),
 		"domain_progress": world.get_domain_progress(),
 		"forecast": world.get_income_forecast(),
+		"freedom": world.get_freedom_view(),
 		"naming": world.get_naming_view(),
 		"pending_decision": world.pending_decision.duplicate(true),
 		"user_paused": world.user_paused,
@@ -54,6 +55,19 @@ static func to_save(world: GameWorld) -> Dictionary:
 	for staff_id: String in world.staff:
 		assigned[staff_id] = str(world.staff[staff_id].get("assigned", ""))
 	var model_names: Array = world._named_ids.keys()
+	var flags: Dictionary = {
+		"game_over": world.game_over_flag,
+		"name_cursor": world._named_cursor,
+		# 呈现层读档还原（#78）：出分标记与玩家最高分——否则读档后分级显示退化
+		# 为起步档、命名仪式不再触发（flags 为开放容器，加键零迁移）。
+		"scored": world._scored_once,
+		"player_best_score": world._player_best_score,
+		# 翻雾供给源（RK-04 / DR-031 §2.9）：累计获得影响力（只增不减），
+		# flags 为开放容器，加键零迁移（旧档缺键由 restore 兜底为 0）。
+		"cum_influence": world.economy.get_cum_influence(),
+	}
+	# 自由期三线计数器（#82 RF-01）：flags 开放容器合并，加键零迁移（红线 4）
+	flags.merge(world.freedom.to_save())
 	return {
 		"schema_version": GameWorld.SCHEMA_VERSION,
 		"week": world.week,
@@ -81,18 +95,7 @@ static func to_save(world: GameWorld) -> Dictionary:
 		"stages": world.stages.to_save(),
 		"sota": world.sota_board.to_save(),
 		"tutorial": {"step": world.tutorial_step, "done": world.tutorial_done},
-		"flags":
-		{
-			"game_over": world.game_over_flag,
-			"name_cursor": world._named_cursor,
-			# 呈现层读档还原（#78）：出分标记与玩家最高分——否则读档后分级显示退化
-			# 为起步档、命名仪式不再触发（flags 为开放容器，加键零迁移）。
-			"scored": world._scored_once,
-			"player_best_score": world._player_best_score,
-			# 翻雾供给源（RK-04 / DR-031 §2.9）：累计获得影响力（只增不减），
-			# flags 为开放容器，加键零迁移（旧档缺键由 restore 兜底为 0）。
-			"cum_influence": world.economy.get_cum_influence(),
-		},
+		"flags": flags,
 	}
 
 

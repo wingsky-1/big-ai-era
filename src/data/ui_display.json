@@ -80,6 +80,55 @@
 		"unresearchable_note": "不可研",
 		"_comment_unresearchable_note": "DR-031/D3 分母口径 (b)：逐域显示 n/该域实表节点数，非可研域（elsewhere）标注此注记，不把分母改成 11。"
 	},
+	"freedom": {
+		"display_week": 25,
+		"_comment_display_week": "出处：DR-031/纪要 §十二.2 落地一条 + GDD §2①「自由期三线提前到 W25」——呈现层可见时点（非玩法数值）。",
+		"section_label": "自由期三线",
+		"weak_prefix": "自由期",
+		"line_separator": " · ",
+		"label_separator": ": ",
+		"line_labels": {
+			"king_weeks": "霸榜周数",
+			"tree": "树已探明",
+			"influence": "影响力存量"
+		},
+		"king_unit": "周",
+		"tree_separator": "/",
+		"report_prefix": "自由期 ",
+		"banner_text": "已登顶 · 自由期",
+		"_comment_banner": "RU-03 封顶横幅文案（需求 §0.3 第 2 条 / DR-031 B1②）。落 ui_display.json 而非 texts.json：#78 已把新增 UI 文案键收口于本表（texts.json 键数被 3 处硬断言锁定，迁移属另一 issue）。"
+	},
+	"finale": {
+		"title": "一局终了 · 自由期",
+		"section_label": "六项结算",
+		"review_title": "关键决策回溯",
+		"labels": {
+			"week": "存续周数",
+			"sota_times": "SOTA 次数",
+			"player_best_score": "最高分",
+			"king_weeks": "霸榜周数",
+			"tree": "树已探明",
+			"influence": "影响力存量"
+		},
+		"label_separator": ": ",
+		"week_unit": "周",
+		"king_unit": "周",
+		"tree_separator": "/",
+		"review_labels": {
+			"training": "最贵的训练",
+			"research": "最晚的一次点树",
+			"money": "最险的破产边缘"
+		},
+		"review_none": "无",
+		"review_training_template": "{name}（成本 {cost}）",
+		"review_research_template": "第 {week} 周 · {name}",
+		"review_money_template": "第 {week} 周 · 资金低至 {money}",
+		"verdict_king_template": "你守住了 {weeks} 周榜首",
+		"verdict_tree_template": "你探明了 {lit}/{total} 个节点",
+		"verdict_plain": "你走完了这一局",
+		"continue_label": "继续自由期",
+		"_comment": "出处：需求 §11.3 RF-03（终局屏六项 + 关键决策回溯 3 条 + 一句话评价）+ Q-R3（W160 自动弹、可继续自由期、与破产卡两套并存）。"
+	},
 	"rival_bar": {
 		"gap_ahead_prefix": "领先 ",
 		"gap_behind_prefix": "落后 ",

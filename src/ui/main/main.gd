@@ -13,6 +13,7 @@ const STAFF_ROSTER_SCENE: PackedScene = preload("res://src/ui/modals/staff_roste
 const INTRO_SCENE: PackedScene = preload("res://src/ui/modals/intro_dialog.tscn")
 const PAUSE_MENU_SCENE: PackedScene = preload("res://src/ui/modals/pause_menu_dialog.tscn")
 const NAMING_DIALOG_SCENE: PackedScene = preload("res://src/ui/modals/naming_dialog.tscn")
+const FINALE_SCENE: PackedScene = preload("res://src/ui/modals/finale_dialog.tscn")
 const TOKENS_COLORS: Resource = preload("res://src/ui/theme/tokens_colors.tres")
 
 var _world: GameWorld
@@ -30,6 +31,12 @@ var _forecast_row: HBoxContainer
 var _forecast_label: Label
 var _forecast_detail_label: Label
 var _forecast_expanded: bool = false
+## 自由期三线（#82 RF-01/02：动态挂载独立节点，不动竞对/预告既有行）
+var _freedom_row: HBoxContainer
+var _freedom_label: Label
+var _freedom_panel: VBoxContainer
+var _freedom_panel_title: Label
+var _freedom_panel_body: Label
 
 @onready var resource_bar: PanelContainer = %ResourceBar
 @onready var resource_subrow: HBoxContainer = %ResourceSubrow
@@ -240,6 +247,7 @@ func _init_runtime_systems() -> void:
 
 	_setup_mask_overlay()
 	_setup_forecast_row()
+	_setup_freedom_views()
 
 	# 初始同步折叠状态（后续随视口变化由信号与 RESIZED 钩子驱动）
 	_sync_folded_elements()
@@ -287,6 +295,54 @@ func _update_forecast_row() -> void:
 	if _forecast_detail_label != null:
 		_forecast_detail_label.text = "\n".join(lines)
 		_forecast_detail_label.visible = _forecast_expanded and not lines.is_empty()
+
+
+## 自由期三线挂载（#82 RF-01/02）：
+## - 弱展示位 = 资源栏副行（`%ResourceSubrow` 之下，与预告副行平级，W25 起常显）；
+## - 主权重位 = 工作区面板（封顶后出现，优先级压过摆弄层，DR-029 C-6）。
+## 数值/文案全部来自 L2（presenter.get_freedom_view），本处只做布局与可见性。
+func _setup_freedom_views() -> void:
+	var res_host: Node = resource_subrow.get_parent()
+	if res_host != null:
+		_freedom_row = HBoxContainer.new()
+		_freedom_row.name = "FreedomRow"
+		_freedom_row.add_theme_constant_override("separation", 12)  # num-ok: 布局间距（表现层）
+		_freedom_label = Label.new()
+		_freedom_label.name = "FreedomLabel"
+		_freedom_label.add_theme_color_override("font_color", TOKENS_COLORS.get_meta("ink3"))
+		_freedom_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_freedom_row.add_child(_freedom_label)
+		res_host.add_child(_freedom_row)
+		_freedom_row.visible = false
+	var ws_host: Node = task_title_label.get_parent()
+	if ws_host != null:
+		_freedom_panel = VBoxContainer.new()
+		_freedom_panel.name = "FreedomPanel"
+		_freedom_panel.add_theme_constant_override("separation", 4)  # num-ok: 布局间距（表现层）
+		_freedom_panel_title = Label.new()
+		_freedom_panel_title.name = "FreedomPanelTitle"
+		_freedom_panel.add_child(_freedom_panel_title)
+		_freedom_panel_body = Label.new()
+		_freedom_panel_body.name = "FreedomPanelBody"
+		_freedom_panel_body.add_theme_color_override("font_color", TOKENS_COLORS.get_meta("ink3"))
+		_freedom_panel_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_freedom_panel.add_child(_freedom_panel_body)
+		ws_host.add_child(_freedom_panel)
+		_freedom_panel.visible = false
+
+
+## 三线两阶段可见性（RF-02）：W25 起资源栏副行弱展示；封顶后工作区主面板出现。
+func _update_freedom_views() -> void:
+	var freedom: Dictionary = _presenter.get_freedom_view()
+	var visible_weak: bool = bool(freedom.get("visible", false))
+	var primary: bool = bool(freedom.get("primary", false))
+	if _freedom_row != null:
+		_freedom_row.visible = visible_weak
+		_freedom_label.text = str(freedom.get("row_text", ""))
+	if _freedom_panel != null:
+		_freedom_panel.visible = primary
+		_freedom_panel_title.text = str(freedom.get("section_label", ""))
+		_freedom_panel_body.text = "\n".join(freedom.get("lines_text", []))
 
 
 func _setup_mask_overlay() -> void:
@@ -413,6 +469,17 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			)
 			_active_modals[panel_id] = naming
 			_mount_modal(naming)
+
+		PanelStack.PanelId.FINALE:
+			# 终局收尾屏（#82 RF-03 / Q-R3）：走满单局周数当周自动弹，可继续自由期；
+			# 与破产 Game Over 卡两套并存（本分支不触碰 GAME_OVER 分支语义）。
+			var finale: FinaleDialog = FINALE_SCENE.instantiate()
+			finale.setup(_presenter.get_finale_summary())
+			finale.continue_requested.connect(
+				func() -> void: _stack.pop_panel(PanelStack.PanelId.FINALE)
+			)
+			_active_modals[panel_id] = finale
+			_mount_modal(finale)
 
 
 func _on_panel_popped(panel_id: PanelStack.PanelId, _layer: int) -> void:
@@ -600,4 +667,5 @@ func _update_views() -> void:
 	rival_progress_bar.value = float(rival_view.get("rival_progress", 0.0)) * 100.0  # num-ok: 百分比换算
 
 	_update_forecast_row()
+	_update_freedom_views()
 	_update_speed_buttons()
