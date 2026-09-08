@@ -296,13 +296,10 @@ func get_staff_view() -> Dictionary:
 
 
 ## 域进度只读视图（{lit,total} 按域；ADR-0016 决策②：L3 禁读 L4 表）。
+## 分母真源单点 = TechFog.get_domain_totals()（实表节点数），此处不得另行统计。
 func get_domain_progress() -> Dictionary:
 	var counts: Dictionary = tech_fog.get_domain_counts()
-	var nodes: Dictionary = _techs_cfg.get("nodes", {})
-	var totals: Dictionary = {}
-	for node_id: String in nodes:
-		var node_domain: String = str((nodes[node_id] as Dictionary).get("domain", ""))
-		totals[node_domain] = int(totals.get(node_domain, 0)) + 1
+	var totals: Dictionary = tech_fog.get_domain_totals()
 	var labels: Dictionary = _ui_display.get("domain_labels", {})
 	var summary_cfg: Dictionary = _ui_display.get("domain_summary", {})
 	var domains: Array[Dictionary] = []
@@ -319,7 +316,8 @@ func get_domain_progress() -> Dictionary:
 					"label": str(labels.get(domain, domain)),
 					"lit": lit,
 					"total": int(totals.get(domain, 0)),
-					"mainline": _is_mainline_domain(domain),
+					"mainline": _domain_flag(domain, "counts_mainline", true),
+					"researchable": _domain_flag(domain, "researchable", true),
 				}
 			)
 		)
@@ -333,6 +331,7 @@ func get_domain_progress() -> Dictionary:
 			"label_separator": str(summary_cfg.get("label_separator", "")),
 			"total_label": str(summary_cfg.get("total_label", "")),
 			"separator": str(summary_cfg.get("separator", "")),
+			"unresearchable_note": str(summary_cfg.get("unresearchable_note", "")),
 		},
 	}
 
@@ -352,6 +351,7 @@ func get_tech_list_view() -> Array[Dictionary]:
 					"cost": int(node.get("cost", 0)),
 					"rp_cost": int(node.get("rp_cost", 0)),
 					"parents": node.get("parents", []),
+					"domain": str(node.get("domain", "")),
 					"state": tech_fog.get_state(tech_id),
 				}
 			)
@@ -438,13 +438,13 @@ func _wage_per_week() -> int:
 	return int(wage_variant) * staff.size()
 
 
-## 域是否计入主线（techs.json domain_flags.counts_mainline；未标注域默认计入）。
-func _is_mainline_domain(domain: String) -> bool:
+## 域标志（techs.json domain_flags.<flag>；未标注域取 default_value）。
+func _domain_flag(domain: String, flag: String, default_value: bool) -> bool:
 	var flags: Dictionary = _techs_cfg.get("domain_flags", {})
 	var row: Variant = flags.get(domain)
 	if row is Dictionary:
-		return bool((row as Dictionary).get("counts_mainline", false))
-	return true
+		return bool((row as Dictionary).get(flag, default_value))
+	return default_value
 
 
 ## 分数文本（精度取 benchmarks.json score_precision；缺失退化为原值文本）。

@@ -41,7 +41,7 @@ text = "✕"
 [node name="DomainSummaryLabel" type="Label" parent="MainVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "领域统计: 模型架构 (0/4) | 算法演进 (0/5) | 工程基建 (0/5)"
+text = "领域探明"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="MainVBox"]
 layout_mode = 2

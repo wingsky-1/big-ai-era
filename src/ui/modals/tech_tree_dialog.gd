@@ -23,6 +23,7 @@ func setup(world: GameWorld) -> void:
 
 func _ready() -> void:
 	ModalSizing.apply(self)
+	domain_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	close_btn.pressed.connect(func() -> void: closed.emit())
 	_render()
 
@@ -31,14 +32,27 @@ func _render() -> void:
 	if _world == null:
 		return
 
-	domain_summary_label.text = _build_domain_summary()
+	# 域口径一律经 L2 数据面（ADR-0016 决策②：L3 禁读 L4 数据表）：
+	# progress.domains 同时供汇总行与列表行的"域显示名 + 是否可研"使用。
+	var progress: Dictionary = _world.get_domain_progress()
+	var summary: Dictionary = progress.get("summary", {})
+	var unresearchable_note: String = str(summary.get("unresearchable_note", ""))
+	var domain_meta: Dictionary = {}
+	for domain_variant: Variant in progress.get("domains", []):
+		var domain: Dictionary = domain_variant
+		domain_meta[str(domain.get("id", ""))] = domain
+
+	domain_summary_label.text = _build_domain_summary(progress, unresearchable_note)
 
 	for child in tech_list_vbox.get_children():
 		child.queue_free()
 
-	# 节点元数据与状态一律来自 L2 数据面（ADR-0016 决策②：L3 禁读 L4 数据表）
+	# 节点元数据与状态一律来自 L2 数据面
 	for node_info: Dictionary in _world.get_tech_list_view():
 		var state: String = str(node_info.get("state", TechFog.STATE_HIDDEN))
+		var domain_row: Dictionary = domain_meta.get(str(node_info.get("domain", "")), {})
+		var domain_label: String = str(domain_row.get("label", ""))
+		var researchable: bool = bool(domain_row.get("researchable", true))
 		var item_hbox := HBoxContainer.new()
 		item_hbox.add_theme_constant_override("separation", 10)  # num-ok: 布局间距（表现层）
 
@@ -77,7 +91,14 @@ func _render() -> void:
 				item_hbox.add_child(name_label)
 
 			TechFog.STATE_RUMORED:
-				name_label.text = "? [传闻] " + str(node_info.get("name", ""))
+				if researchable:
+					name_label.text = "? [传闻] " + str(node_info.get("name", ""))
+				else:
+					# 他者道路：显示占位行但注明不可研（DR-031/D3 分母口径 b）
+					name_label.text = (
+						"??? [%s·%s] %s"
+						% [domain_label, unresearchable_note, str(node_info.get("name", ""))]
+					)
 				item_hbox.add_child(name_label)
 
 			_:  # STATE_HIDDEN
@@ -87,31 +108,22 @@ func _render() -> void:
 		tech_list_vbox.add_child(item_hbox)
 
 
-## 域进度行（真值来自 L2 get_domain_progress：逐域 {lit,total} 由技术数据表统计，
-## 不再硬编码域 id 与分母——旧实现显示 architecture/algorithm/infrastructure 三域，
-## 与数据表的 domain_enum 完全不符，属"显示错误值"缺陷）。
-func _build_domain_summary() -> String:
-	var progress: Dictionary = _world.get_domain_progress()
+## 域进度行（真值来自 L2 get_domain_progress：逐域 {lit,total} 与域名由 L2 提供，
+## 分母 = 该域实表节点数，非可研域（elsewhere）标注不可研——旧实现显示
+## architecture/algorithm/infrastructure 三域且分母硬编码 4/5/5，属"显示错误值"缺陷）。
+func _build_domain_summary(progress: Dictionary, unresearchable_note: String) -> String:
 	var summary: Dictionary = progress.get("summary", {})
 	var separator: String = str(summary.get("separator", ""))
 	var parts: Array[String] = []
 	for domain_variant: Variant in progress.get("domains", []):
 		var domain: Dictionary = domain_variant
-		if not bool(domain.get("mainline", false)):
-			continue
-		(
-			parts
-			. append(
-				(
-					"%s %d/%d"
-					% [
-						str(domain.get("label", "")),
-						int(domain.get("lit", 0)),
-						int(domain.get("total", 0)),
-					]
-				)
-			)
+		var row: String = (
+			"%s %d/%d"
+			% [str(domain.get("label", "")), int(domain.get("lit", 0)), int(domain.get("total", 0))]
 		)
+		if not bool(domain.get("researchable", true)):
+			row += "(%s)" % unresearchable_note
+		parts.append(row)
 	var text: String = (
 		str(summary.get("label", ""))
 		+ str(summary.get("label_separator", ""))
