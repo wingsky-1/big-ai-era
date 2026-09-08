@@ -19,6 +19,8 @@ const REGISTERED_DOMAINS: Array[String] = [
 
 var _root_seed: int = 0
 var _counters: Dictionary = {}
+## 派生用哈希器：每个 (root_seed, domain, counter) 重置 seed 后取一次输出（PCG32）。
+var _hasher: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 func _init(seed_val: int = 0) -> void:
@@ -41,13 +43,16 @@ func get_counter(domain: String) -> int:
 
 
 ## 派生一个 [0.0, 1.0) 的确定性浮点随机数，并将对应域计数器 +1
+## counter-based：每个三元组独立派生，不依赖同域前一个随机数（读档/跳步不漂移）。
+## 实现注意（#75 修复）：GDScript 的 `hash(String)` 对相邻字符串（counter+1）输出
+## 仅差个位数，直接归一化会让同域连续抽样几乎相同（实测相邻差 ~5e-10）→ 概率
+## 机制退化成"整局恒真/恒假"。故改用 RandomNumberGenerator 重置 seed 后取一次输出
+## （PCG32 充分去相关），派生仍只依赖三元组，确定性不变。
 func randf_domain(domain: String) -> float:
 	var c: int = int(_counters.get(domain, 0))
 	_counters[domain] = c + 1
-	var h: int = hash("%d:%s:%d" % [_root_seed, domain, c])
-	# 映射到 [0.0, 1.0)
-	var pos_h: int = h & 0x7FFFFFFF
-	return float(pos_h) / float(0x80000000)
+	_hasher.seed = hash("%d:%s:%d" % [_root_seed, domain, c])
+	return _hasher.randf()
 
 
 ## 派生一个 [min_val, max_val] 的确定性整数随机数

@@ -33,7 +33,7 @@ const V1_SHELL: Dictionary = {
 	"staff": {"assigned": {}, "condition": []},
 	"training": {"base": "", "weeks_left": 0},
 	"rivals": {"cursor": 0, "jitter_state": 0},
-	"events": {"fired": [], "pending": [], "effects_pending": []},
+	"events": {"fired": [], "cooldowns": {}, "pending": [], "effects_pending": []},
 	"player_model_names": [],
 	"stages": {"current": 0},
 	"sota": {"best": 0.0, "rival_best": 0.0, "by_key": {}},
