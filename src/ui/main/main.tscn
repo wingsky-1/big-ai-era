@@ -148,11 +148,21 @@ text = "当前任务"
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="StaffCountLabel" type="Label" parent="ShellVBox/Workspace/WorkspaceVBox"]
+[node name="StaffRow" type="HBoxContainer" parent="ShellVBox/Workspace/WorkspaceVBox"]
+layout_mode = 2
+
+[node name="StaffCountLabel" type="Label" parent="ShellVBox/Workspace/WorkspaceVBox/StaffRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 0
+text = "在岗研究员: 0人"
+
+[node name="IdleStaffLabel" type="Label" parent="ShellVBox/Workspace/WorkspaceVBox/StaffRow"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 0
-text = "在岗研究员: 0人"
+text = "待命: 0人"
 
 [node name="ToastLabel" type="Label" parent="ShellVBox/Workspace/WorkspaceVBox"]
 unique_name_in_owner = true

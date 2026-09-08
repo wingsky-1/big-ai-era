@@ -10,6 +10,7 @@ const WEEKLY_REPORT_SCENE: PackedScene = preload("res://src/ui/modals/weekly_rep
 const GAME_OVER_SCENE: PackedScene = preload("res://src/ui/modals/game_over_dialog.tscn")
 const TECH_TREE_SCENE: PackedScene = preload("res://src/ui/modals/tech_tree_dialog.tscn")
 const STAFF_ROSTER_SCENE: PackedScene = preload("res://src/ui/modals/staff_roster_dialog.tscn")
+const INTRO_SCENE: PackedScene = preload("res://src/ui/modals/intro_dialog.tscn")
 
 var _world: GameWorld
 var _world_ref: WeakRef
@@ -20,6 +21,7 @@ var _stack: PanelStack
 var _active_modals: Dictionary = {}
 var _mask_overlay: ColorRect
 var _debug_beacon_enabled: bool = false
+var _debug_shot_mode: bool = false
 
 @onready var resource_bar: PanelContainer = %ResourceBar
 @onready var resource_subrow: HBoxContainer = %ResourceSubrow
@@ -48,6 +50,7 @@ var _debug_beacon_enabled: bool = false
 @onready var task_title_label: Label = %TaskTitleLabel
 @onready var task_progress_bar: ProgressBar = %TaskProgressBar
 @onready var staff_count_label: Label = %StaffCountLabel
+@onready var idle_staff_label: Label = %IdleStaffLabel
 @onready var toast_label: Label = %ToastLabel
 
 @onready var dock_tech_btn: Button = %DockTechBtn
@@ -61,6 +64,16 @@ func _ready() -> void:
 	_update_views()
 	_on_viewport_resized()
 	_setup_debug_shot_driver()
+	_push_intro_if_needed()
+
+
+## 开场引导（DR-029 D-3"不拦流淌"）：仅推入一次。
+## ?shot= 合成模式跳过（截图须精确控制画面）；?selftest= 与正常游玩均推入
+## （自测必须验证真实开局流程）。
+func _push_intro_if_needed() -> void:
+	if _debug_shot_mode:
+		return
+	_stack.push_panel(PanelStack.PanelId.INTRO)
 
 
 func _exit_tree() -> void:
@@ -100,6 +113,7 @@ func _setup_debug_shot_driver() -> void:
 	var selftest: String = str(JavaScriptBridge.eval("%s.get('selftest') || ''" % params, true))
 	if shot.is_empty() and selftest.is_empty():
 		return
+	_debug_shot_mode = not shot.is_empty()
 	_world.set_paused(true)
 	# 防御：若开局/推进已挂起决策卡，调试模式丢弃之，避免叠层污染证据
 	if not _world.pending_decision.is_empty():
@@ -111,13 +125,15 @@ func _setup_debug_shot_driver() -> void:
 	match shot:
 		"home":
 			pass  # 主工作台即默认态
+		"intro":
+			stack.push_panel(PanelStack.PanelId.INTRO)
 		"tech":
-			stack.push_panel(PanelStack.PANEL_TECH_TREE)
+			stack.push_panel(PanelStack.PanelId.TECH_TREE)
 		"report":
-			stack.push_panel(PanelStack.PANEL_REPORT_ARCHIVE)
+			stack.push_panel(PanelStack.PanelId.REPORT_ARCHIVE)
 		"gameover":
 			# 终局弹层为合成布局证据（world 并未真破产），保持暂停避免 tick 污染画面
-			stack.push_panel(PanelStack.PANEL_GAME_OVER)
+			stack.push_panel(PanelStack.PanelId.GAME_OVER)
 	# 面板栈信标：截图与自测脚本共用（_process 每帧同步）
 	_debug_beacon_enabled = true
 	_update_debug_beacon()
@@ -130,7 +146,10 @@ func _setup_debug_shot_driver() -> void:
 func _update_debug_beacon() -> void:
 	if _stack == null:
 		return
-	var depth: int = _stack.get_z2_stack().size() + (1 if _stack.get_z1_panel() != "" else 0)
+	var depth: int = (
+		_stack.get_z2_stack().size()
+		+ (1 if _stack.get_z1_panel() != PanelStack.PanelId.NONE else 0)
+	)
 	JavaScriptBridge.eval(
 		(
 			"window.__DSH_PANEL_STATE__ = { depth: %d, blocking: %s };"
@@ -240,25 +259,25 @@ func _on_tick_feeding_gate_changed(allow_feeding: bool) -> void:
 		_driver.set_feeding_enabled(allow_feeding)
 
 
-func _on_panel_pushed(panel_id: String, _layer: int) -> void:
+func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 	var world := _resolve_world()
 	if world == null:
 		return
 
 	match panel_id:
-		PanelStack.PANEL_DECISION_CARD:
+		PanelStack.PanelId.DECISION_CARD:
 			var event_data: Dictionary = world.pending_decision
 			var modal: DecisionCardDialog = DECISION_CARD_SCENE.instantiate()
 			modal.setup(event_data)
 			modal.option_selected.connect(
 				func(idx: int) -> void:
 					world.choose_decision(str(event_data.get("id", "")), idx)
-					_stack.pop_panel(PanelStack.PANEL_DECISION_CARD)
+					_stack.pop_panel(PanelStack.PanelId.DECISION_CARD)
 			)
 			_active_modals[panel_id] = modal
 			_mount_modal(modal)
 
-		PanelStack.PANEL_AUTO_REPORT, PanelStack.PANEL_REPORT_ARCHIVE:
+		PanelStack.PanelId.AUTO_REPORT, PanelStack.PanelId.REPORT_ARCHIVE:
 			var report_data: Dictionary = _presenter.get_resource_view()
 			var modal: WeeklyReportDialog = WEEKLY_REPORT_SCENE.instantiate()
 			modal.setup(report_data)
@@ -266,20 +285,26 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 			_active_modals[panel_id] = modal
 			_mount_modal(modal)
 
-		PanelStack.PANEL_GAME_OVER:
+		PanelStack.PanelId.INTRO:
+			var intro: IntroDialog = INTRO_SCENE.instantiate()
+			intro.closed.connect(func() -> void: _stack.pop_panel(PanelStack.PanelId.INTRO))
+			_active_modals[panel_id] = intro
+			_mount_modal(intro)
+
+		PanelStack.PanelId.GAME_OVER:
 			var summary: Dictionary = _presenter.get_game_over_summary()
 			var modal: GameOverDialog = GAME_OVER_SCENE.instantiate()
 			modal.setup(summary)
 			modal.restart_requested.connect(
 				func() -> void:
 					world.start_new_game()
-					_stack.pop_panel(PanelStack.PANEL_GAME_OVER)
+					_stack.pop_panel(PanelStack.PanelId.GAME_OVER)
 					_update_views()
 			)
 			_active_modals[panel_id] = modal
 			_mount_modal(modal)
 
-		PanelStack.PANEL_TECH_TREE:
+		PanelStack.PanelId.TECH_TREE:
 			var modal: TechTreeDialog = TECH_TREE_SCENE.instantiate()
 			modal.setup(world)
 			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
@@ -291,7 +316,7 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 			_active_modals[panel_id] = modal
 			_mount_modal(modal)
 
-		PanelStack.PANEL_ROSTER:
+		PanelStack.PanelId.ROSTER:
 			var modal: StaffRosterDialog = STAFF_ROSTER_SCENE.instantiate()
 			modal.setup(world)
 			modal.closed.connect(func() -> void: _stack.pop_panel(panel_id))
@@ -299,7 +324,7 @@ func _on_panel_pushed(panel_id: String, _layer: int) -> void:
 			_mount_modal(modal)
 
 
-func _on_panel_popped(panel_id: String, _layer: int) -> void:
+func _on_panel_popped(panel_id: PanelStack.PanelId, _layer: int) -> void:
 	if _active_modals.has(panel_id):
 		var modal: Node = _active_modals[panel_id]
 		_active_modals.erase(panel_id)
@@ -331,6 +356,7 @@ func _connect_ui_events() -> void:
 	dock_report_btn.pressed.connect(_on_dock_report_pressed)
 	dock_pause_btn.pressed.connect(_on_dock_pause_pressed)
 	staff_count_label.gui_input.connect(_on_staff_label_clicked)
+	idle_staff_label.gui_input.connect(_on_staff_label_clicked)
 
 	_world.resources_changed.connect(
 		func(_money: int, _comp: float, _inf: int) -> void: _update_views()
@@ -376,12 +402,12 @@ func _update_speed_buttons() -> void:
 
 
 func _on_dock_tech_pressed() -> void:
-	_stack.push_panel(PanelStack.PANEL_TECH_TREE)
+	_stack.push_panel(PanelStack.PanelId.TECH_TREE)
 
 
 func _on_staff_label_clicked(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
-		_stack.push_panel(PanelStack.PANEL_ROSTER)
+		_stack.push_panel(PanelStack.PanelId.ROSTER)
 
 
 func _on_dock_report_pressed() -> void:
@@ -390,7 +416,7 @@ func _on_dock_report_pressed() -> void:
 
 func _on_dock_pause_pressed() -> void:
 	_world.set_paused(true)
-	_stack.push_panel(PanelStack.PANEL_PAUSE_MENU)
+	_stack.push_panel(PanelStack.PanelId.PAUSE_MENU)
 
 
 func _on_toast_queued(msg: String, _color_tag: String) -> void:
@@ -408,7 +434,7 @@ func _update_views() -> void:
 	tech_bonus_label.text = "技术加成: +%.0f%%" % (float(res_view.get("tech_bonus", 0.0)) * 100.0)
 
 	var week_num: int = int(res_view.get("week", 1))
-	week_label.text = "第 %d 周" % week_num
+	week_label.text = "准备周" if week_num == 0 else "第 %d 周" % week_num
 
 	var ws_view: Dictionary = _presenter.get_workspace_view()
 	var active_task: Dictionary = ws_view.get("active_task", {})
@@ -419,8 +445,13 @@ func _update_views() -> void:
 		task_title_label.text = str(active_task.get("title", "未命名任务"))
 		task_progress_bar.value = float(active_task.get("progress", 0.0)) * 100.0
 
-	var staff_arr: Array = ws_view.get("staff_assigned", [])
-	staff_count_label.text = "在岗研究员: %d人" % staff_arr.size()
+	# 员工双口径：在岗=已指派任务/训练槽，待命=已入职未指派（W0 三人全员待命）
+	var staff_total: int = int(ws_view.get("staff_total", 0))
+	var staff_assigned: int = int(ws_view.get("staff_assigned", 0))
+	var staff_idle: int = int(ws_view.get("staff_idle", 0))
+	staff_count_label.text = "在岗研究员: %d/%d人" % [staff_assigned, staff_total]
+	idle_staff_label.text = "待命: %d人" % staff_idle
+	idle_staff_label.visible = staff_idle > 0
 
 	var rival_view: Dictionary = _presenter.get_rival_view()
 	rival_name_label.text = str(rival_view.get("rival_name", "深巷科技"))

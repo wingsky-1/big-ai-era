@@ -40,16 +40,16 @@ func test_acceptance_point_2_dual_mount_report_behavior() -> void:
 	# [T] 验收点 2：周报双挂载双态行为断言
 	# 状态 1: 周结自动弹 z2（停喂 tick）
 	_world.settle_week()
-	assert_eq(_stack.get_z2_stack().back(), PanelStack.PANEL_AUTO_REPORT, "自动周报挂载在 z2")
+	assert_eq(_stack.get_z2_stack().back(), PanelStack.PanelId.AUTO_REPORT, "自动周报挂载在 z2")
 	assert_false(_stack.is_tick_feeding_allowed(), "z2 自动周报必须停喂 tick")
 
 	# 关闭自动周报
-	_stack.pop_panel(PanelStack.PANEL_AUTO_REPORT)
+	_stack.pop_panel(PanelStack.PanelId.AUTO_REPORT)
 	assert_true(_stack.is_tick_feeding_allowed(), "关闭后恢复 tick 喂入")
 
 	# 状态 2: 玩家重看周报（z1 层，不暂停，不停喂）
 	_presenter.open_report_archive()
-	assert_eq(_stack.get_z1_panel(), PanelStack.PANEL_REPORT_ARCHIVE, "重看周报挂载在 z1")
+	assert_eq(_stack.get_z1_panel(), PanelStack.PanelId.REPORT_ARCHIVE, "重看周报挂载在 z1")
 	assert_true(_stack.is_tick_feeding_allowed(), "z1 重看周报不停喂 tick")
 
 
@@ -63,18 +63,18 @@ func test_acceptance_point_3_game_over_summary_three_items_consistent() -> void:
 	assert_eq(summary.get("week"), _world.week, "周数必须一致")
 	assert_eq(summary.get("best_score"), _world.sota_best, "最高分必须一致")
 	assert_eq(summary.get("cum_income"), _world.cum_income, "累计收入必须一致")
-	assert_eq(_stack.get_z2_stack().back(), PanelStack.PANEL_GAME_OVER, "Game Over 挂载在 z2")
+	assert_eq(_stack.get_z2_stack().back(), PanelStack.PanelId.GAME_OVER, "Game Over 挂载在 z2")
 
 
 func test_acceptance_point_4_stack_depth_and_focus_restoration() -> void:
 	# [T] 验收点 4：栈深与恢复断言
-	_stack.push_panel(PanelStack.PANEL_ROSTER)
+	_stack.push_panel(PanelStack.PanelId.ROSTER)
 	_presenter.open_naming_dialog()
 
-	assert_eq(_stack.get_z1_panel(), PanelStack.PANEL_ROSTER)
-	assert_eq(_stack.get_z2_stack().back(), PanelStack.PANEL_NAMING_DIALOG)
+	assert_eq(_stack.get_z1_panel(), PanelStack.PanelId.ROSTER)
+	assert_eq(_stack.get_z2_stack().back(), PanelStack.PanelId.NAMING_DIALOG)
 
 	# 弹出 z2，焦点回到 z1
-	_stack.pop_panel(PanelStack.PANEL_NAMING_DIALOG)
+	_stack.pop_panel(PanelStack.PanelId.NAMING_DIALOG)
 	assert_true(_stack.get_z2_stack().is_empty())
-	assert_eq(_stack.get_z1_panel(), PanelStack.PANEL_ROSTER, "归还焦点至底层 z1 面板")
+	assert_eq(_stack.get_z1_panel(), PanelStack.PanelId.ROSTER, "归还焦点至底层 z1 面板")

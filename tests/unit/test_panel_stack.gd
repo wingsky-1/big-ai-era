@@ -21,21 +21,21 @@ func test_acceptance_point_1_mask_and_layer_rules() -> void:
 	watch_signals(_stack)
 
 	# 1. z1 常规面板打开：点击遮罩一律关闭
-	_stack.push_panel(PanelStack.PANEL_ROSTER)
-	assert_eq(_stack.get_z1_panel(), PanelStack.PANEL_ROSTER)
+	_stack.push_panel(PanelStack.PanelId.ROSTER)
+	assert_eq(_stack.get_z1_panel(), PanelStack.PanelId.ROSTER)
 	_stack.on_mask_clicked()
-	assert_eq(_stack.get_z1_panel(), "", "点击遮罩，z1 常规面板一律关闭")
+	assert_eq(_stack.get_z1_panel(), PanelStack.PanelId.NONE, "点击遮罩，z1 常规面板一律关闭")
 
 	# 2. z2 阻塞面板（决策卡）：点击遮罩不关闭（强迫玩家处理）
-	_stack.push_panel(PanelStack.PANEL_DECISION_CARD)
+	_stack.push_panel(PanelStack.PanelId.DECISION_CARD)
 	assert_true(_stack.has_blocking_panel())
 	_stack.on_mask_clicked()
 	assert_true(_stack.has_blocking_panel(), "点击遮罩，决策卡等关键 z2 不得关闭")
-	_stack.pop_panel(PanelStack.PANEL_DECISION_CARD)
+	_stack.pop_panel(PanelStack.PanelId.DECISION_CARD)
 
 	# 3. z2 暂停菜单：点击遮罩恢复关闭
-	_stack.push_panel(PanelStack.PANEL_PAUSE_MENU)
-	assert_eq(_stack.get_z2_stack().back(), PanelStack.PANEL_PAUSE_MENU)
+	_stack.push_panel(PanelStack.PanelId.PAUSE_MENU)
+	assert_eq(_stack.get_z2_stack().back(), PanelStack.PanelId.PAUSE_MENU)
 	_stack.on_mask_clicked()
 	assert_true(_stack.get_z2_stack().is_empty(), "点击遮罩，暂停菜单恢复关闭")
 
@@ -45,15 +45,15 @@ func test_acceptance_point_2_blocking_whitelist_behavior() -> void:
 	watch_signals(_stack)
 
 	# z1 面板打开时：不停喂 tick（世界继续流淌）
-	_stack.push_panel(PanelStack.PANEL_TECH_TREE)
+	_stack.push_panel(PanelStack.PanelId.TECH_TREE)
 	assert_true(_stack.is_tick_feeding_allowed(), "z1 面板允许 tick 喂入（世界流淌）")
 
 	# z2 阻塞面板（如命名对话框）打开：停喂 tick！
-	_stack.push_panel(PanelStack.PANEL_NAMING_DIALOG)
+	_stack.push_panel(PanelStack.PanelId.NAMING_DIALOG)
 	assert_false(_stack.is_tick_feeding_allowed(), "z2 阻塞面板必须禁止 tick 喂入（停喂）")
 
 	# 弹出 z2 面板后：恢复 tick 喂入
-	_stack.pop_panel(PanelStack.PANEL_NAMING_DIALOG)
+	_stack.pop_panel(PanelStack.PanelId.NAMING_DIALOG)
 	assert_true(_stack.is_tick_feeding_allowed(), "关闭 z2 后恢复 tick 喂入")
 
 
@@ -63,15 +63,15 @@ func test_acceptance_point_3_decision_card_three_states_and_serial_order() -> vo
 	_stack.lock_animation()
 	assert_true(_stack.is_animating())
 
-	_stack.push_panel(PanelStack.PANEL_DECISION_CARD)
-	_stack.push_panel(PanelStack.PANEL_AUTO_REPORT)
+	_stack.push_panel(PanelStack.PanelId.DECISION_CARD)
+	_stack.push_panel(PanelStack.PanelId.AUTO_REPORT)
 
 	# 动画锁期间未进入活动栈，在排队队列中
 	assert_true(_stack.get_z2_stack().is_empty())
 
 	# 解锁动画，排队按信号到达顺序串行弹出，决策卡优先于周报
 	_stack.unlock_animation()
-	assert_eq(_stack.get_z2_stack().front(), PanelStack.PANEL_DECISION_CARD, "决策卡优先入栈")
+	assert_eq(_stack.get_z2_stack().front(), PanelStack.PanelId.DECISION_CARD, "决策卡优先入栈")
 
 
 func test_acceptance_point_4_toast_limit_and_lifecycle() -> void:
