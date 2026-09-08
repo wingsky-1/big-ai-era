@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《大 AI 时代》Dashboard UI 原型 v1 · DR-031 呈现层</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E◆%3C/text%3E%3C/svg%3E">
+<!--
+  ══════════════════════════════════════════════════════════════════════
+  《大 AI 时代》UI 原型 v1（可交互 · 单文件 · 零外部依赖）
+  ──────────────────────────────────────────────────────────────────────
+  依据：docs/discussion/2026-09-08-decision-session-minutes.md（DR-031）
+        docs/discussion/2026-09-08-ui-interface-specs-v1.md（V1-01…V1-17）
+        docs/standards/ui-state-visual-mapping.md / ui-feedback-checklist.md
+  迭代自：docs/discussion/prototype-dashboard.html（A 工作台 + B 周报流）
+  回答的问题：DR-031 呈现层⑥（显示分级 + 净流入预告）、B1 饱和护栏
+        （已登顶·自由期三线）、C3 收支结构、C2 事件闸节奏、N13 图鉴最小一格
+        在 Dashboard 四主区 + PanelStack 上如何落地。
+  纪律：全部数值为 ~ 量级占位（伪数据）；文案长度受 DR-010 预算约束，
+        页面右下「文案自检」可实时校验（选项≤8/toast≤20/标题≤12/周报≤30/正文≤60）。
+  原型工具（非游戏 UI）：底部浮动条 = 阶段切换 / 竖屏 / 真值开关 / 推进一周 / 自检。
+  ══════════════════════════════════════════════════════════════════════
+-->
+<style>
+/* ══════════════════════════════════════════════════════════════
+   设计 token（对应 src/ui/theme/ 收口草案 · 深色金 Theme）
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#14171c; --panel:#1d222a; --panel2:#242b36; --panel3:#2b3442;
+  --line:#31394a; --line2:#46536b;
+  --ink:#e8ecf2; --ink2:#9aa6b8; --ink3:#5d6b80;
+  --gold:#e8b34b; --gold-dim:#8a6c2c; --gold-bg:#2a2416;
+  --green:#5fc06c; --green-bg:#16281a;
+  --red:#e06a5a;   --red-bg:#2c1714;
+  --blue:#5b9bd5;  --purple:#a17fd4;
+  --r:12px; --fs:14px;
+  --h:48px;              /* 触屏点击目标下限（DR-015） */
+  --font:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#0b0d11;color:var(--ink);font:var(--fs)/1.55 var(--font);
+  display:flex;flex-direction:column;align-items:center;overflow:hidden;
+  padding-bottom:52px} /* 让出底部原型工具条（非游戏 UI），避免遮挡 Dock */
+button{font-family:var(--font)}
+
+/* ── 原型声明条（非游戏 UI） ── */
+.proto-banner{width:100%;background:#3d2f14;color:var(--gold);text-align:center;
+  font-size:12px;padding:5px 10px;border-bottom:1px solid #5a4720;flex:none;line-height:1.4}
+.proto-banner b{color:#ffd77a}
+
+/* ── 游戏画面框（横屏基准 1280×720；竖屏基准 375×667） ── */
+.frame{position:relative;width:100%;max-width:1180px;flex:1;min-height:0;
+  display:flex;flex-direction:column;background:var(--bg);overflow:hidden;
+  border-left:1px solid #1a1f27;border-right:1px solid #1a1f27}
+body.mobile .frame{max-width:375px;width:375px;height:667px;flex:none;margin:0 0 6px;
+  border:1px solid var(--line2);border-radius:14px;box-shadow:0 8px 40px #000a}
+body.mobile{justify-content:center}
+
+/* ── z0 主台 ── */
+.z0{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* 世界时钟条（V1-04 三态互斥 + 变速） */
+.clockbar{display:flex;align-items:center;gap:10px;padding:6px 12px;
+  background:var(--panel2);border-bottom:1px solid var(--line);flex:none}
+.clockbar .wk{font-size:16px;font-weight:800;letter-spacing:.3px}
+.clockbar .cal{font-size:12px;color:var(--ink3)}
+.clockstate{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;
+  padding:3px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--ink2);
+  white-space:nowrap}
+.clockstate .g{font-size:13px;line-height:1}
+.clockstate.run{color:var(--green);border-color:#2f5a38;background:var(--green-bg)}
+.clockstate.user{color:var(--gold);border-color:var(--gold-dim);background:var(--gold-bg)}
+.clockstate.auto{color:var(--red);border-color:#5c2a24;background:var(--red-bg)}
+.speed{margin-left:auto;display:flex;gap:4px}
+.spd{min-width:var(--h);min-height:36px;padding:0 8px;border:1px solid var(--line);
+  border-radius:9px;background:var(--panel);color:var(--ink2);font-size:13px;cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s}
+.spd:hover{background:var(--panel3);color:var(--ink)}
+.spd:active{transform:scale(.96)}
+.spd.on{border-color:var(--gold);color:var(--gold);font-weight:800;background:var(--gold-bg)}
+.spd[disabled]{opacity:.4;cursor:not-allowed}
+.spd[disabled]:hover{background:var(--panel);color:var(--ink2)}
+
+/* 资源栏（三资源 + 净流入预告副行 · 呈现层⑥/C3） */
+.resbar{background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+.resbar .main{display:flex;gap:8px;padding:8px 12px 6px}
+.resbar .r{flex:1;min-width:0}
+.resbar .k{font-size:11px;color:var(--ink2);display:flex;align-items:center;gap:4px}
+.resbar .v{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.resbar .v .u{font-size:11px;font-weight:600;color:var(--ink2);margin-left:2px}
+.resbar .delta{font-size:11px;font-variant-numeric:tabular-nums}
+.resbar .delta.up{color:var(--green)}
+.resbar .delta.down{color:var(--red)}
+/* 副行 = 净流入预告（常显）+ 收支结构展开 */
+.subrow{display:flex;align-items:center;gap:8px;padding:4px 12px 7px;
+  border-top:1px dashed var(--line);font-size:12px;color:var(--ink2)}
+.subrow .flowtag{display:inline-flex;align-items:center;gap:5px;font-weight:700;
+  color:var(--gold);font-variant-numeric:tabular-nums}
+.subrow .flowtag .g{font-size:11px}
+.subrow .hint{color:var(--ink3)}
+.subrow .expand{margin-left:auto;min-height:32px;min-width:var(--h);padding:0 10px;
+  border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--ink2);
+  font-size:12px;cursor:pointer}
+.subrow .expand:hover{color:var(--ink);border-color:var(--line2)}
+.breakdown{display:none;padding:0 12px 8px;font-size:12px;color:var(--ink2)}
+.breakdown.on{display:block}
+.breakdown .ln{display:flex;justify-content:space-between;gap:8px;padding:2px 0;
+  font-variant-numeric:tabular-nums}
+.breakdown .ln b{color:var(--ink);font-weight:700}
+.breakdown .ln .neg{color:var(--red)}
+.breakdown .ln .pos{color:var(--green)}
+
+/* 竞对条（胶囊 + 预警灯 + 名次行 · 显示分级） */
+.rivalbar{display:flex;align-items:center;gap:10px;padding:7px 12px;
+  background:var(--panel);border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap}
+.pill{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:999px;padding:5px 12px;font-size:12px;color:var(--ink2);flex:1;min-width:0}
+.pill b{color:var(--ink);font-weight:800}
+.pill .bar{flex:1;min-width:40px}
+.lamp{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;
+  padding:4px 10px;border-radius:999px;white-space:nowrap}
+.lamp .g{font-size:12px}
+.lamp.yellow{color:var(--gold);background:var(--gold-bg);border:1px solid var(--gold-dim)}
+.lamp.green{color:var(--green);background:var(--green-bg);border:1px solid #2f5a38}
+.rankline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2);
+  flex:1;min-width:0;justify-content:flex-end;text-align:right}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;
+  border:1px solid var(--line2);font-size:12px;font-weight:800;color:var(--ink);
+  background:var(--panel3);white-space:nowrap}
+.badge.t0{color:var(--ink2);border-color:var(--line2)}
+.badge.t1{color:var(--blue);border-color:#2b4d6b;background:#16232e}
+.badge.t2{color:var(--purple);border-color:#4a3a63;background:#211b2c}
+.badge.t3{color:var(--gold);border-color:var(--gold-dim);background:var(--gold-bg)}
+.badge.t4{color:#ffd77a;border-color:#7a5f22;background:#3a2c10;
+  box-shadow:0 0 0 1px #7a5f2255 inset}
+.truth{font-variant-numeric:tabular-nums;color:var(--ink3)}
+.truth.on{color:var(--gold)}
+
+/* 自由期三线（RF-02 两阶段：W25 起常显 / 首达 99 升主权重） */
+.threeline{display:none;align-items:center;gap:14px;padding:6px 12px;flex:none;
+  background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;
+  color:var(--ink2);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.threeline.on{display:flex}
+.threeline .tl-h{color:var(--ink3);font-size:11px;white-space:nowrap}
+.threeline .tl{white-space:nowrap}
+.threeline .tl i{font-style:normal;color:var(--ink3);margin-right:4px}
+.threeline .tl b{color:var(--ink);font-weight:800}
+.threeline .tl s{text-decoration:none;color:var(--ink3);margin-left:3px}
+.threeline.primary{background:linear-gradient(90deg,#2f2510,#241d0d 60%,#1d222a);
+  border-bottom-color:var(--gold-dim)}
+.threeline.primary .tl b{color:var(--gold);font-size:13px}
+
+/* 封顶横幅（B1 饱和护栏 · 已登顶·自由期 · once 语义） */
+.crown{display:none;align-items:center;gap:12px;padding:8px 12px;flex-wrap:wrap;
+  background:linear-gradient(90deg,#2f2510,#241d0d 60%,#1d222a);
+  border-bottom:1px solid var(--gold-dim);flex:none}
+.crown.on{display:flex}
+.crown .ct{font-size:14px;font-weight:800;color:#ffd77a;white-space:nowrap}
+.crown .lines{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2)}
+.crown .lines .l{display:inline-flex;gap:5px;align-items:baseline;font-variant-numeric:tabular-nums}
+.crown .lines .l b{color:var(--gold);font-weight:800}
+.crown .lines .l i{font-style:normal;color:var(--ink3)}
+.crown .x{margin-left:auto;min-width:36px;min-height:36px;border-radius:9px;
+  border:1px solid var(--gold-dim);background:transparent;color:var(--gold);
+  cursor:pointer;font-size:14px}
+.crown .x:hover{background:#3a2c10}
+
+/* 工作区（永不折叠 · DR-009/015） */
+.workspace{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 12px;
+  display:flex;flex-direction:column;gap:10px}
+.workspace::-webkit-scrollbar{width:8px}
+.workspace::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.card>h4{font-size:12px;color:var(--ink2);font-weight:700;margin-bottom:8px;
+  display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tag{font-size:11px;padding:1px 8px;border-radius:20px;border:1px solid var(--line2);
+  color:var(--ink2);white-space:nowrap;font-weight:600}
+.tag.gold{color:var(--gold);border-color:var(--gold-dim)}
+.tag.green{color:var(--green);border-color:#2f5a38}
+.tag.blue{color:var(--blue);border-color:#2b4d6b}
+.tag.purple{color:var(--purple);border-color:#4a3a63}
+.tag.red{color:var(--red);border-color:#5c2a24}
+.bar{height:8px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gold);border-radius:6px;transition:width .35s}
+.bar.blue i{background:var(--blue)}
+.bar.green i{background:var(--green)}
+.bar.red i{background:var(--red)}
+.bar.purple i{background:var(--purple)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.muted{color:var(--ink2);font-size:12px}
+.dim{color:var(--ink3);font-size:11px}
+.num{font-variant-numeric:tabular-nums}
+.btn{min-height:var(--h);min-width:var(--h);border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--ink);font-size:13px;padding:8px 14px;cursor:pointer;
+  transition:background .12s,border-color .12s,transform .08s}
+.btn:hover{background:var(--panel3);border-color:var(--line2)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--gold);color:#1a1408;border-color:var(--gold);font-weight:800}
+.btn.primary:hover{background:#f2c161}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn[disabled]:hover{background:var(--panel2);border-color:var(--line)}
+.btn.sm{min-height:36px;font-size:12px;padding:4px 10px}
+
+/* 训练位卡 */
+.train .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.train .tname{font-size:14px;font-weight:800}
+.train .pct{font-variant-numeric:tabular-nums;font-weight:800;color:var(--gold)}
+.train .meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-top:7px}
+.train .meta b{color:var(--ink)}
+
+/* 任务槽卡（V1-05 · 依 N6 未双签=单槽 + 排队预填） */
+.slot{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:var(--panel2);
+  cursor:pointer;transition:border-color .12s,background .12s}
+.slot:hover{border-color:var(--line2);background:var(--panel3)}
+.slot+.slot{margin-top:7px}
+.slot.queued{opacity:.72;border-style:dashed}
+.slot .st{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:700}
+.slot .sd{font-size:11px;color:var(--ink2);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.slot .bar{margin-top:7px}
+
+/* 员工实体卡（V1-03） */
+.staffrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.staff{display:flex;align-items:center;gap:9px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;padding:9px 10px;cursor:pointer;min-height:var(--h);
+  transition:border-color .12s,background .12s,transform .08s}
+.staff:hover{border-color:var(--line2);background:var(--panel3)}
+.staff:active{transform:scale(.98)}
+.staff.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold-dim)}
+.avatar{width:34px;height:34px;border-radius:9px;background:var(--panel3);flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;
+  color:var(--gold);border:1px solid var(--line)}
+.staff .nm{font-size:13px;font-weight:800;line-height:1.3}
+.staff .task{font-size:11px;color:var(--ink2);line-height:1.3;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.staff .bar{margin-top:4px;height:6px}
+.staff.empty{border-style:dashed;color:var(--ink3);justify-content:center;text-align:center;
+  font-size:12px;flex-direction:column;gap:2px}
+
+/* 上线运维行（V1-15） */
+.deploy{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.deploy .st{font-size:13px;font-weight:700}
+.deploy .st.idle{color:var(--ink2)}
+.deploy .st.online{color:var(--green)}
+.deploy .inc{font-variant-numeric:tabular-nums;font-size:12px;color:var(--ink2)}
+.deploy .inc b{color:var(--green)}
+
+/* Dock（DR-020 三键 + 图鉴；招聘/吐槽入口待拍板） */
+.dock{display:flex;border-top:1px solid var(--line);background:var(--panel);flex:none}
+.dock button{flex:1;min-height:var(--h);background:none;border:none;color:var(--ink2);
+  font-size:12px;cursor:pointer;padding:6px 2px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;position:relative;
+  transition:color .12s,background .12s}
+.dock button:hover{background:var(--panel2);color:var(--ink)}
+.dock button:active{background:var(--panel3)}
+.dock button b{font-size:16px;line-height:1}
+.dock button.on{color:var(--gold)}
+.dock button[disabled]{opacity:.45;cursor:not-allowed}
+.dock .sub{font-size:10px;color:var(--ink3)}
+.dock .dot{position:absolute;top:7px;right:calc(50% - 20px);width:7px;height:7px;border-radius:50%;
+  background:var(--gold)}
+
+/* ── 遮罩 + PanelStack 面板 ── */
+.mask{position:absolute;inset:0;background:rgba(6,8,12,.55);opacity:0;pointer-events:none;
+  transition:opacity .16s;z-index:10}
+.mask.on{opacity:1;pointer-events:auto}
+.mask.z2{background:rgba(4,5,8,.72)}
+.panel{position:absolute;left:50%;bottom:0;transform:translate(-50%,14px);width:100%;
+  max-width:720px;max-height:86%;background:var(--panel);border:1px solid var(--line2);
+  border-radius:16px 16px 0 0;display:flex;flex-direction:column;z-index:20;
+  opacity:0;pointer-events:none;transition:opacity .16s,transform .16s;overflow:hidden}
+.panel.on{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.panel[data-layer="z2"]{border-color:var(--gold-dim);max-width:560px;
+  border-radius:16px;bottom:50%;transform:translate(-50%,calc(50% + 14px))}
+.panel[data-layer="z2"].on{transform:translate(-50%,50%)}
+.panel .ph{display:flex;align-items:center;gap:8px;padding:12px 14px 8px;flex:none;
+  border-bottom:1px solid var(--line)}
+.panel .ph h3{font-size:15px;font-weight:800}
+.panel .ph .z{font-size:10px;padding:1px 7px;border-radius:20px;border:1px solid var(--line2);
+  color:var(--ink3);font-weight:700;letter-spacing:.4px}
+.panel .ph .x{margin-left:auto;min-width:36px;min-height:36px;border-radius:9px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--ink2);cursor:pointer;font-size:14px}
+.panel .ph .x:hover{color:var(--ink);border-color:var(--line2)}
+.panel .pb{overflow-y:auto;padding:12px 14px 14px;flex:1;min-height:0}
+.panel .pf{padding:10px 14px 14px;flex:none;border-top:1px solid var(--line)}
+.panel .sub{font-size:12px;color:var(--ink2);margin-bottom:10px;line-height:1.5}
+.panel .lockbar{display:none;align-items:center;gap:6px;font-size:11px;color:var(--red);
+  background:var(--red-bg);border:1px solid #5c2a24;border-radius:8px;padding:5px 9px;margin-bottom:10px}
+.panel[data-layer="z2"] .lockbar{display:flex}
+
+/* 面板内列表 */
+.node{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13px;margin-bottom:6px;
+  min-height:var(--h);cursor:pointer;transition:border-color .12s,background .12s}
+.node:hover{border-color:var(--line2);background:var(--panel3)}
+.node.locked,.node.fog{cursor:default}
+.node.locked:hover,.node.fog:hover{background:var(--panel2);border-color:var(--line)}
+.node .st{font-size:11px;color:var(--ink2);text-align:right}
+.node.lit{border-color:#2f5a38}.node.lit .st{color:var(--green)}
+.node.ready{border-color:var(--gold-dim)}.node.ready .st{color:var(--gold)}
+.node.seeing .st{color:var(--blue)}
+.node.fog{color:var(--ink3);border-style:dashed}
+.node.locked{color:var(--ink3);opacity:.62}
+.domain{margin-bottom:12px}
+.domain .dh{display:flex;justify-content:space-between;font-size:13px;font-weight:800;margin-bottom:6px}
+.domain .dh span{color:var(--ink3);font-weight:400;font-size:12px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{border:1px solid var(--line);background:var(--panel2);border-radius:10px;
+  padding:10px 12px;cursor:pointer;min-height:var(--h);transition:border-color .12s,background .12s,transform .08s}
+.opt:hover{border-color:var(--line2);background:var(--panel3)}
+.opt:active{transform:scale(.985)}
+.opt b{font-size:14px;font-weight:800}
+.opt .hint{font-size:12px;color:var(--gold);margin-top:3px;font-variant-numeric:tabular-nums}
+.opt.dis{opacity:.5;cursor:not-allowed}
+.opt.dis .hint{color:var(--red)}
+.opt.sel{border-color:var(--gold);background:var(--gold-bg)}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 0;
+  border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums}
+.kv:last-child{border-bottom:none}
+.kv b{color:var(--ink)}
+.kv .pos{color:var(--green)}.kv .neg{color:var(--red)}
+.reprow{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:8px 0;
+  border-bottom:1px dashed var(--line);line-height:1.5}
+.reprow:last-child{border-bottom:none}
+.reprow .ic{flex:none;width:18px;text-align:center;font-size:13px;line-height:1.5}
+.reprow .k{font-size:11px;color:var(--ink3);display:block}
+.reprow.hl{background:#2a2416;border-radius:8px;padding:8px 9px;margin:0 -9px}
+.freedomrow{background:#221b0c;border:1px solid var(--gold-dim);border-radius:10px;
+  padding:8px 10px;margin:8px 0;font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.freedomrow b{color:var(--gold)}
+.codex{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cx{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;
+  font-size:12px;min-height:var(--h);cursor:pointer;position:relative}
+.cx:hover{border-color:var(--line2)}
+.cx.masked{color:var(--ink3);border-style:dashed;cursor:default}
+.cx b{display:block;font-size:13px;margin-bottom:2px}
+.cx .d{color:var(--ink2);line-height:1.4}
+.cx.masked .d{color:var(--ink3)}
+.cx .new{position:absolute;top:7px;right:8px;font-size:10px;color:#1a1408;background:var(--gold);
+  border-radius:20px;padding:0 6px;font-weight:800}
+.cx .zero{font-size:10px;color:var(--ink3);margin-top:4px;display:block}
+.cx.sel{border-color:var(--gold);background:var(--gold-bg)}
+.cx.sel .zero{color:var(--gold)}
+
+/* z3 toast 队列 */
+.toasts{position:absolute;bottom:62px;left:50%;transform:translateX(-50%);width:min(96%,560px);
+  z-index:40;display:flex;flex-direction:column-reverse;gap:6px;pointer-events:none}
+.toast{background:rgba(36,43,54,.97);border-left:3px solid var(--blue);border-radius:9px;
+  padding:8px 11px;font-size:13px;color:var(--ink2);display:flex;gap:8px;align-items:center;
+  pointer-events:auto;cursor:pointer;animation:tin .18s ease-out;box-shadow:0 4px 16px #0008}
+.toast.important{border-left-color:var(--gold);color:var(--ink)}
+.toast .t{color:var(--ink3);font-size:11px;margin-left:auto;white-space:nowrap}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* 吐槽气泡（V1-17 · z3 浮层锚定员工详情区） */
+.gossip{position:absolute;left:14px;right:14px;bottom:64px;z-index:30;
+  background:var(--panel3);border:1px solid var(--line2);border-radius:12px;
+  padding:10px 12px;font-size:13px;color:var(--ink);display:none;
+  box-shadow:0 6px 22px #000a;animation:tin .16s ease-out}
+.gossip.on{display:block}
+
+/* 引导锚定气泡（V1-02） */
+.guide{position:static;margin-bottom:10px;
+  background:var(--panel3);border:1px solid var(--gold-dim);border-radius:12px;
+  padding:10px 12px;display:none;gap:10px;align-items:center;
+  box-shadow:0 6px 24px #000a}
+.guide.on{display:flex}
+.guide .gt{font-size:13px;font-weight:800;color:var(--gold);white-space:nowrap}
+.guide .gb{font-size:12px;color:var(--ink2);flex:1;min-width:0}
+.guide .x{min-width:36px;min-height:36px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--ink2);cursor:pointer;flex:none}
+
+/* ── 原型工具条（非游戏 UI） ── */
+.switcher{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:99;
+  display:flex;align-items:center;gap:6px;background:#000d;border:1px solid #4a5568;
+  border-radius:999px;padding:5px 8px;box-shadow:0 4px 18px #000c;
+  justify-content:flex-start;max-width:96vw;overflow-x:auto;flex-wrap:nowrap}
+.switcher::-webkit-scrollbar{height:0}
+.switcher button{min-height:34px;padding:0 11px;border-radius:999px;border:1px solid #3d4757;
+  background:#222a35;color:#cbd5e0;font-size:12px;cursor:pointer}
+.switcher button:hover{background:#2d3748;color:#fff}
+.switcher button.on{background:#e8b34b;color:#1a1408;border-color:#e8b34b;font-weight:800}
+.switcher .sep{width:1px;height:20px;background:#3d4757}
+/* 竖屏：工具条移到画面框下方，不再覆盖工作区 */
+body.mobile{justify-content:flex-start;padding-top:6px}
+body.mobile .switcher{position:static;transform:none;margin:0 auto 10px;max-width:96vw;
+  border-radius:12px;width:max-content}
+
+/* ── 竖屏降级（375×667 基准 · DR-015 心智权重倒序） ── */
+body.mobile .clockbar{padding:5px 8px;gap:6px}
+body.mobile .clockbar .wk{font-size:14px}
+body.mobile .clockbar .cal{display:none}
+body.mobile .clockstate{font-size:11px;padding:2px 7px}
+body.mobile .spd{min-width:40px;min-height:34px;font-size:12px;padding:0 4px}
+body.mobile .resbar .main{padding:6px 8px 4px;gap:6px}
+body.mobile .resbar .v{font-size:14px}
+body.mobile .subrow{padding:3px 8px 6px;font-size:11px}
+/* 第一折：资源栏副行的明细提示收起，预告标识保留（文本不省） */
+body.mobile .subrow .hint{display:none}
+body.mobile .breakdown{padding:0 8px 7px;font-size:11px}
+body.mobile .rivalbar{padding:6px 8px;gap:6px}
+/* 第二折：竞对条明细收起为一行 */
+body.mobile .pill{flex:1 1 100%;font-size:11px;padding:4px 10px}
+body.mobile .rankline{flex:1 1 100%;justify-content:flex-start;text-align:left}
+body.mobile .crown{padding:6px 8px;gap:6px}
+body.mobile .crown .lines{gap:8px;font-size:11px}
+body.mobile .workspace{padding:8px}
+/* 工作区永不折叠：员工卡改横滑行 */
+body.mobile .staffrow{display:flex;overflow-x:auto;gap:8px;padding-bottom:4px}
+body.mobile .staff{flex:0 0 168px}
+body.mobile .panel{max-width:100%;max-height:92%;border-radius:14px 14px 0 0}
+body.mobile .panel[data-layer="z2"]{max-width:calc(100% - 16px)}
+body.mobile .codex{grid-template-columns:1fr}
+/* 第三折：Dock 只收副标签，主标签保留（图标字体缺失时仍可辨） */
+body.mobile .dock button{font-size:10px;gap:1px}
+body.mobile .dock button b{font-size:15px}
+body.mobile .dock .sub{display:none}
+body.mobile .toasts{bottom:56px}
+
+/* 真机小屏访问时自动进入竖屏降级（无需点按钮） */
+@media (max-width:520px){
+  body{overflow:auto}
+  .frame{max-width:100%;height:calc(100vh - 96px);min-height:520px;border-radius:0}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="proto-banner">《大 AI 时代》UI 原型 v1 · <b>DR-031 呈现层</b>：显示分级 + 净流入预告 + 已登顶·自由期三线 · 数值均为 <b>~</b> 量级占位</div>
+
+<div class="frame" id="frame">
+
+  <!-- ════════════════════ z0 主台（四主区） ════════════════════ -->
+  <div class="z0" id="z0">
+
+    <!-- ① 世界时钟条（V1-04：三态互斥 + 变速档） -->
+    <div class="clockbar">
+      <span class="wk" id="weekLabel">第 14 周</span>
+      <span class="cal" id="calLabel">2023-03</span>
+      <span class="clockstate run" id="clockState" title="三态互斥：运行 / 用户暂停 / 自动暂停">
+        <span class="g" id="clockGlyph">▶</span><span id="clockText">运行中</span>
+      </span>
+      <div class="speed" id="speedGroup">
+        <button class="spd" id="btnPause" title="暂停 / 继续">‖ 暂停</button>
+        <button class="spd on" data-s="1" title="1 倍速（密度基准）">1x</button>
+        <button class="spd" data-s="2" title="2 倍速">2x</button>
+        <button class="spd" data-s="4" title="4 倍速">4x</button>
+      </div>
+    </div>
+
+    <!-- ② 资源栏（三资源 + 净流入预告副行 · 呈现层⑥ / C3） -->
+    <div class="resbar">
+      <div class="main">
+        <div class="r">
+          <div class="k">资金</div>
+          <div class="v" id="moneyVal">¥5.0万</div>
+          <div class="delta up" id="moneyDelta">本周 +1.2k</div>
+        </div>
+        <div class="r">
+          <div class="k">算力 <span class="tag" id="tierTag">tier1</span></div>
+          <div class="v" id="computeVal">40<span class="u">卡时</span></div>
+          <div class="delta" id="computeDelta">占用 18/40</div>
+        </div>
+        <div class="r">
+          <div class="k">影响力</div>
+          <div class="v" id="influenceVal">12</div>
+          <div class="delta up" id="influenceDelta">本周 +3</div>
+        </div>
+      </div>
+      <div class="subrow">
+        <span class="flowtag"><span class="g">↗</span>下周净流入预告 <span id="flowVal">~+1.4k</span></span>
+        <span class="hint">周支出 ~9k（工资 6k + 运维 3k）</span>
+        <button class="expand" id="btnBreakdown" title="展开收支结构">收支结构</button>
+      </div>
+      <div class="breakdown" id="breakdown">
+        <div class="ln"><span>在途任务收入（复现+课题）</span><b class="pos">+10.4k</b></div>
+        <div class="ln"><span>工资（3 人 × ~2k）</span><b class="neg">-6.0k</b></div>
+        <div class="ln"><span>固定运维</span><b class="neg">-3.0k</b></div>
+        <div class="ln"><span>算力周预算（占用不计现金）</span><b>~6 卡时/周</b></div>
+        <div class="ln"><span>下周净流入预告</span><b class="pos" id="flowVal2">~+1.4k</b></div>
+        <div class="dim" style="margin-top:4px">预告 = 逻辑层 L2 数据面（在途任务 + 刚性支出）；周结后与周报收支行对账。卡时费已含在训练成本，不重复扣现金（DR-031 D-9/D-10）。</div>
+      </div>
+    </div>
+
+    <!-- ③ 封顶叙事（B1 饱和护栏 · 已登顶·自由期三线） -->
+    <div class="crown" id="crown">
+      <span class="ct">▲ 已登顶 · 自由期</span>
+      <div class="lines">
+        <span class="l">霸榜周数 <b id="crownCrown">~24</b><i>→ ~45</i></span>
+        <span class="l">树已探明 <b id="crownFog">11/14</b><i>（3 他者不可研）</i></span>
+        <span class="l">影响力存量 <b id="crownInfl">~420</b><i>→ ~500</i></span>
+      </div>
+      <button class="x" id="crownX" title="收下（本局只弹一次）">✕</button>
+    </div>
+
+    <!-- ④ 竞对条（胶囊 + 预警灯 + 名次行 · 显示分级） -->
+    <div class="rivalbar">
+      <div class="pill">
+        <span>●</span><b>深巷科技</b>
+        <div class="bar red"><i id="rivalBar" style="width:31%"></i></div>
+        <span class="num" id="rivalScore">~24 分</span>
+      </div>
+      <span class="lamp yellow" id="lamp" title="DR-027④ 黄灯口径"><span class="g">⚠</span><span id="lampText">黄灯</span></span>
+      <div class="rankline">
+        <span class="badge t0" id="rankBadge">起步档 · 榜外</span>
+        <span class="truth" id="rankTruth">我方 ~7.2 分 · 未入榜</span>
+      </div>
+    </div>
+
+    <!-- ④b 自由期三线（RF-02：W25 起常显；首达 99 升主权重） -->
+    <div class="threeline" id="threeline">
+      <span class="tl-h">长线目标</span>
+      <span class="tl"><i>霸榜</i><b id="tlCrown">~0 周</b><s>→ ~45</s></span>
+      <span class="tl"><i>树已探明</i><b id="tlFog">8/14</b></span>
+      <span class="tl"><i>影响力存量</i><b id="tlInfl">~12</b><s>→ ~500</s></span>
+    </div>
+
+    <!-- ⑤ 工作区（永不折叠） -->
+    <div class="workspace">
+
+  <!-- 引导锚定气泡（V1-02 · 随手关，世界照走） -->
+  <div class="guide" id="guide">
+    <span class="gt" data-b="标题">先指派一个人</span>
+    <span class="gb" data-b="正文">点员工卡，再点任务槽就能上工。世界不会等你。</span>
+    <button class="x" id="guideX">✕</button>
+  </div>
+
+      <!-- 训练位 -->
+      <div class="card train">
+        <h4>训练位 <span class="tag gold" id="trainTag">出分预计 ~3 周</span></h4>
+        <div class="head">
+          <span class="tname" id="trainName">璞石·洗尘 1b → 通识试金石（GKP）</span>
+          <span class="pct" id="trainPct">62%</span>
+        </div>
+        <div class="bar"><i id="trainBar" style="width:62%"></i></div>
+        <div class="meta">
+          <span>上桌 <b id="trainSeats">1/1</b><span class="dim">（基座上桌上限）</span></span>
+          <span>算力 <b>~6 卡时/周</b></span>
+          <span id="trainStage">阶段：损失下降中</span>
+        </div>
+      </div>
+
+      <!-- 任务槽（V1-05 · N6 未双签=单槽 + 排队预填） -->
+      <div class="card">
+        <h4>任务槽 <span class="tag">单槽 · 队首完成自动顶入</span></h4>
+        <div class="slot" id="slotHead" title="点槽选中，再点员工卡指派">
+          <div class="st"><span id="slotName">复现 · 灵犀通识评测</span><span class="tag blue" id="slotTag">进行中</span></div>
+          <div class="sd"><span>已指派 <b id="slotWho">林望舒</b></span><span id="slotEta">剩余 ~2 周</span></div>
+          <div class="bar blue"><i id="slotBar" style="width:78%"></i></div>
+        </div>
+        <div class="slot queued" id="slotQueued" title="队列第 2 位：队首完成后自动顶入">
+          <div class="st"><span>课题 · 西麓大学横向</span><span class="tag">排队中</span></div>
+          <div class="sd"><span>待队首完成自动顶入</span><span>~4 周</span></div>
+        </div>
+      </div>
+
+      <!-- 员工实体卡 -->
+      <div class="card">
+        <h4>研究员 <span class="tag" id="staffCount">3 人在岗 · 0 空闲</span></h4>
+        <div class="staffrow" id="staffRow">
+          <div class="staff" data-staff="lin" title="点卡看详情 / 改派">
+            <div class="avatar">林</div>
+            <div style="min-width:0;flex:1">
+              <div class="nm">林望舒</div>
+              <div class="task">复现 · 灵犀通识评测</div>
+              <div class="bar blue"><i style="width:78%"></i></div>
+            </div>
+          </div>
+          <div class="staff" data-staff="chen" title="点卡看详情 / 改派">
+            <div class="avatar">陈</div>
+            <div style="min-width:0;flex:1">
+              <div class="nm">陈北辰</div>
+              <div class="task">研究 · 喂 RP</div>
+              <div class="bar purple"><i style="width:45%"></i></div>
+            </div>
+          </div>
+          <div class="staff" data-staff="zhou" title="点卡看详情 / 改派">
+            <div class="avatar">周</div>
+            <div style="min-width:0;flex:1">
+              <div class="nm">周霁明</div>
+              <div class="task">支援训练 · 璞石</div>
+              <div class="bar"><i style="width:62%"></i></div>
+            </div>
+          </div>
+          <div class="staff empty" id="staffEmpty" title="招聘入口挂载点待拍板（V1-09）">
+            <span>＋ 空位</span><span class="dim">招聘市场待开放</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 上线运维行（V1-15） -->
+      <div class="card">
+        <h4>上线运维 <span class="tag">单在线位</span></h4>
+        <div class="deploy">
+          <span class="st idle" id="deployState">未上线</span>
+          <span class="inc" id="deployInc">有可上线版本时这里亮起</span>
+          <button class="btn sm" id="btnDeploy" disabled title="暂无可上线版本">上线</button>
+        </div>
+      </div>
+
+    </div><!-- /工作区 -->
+
+    <!-- ⑥ Dock（DR-020 三键 + 图鉴第 4 键；招聘/吐槽入口待拍板） -->
+    <nav class="dock" id="dock">
+      <button class="on" id="dockTech"><b>◈</b><span class="lbl">科技</span><span class="sub" id="dockTechSub">8/14</span></button>
+      <button id="dockReport"><b>▤</b><span class="lbl">周报</span><span class="sub">重看</span><span class="dot" id="reportDot" style="display:none"></span></button>
+      <button id="dockCodex"><b>▣</b><span class="lbl">图鉴</span><span class="sub">4/12</span></button>
+      <button id="dockPause"><b>‖</b><span class="lbl">暂停</span></button>
+    </nav>
+
+  </div><!-- /z0 -->
+
+  <!-- 遮罩：z1 点击关；z2 点击不关（暂停菜单除外） -->
+  <div class="mask" id="mask"></div>
+
+  <!-- ════════════ PanelStack 面板（z1 常规互斥 / z2 阻塞） ════════════ -->
+
+  <!-- 迷雾科技树（z1 · C 方案：列表 + ??? + 域计数） -->
+  <section class="panel" id="p-tech" data-layer="z1">
+    <div class="ph">
+      <h3 data-b="标题">迷雾科技树</h3>
+      <span class="z">z1</span>
+      <span class="tag purple">已探明 8/14</span>
+      <button class="x" data-close>✕</button>
+    </div>
+    <div class="pb">
+      <div class="sub">翻雾靠投入研究 / 竞对论文外溢 / 灵感。他者道路以传闻形式存在。</div>
+      <div class="domain">
+        <div class="dh">◆ 深思 <span>已探明 2/3</span></div>
+        <div class="node lit"><span>银缰对齐</span><span class="st">已点亮 · 全域 +5%</span></div>
+        <div class="node ready"><span>析理草图</span><span class="st">可研 · RP 62%</span></div>
+        <div class="node seeing"><span>默识长链</span><span class="st">可见 · 需前置点亮</span></div>
+      </div>
+      <div class="domain">
+        <div class="dh">❀ 蒲公英 <span>已探明 1/3</span></div>
+        <div class="node lit"><span>析津别院</span><span class="st">已点亮 · 全域 +5%</span></div>
+        <div class="node fog"><span>？？？</span><span class="st">传闻 · 深巷论文里提过</span></div>
+      </div>
+      <div class="domain">
+        <div class="dh">❏ 长忆 <span>已探明 1/2</span></div>
+        <div class="node ready"><span>千卷过目</span><span class="st">可研 · RP 31%</span></div>
+        <div class="node fog"><span>？？？</span><span class="st">传闻 · 有人想给模型装"外脑"</span></div>
+      </div>
+      <div class="domain">
+        <div class="dh">⚙ 器用 / ◉ 通感 <span>未开域 0/3</span></div>
+        <div class="node fog"><span>？？？</span><span class="st">传闻 · 业界在谈"看图说话"</span></div>
+      </div>
+      <div class="domain">
+        <div class="dh">➤ 他者道路 <span>3 条 · 均不可研</span></div>
+        <div class="node locked"><span>寰宇形胜？</span><span class="st">传闻 · 教模型理解世界</span></div>
+        <div class="node locked"><span>规矩符契？</span><span class="st">传闻 · 老派学者的执念</span></div>
+        <div class="node locked"><span>化魄知几？</span><span class="st">传闻 · 把模型塞进你口袋</span></div>
+      </div>
+      <div class="dim">分母 14 = 11 可研 + 3 他者道路（DR-031 D3：显示 n/14 但注明不可研）。</div>
+    </div>
+    <div class="pf"><button class="btn primary" style="width:100%" data-close>返回主台</button></div>
+  </section>
+
+  <!-- 员工名册详情（z1 · 观察文本替代数值面板） -->
+  <section class="panel" id="p-staff" data-layer="z1">
+    <div class="ph">
+      <h3 data-b="标题">员工名册</h3>
+      <span class="z">z1</span>
+      <span class="tag green">3 人在岗</span>
+      <button class="x" data-close>✕</button>
+    </div>
+    <div class="pb">
+      <div class="card">
+        <div class="row" style="margin-bottom:6px">
+          <b style="font-size:14px" id="sdName">林望舒</b>
+          <span class="tag blue" id="sdStatus">复现中</span>
+        </div>
+        <div class="sub" style="margin-bottom:8px" id="sdObserve">
+          盯着 loss 曲线的眼神像在看别人家的孩子——稳，但憋着一口气。
+        </div>
+        <div class="kv"><span>在岗任务</span><b id="sdTask">复现 · 灵犀通识评测</b></div>
+        <div class="kv"><span>剩余</span><b id="sdEta">~2 周</b></div>
+        <div class="kv"><span>改派代价</span><b class="neg">损失当前进度</b></div>
+        <div class="dim" style="margin-top:6px">观察文本替代数值面板（DR-029 A-8/E-1：禁数字面板）。</div>
+      </div>
+      <div class="row" style="margin:10px 0 6px">
+        <span class="muted">改派至（改派前先预览代价）</span>
+        <button class="btn sm" id="btnGossip">吐槽</button>
+      </div>
+      <div class="opts" id="reassignOpts">
+        <div class="opt sel" data-assign="keep"><b data-b="选项">继续复现</b><div class="hint">~2 周完成 · 声誉 +1</div></div>
+        <div class="opt" data-assign="research"><b data-b="选项">转研究喂 RP</b><div class="hint">长忆线还差 1 节点</div></div>
+        <div class="opt dis" data-assign="train" title="上桌人数已满（基座上桌上限 1）"><b data-b="选项">支援训练</b><div class="hint">上桌已满，无法指派</div></div>
+      </div>
+    </div>
+    <div class="pf"><button class="btn ghost" style="width:100%" data-close>返回主台</button></div>
+  </section>
+
+  <!-- 周报（双挂载：自动弹 z2 停喂 / 重看 z1 不暂停） -->
+  <section class="panel" id="p-report" data-layer="z2">
+    <div class="ph">
+      <h3 data-b="标题" id="repTitle">第 14 周 · 周报</h3>
+      <span class="z" id="repLayerTag">z2</span>
+      <span class="tag gold" id="repTag">显著变化</span>
+      <button class="x" data-close>✕</button>
+    </div>
+    <div class="pb">
+      <div class="lockbar" id="repLockbar"><span>‖</span><span>自动暂停 · 世界已停，看完继续</span></div>
+      <div id="repRows">
+        <div class="reprow">
+          <span class="ic">¥</span>
+          <span><span class="k">收支</span><span data-b="周报" data-num="1" id="repMoney">收入 +¥6.0万 · 支出 -¥9.0k · 净 +¥5.1万</span></span>
+        </div>
+        <div class="reprow">
+          <span class="ic">✦</span>
+          <span><span class="k">声誉</span><span data-b="周报">+2 · 林望舒论文进入玄冬会议评审</span></span>
+        </div>
+        <div class="reprow">
+          <span class="ic">⚡</span>
+          <span><span class="k">事件</span><span data-b="周报" id="repEvent">深巷科技发布「巷灯 L2」，榜首位易主</span></span>
+        </div>
+        <div class="reprow">
+          <span class="ic">◈</span>
+          <span><span class="k">迷雾</span><span data-b="周报" id="repFog">长忆线已探明 1/2 · 全局 8/14</span></span>
+        </div>
+        <div class="reprow">
+          <span class="ic">◎</span>
+          <span><span class="k">训练</span><span data-b="周报" id="repTrain">璞石推进至 62% · 距榜首还差 ~9 分</span></span>
+        </div>
+        <div class="reprow hl">
+          <span class="ic">▤</span>
+          <span><span class="k">名次（真值只在周报）</span><span data-b="周报" id="repRank">我方 7.2 分 · 未入榜 · 深巷 24 分</span></span>
+        </div>
+        <div class="freedomrow" id="repFreedom" style="display:none">
+          <span class="k" style="display:block;font-size:11px;color:var(--ink3)">自由期三线（V1-16 · 固定槽位）</span>
+          霸榜 <b>~24 周</b> → ~45 · 探明 <b>11/14</b> · 影响力 <b>~420</b> → ~500
+        </div>
+        <div class="dim" style="margin-top:8px">预告对账：上周预告 ~+1.2k · 实际 +1.1k ✓（[T] 预告=实际周结）</div>
+      </div>
+    </div>
+    <div class="pf"><button class="btn primary" style="width:100%" data-close id="repBtn">继续（恢复流淌）</button></div>
+  </section>
+
+  <!-- 决策卡（z2 阻塞 · 遮罩不关 · 同屏待决 ≤1） -->
+  <section class="panel" id="p-card" data-layer="z2">
+    <div class="ph">
+      <h3 data-b="标题">算力租金暴涨</h3>
+      <span class="z">z2</span>
+      <span class="tag red">阻塞</span>
+    </div>
+    <div class="pb">
+      <div class="lockbar"><span>‖</span><span>自动暂停 · 必须选择后世界继续</span></div>
+      <div class="sub" data-b="正文">云厂商例行调价，卡时单价本周上涨 35%。不改排期的话，下周多支出 ¥3.6万。</div>
+      <div class="opts">
+        <div class="opt" data-pick="lock"><b data-b="选项">锁价长约</b><div class="hint">资金 -¥12万 · 锁 8 周</div></div>
+        <div class="opt" data-pick="spot"><b data-b="选项">随行就市</b><div class="hint">资金 -¥3.6万 · 赌降价</div></div>
+        <div class="opt dis" data-pick="halt" title="资金不足：需 -¥4.0万，当前 ¥5.0万 已锁定排期"><b data-b="选项">暂停训练一周</b><div class="hint">资金不足，无法执行</div></div>
+      </div>
+      <div class="dim" style="margin-top:8px">决策卡 p_week ~0.30–0.35（约每 3 周 1 张）· 遮罩点击不关闭。</div>
+    </div>
+  </section>
+
+  <!-- 收集图鉴（z1 · N13 最小一格：零数值收益） -->
+  <section class="panel" id="p-codex" data-layer="z1">
+    <div class="ph">
+      <h3 data-b="标题">收集图鉴</h3>
+      <span class="z">z1</span>
+      <span class="tag purple">已解锁 4/12</span>
+      <button class="x" data-close>✕</button>
+    </div>
+    <div class="pb">
+      <div class="sub">随着经营推进，这里会亮起来。解锁只给称谓，不给数值。</div>
+      <div class="codex">
+        <div class="cx"><span class="new">新</span><b>第一行 loss</b><span class="d">你第一次看见曲线低头。</span><span class="zero">零数值收益</span></div>
+        <div class="cx"><b>熬夜的灯</b><span class="d">实验室的灯比宿舍亮得久。</span><span class="zero">零数值收益</span></div>
+        <div class="cx"><b>榜上有名</b><span class="d">通识试金石第一次写上你们。</span><span class="zero">零数值收益</span></div>
+        <div class="cx"><b>论文被引</b><span class="d">有人在深夜读懂了你的方法。</span><span class="zero">零数值收益</span></div>
+        <div class="cx masked"><b>？？？</b><span class="d">未解锁</span></div>
+        <div class="cx masked"><b>？？？</b><span class="d">未解锁</span></div>
+        <div class="cx masked"><b>？？？</b><span class="d">未解锁</span></div>
+        <div class="cx masked"><b>？？？</b><span class="d">未解锁</span></div>
+      </div>
+      <div class="dim" style="margin-top:10px">N13：v1.0 只留零数值收益最小一格，不触三禁（跨周目优势归 v2.0）。</div>
+    </div>
+    <div class="pf"><button class="btn ghost" style="width:100%" data-close>返回主台</button></div>
+  </section>
+
+  <!-- 暂停菜单（z2 · 遮罩可关的唯一 z2） -->
+  <section class="panel" id="p-pause" data-layer="z2">
+    <div class="ph">
+      <h3 data-b="标题">暂停菜单</h3>
+      <span class="z">z2</span>
+      <button class="x" data-close>✕</button>
+    </div>
+    <div class="pb">
+      <div class="sub">遮罩点击可关（DR-020：仅暂停菜单遮罩可关）。</div>
+      <div class="opts">
+        <div class="opt" data-pause="resume"><b data-b="选项">继续游戏</b><div class="hint">恢复流淌</div></div>
+        <div class="opt" data-pause="save"><b data-b="选项">保存并退出</b><div class="hint">离开前自动存档</div></div>
+        <div class="opt" data-pause="restart"><b data-b="选项">重开一局</b><div class="hint">当前进度将被覆盖</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 文案自检（原型工具 · DR-010 预算校验） -->
+  <section class="panel" id="p-audit" data-layer="z1">
+    <div class="ph">
+      <h3 data-b="标题">文案自检</h3>
+      <span class="z">工具</span>
+      <button class="x" data-close>✕</button>
+    </div>
+    <div class="pb">
+      <div class="sub">DR-010 长度预算：选项 ≤8 / toast ≤20 / 标题 ≤12 / 周报条目 ≤30 / 正文 ≤60（结构化数值行不计）。</div>
+      <div id="auditOut"></div>
+    </div>
+    <div class="pf"><button class="btn ghost" style="width:100%" data-close>关闭</button></div>
+  </section>
+
+  <!-- z3 toast 队列（同屏 ≤3 · 零红点零角标） -->
+  <div class="toasts" id="toasts"></div>
+
+</div><!-- /frame -->
+
+<!-- 原型工具条（非游戏 UI） -->
+<div class="switcher">
+  <button id="swLab" class="on">阶段：实验室期</button>
+  <button id="swCrown">跳自由期</button>
+  <span class="sep"></span>
+  <button id="swWeek">推进一周</button>
+  <button id="swTruth">显示真值</button>
+  <span class="sep"></span>
+  <button id="swMobile">竖屏</button>
+  <button id="swAudit">文案自检</button>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   原型状态机（全部数值为 ~ 量级伪数据，非真实平衡值）
+   ══════════════════════════════════════════════════════════════════ */
+const S = {
+  week: 14, phase: 'lab',          // lab | freedom
+  clock: 'run',                    // run | user | auto（三态互斥）
+  speed: 1,
+  truth: false,                    // 显示分级：主台是否显示真值（评审工具）
+  money: 50000,                    // ~50k 起
+  compute: 40, tier: 1,            // tier1 = 40 卡时
+  influence: 12,                   // ~0 起
+  score: 7.2, rivalScore: 24,      // 竞对 24 分起
+  crownWeeks: 0, fogLit: 8,
+  trainPct: 62, trainEta: 3,
+  slotPct: 78, slotEta: 2,
+  netFlow: 1400,                   // 下周净流入预告（~+1.4k）
+  reportPending: false,
+  crownShown: false,               // 封顶横幅 once 语义
+  guideDismissed: false
+};
+
+/* ── 格式化（DR-010：¥+万缩写+负号前置） ── */
+function fmtMoney(v) {
+  const neg = v < 0, a = Math.abs(v);
+  let s;
+  if (a >= 1e8) s = (a / 1e8).toFixed(1) + '亿';
+  else if (a >= 1e4) s = (a / 1e4).toFixed(1) + '万';
+  else if (a >= 1e3) s = (a / 1e3).toFixed(1) + 'k';
+  else s = String(Math.round(a));
+  return (neg ? '-¥' : '¥') + s;
+}
+function fmtFlow(v) {
+  const sign = v >= 0 ? '+' : '-';
+  const a = Math.abs(v);
+  return '~' + sign + (a >= 1e3 ? (a / 1e3).toFixed(1) + 'k' : a);
+}
+function calOf(week) {
+  const d = new Date(Date.UTC(2022, 11, 26));
+  d.setUTCDate(d.getUTCDate() + week * 7);
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+}
+/* 显示分级（DR-031 呈现层⑥）：主台只出档位标签，真值留给周报 */
+function rankOf(score) {
+  if (score >= 90) return '第 1';
+  if (score >= 60) return '第 3';
+  if (score >= 30) return '第 8';
+  if (score >= 10) return '第 15';
+  return '未入榜';
+}
+function tierOf(score) {
+  if (score >= 90) return { cls: 't4', label: '登顶档' };
+  if (score >= 60) return { cls: 't3', label: '第一梯队' };
+  if (score >= 30) return { cls: 't2', label: '中坚档' };
+  if (score >= 10) return { cls: 't1', label: '新星档' };
+  return { cls: 't0', label: '起步档 · 榜外' };
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   渲染
+   ══════════════════════════════════════════════════════════════════ */
+function render() {
+  const $ = (id) => document.getElementById(id);
+
+  /* 时钟条 */
+  $('weekLabel').textContent = '第 ' + S.week + ' 周';
+  $('calLabel').textContent = calOf(S.week);
+  paintClock();
+
+  /* 资源栏 */
+  $('moneyVal').textContent = fmtMoney(S.money);
+  $('moneyDelta').textContent = '本周 ' + fmtFlow(S.netFlow);
+  $('moneyDelta').className = 'delta ' + (S.netFlow >= 0 ? 'up' : 'down');
+  $('tierTag').textContent = 'tier' + S.tier;
+  $('computeVal').innerHTML = S.compute + '<span class="u">卡时</span>';
+  $('computeDelta').textContent = '占用 ' + Math.round(S.compute * 0.45) + '/' + S.compute;
+  $('influenceVal').textContent = S.influence;
+  $('influenceDelta').textContent = '本周 +' + (S.phase === 'lab' ? 3 : 6);
+
+  /* 净流入预告副行（呈现层⑥） */
+  $('flowVal').textContent = fmtFlow(S.netFlow);
+  $('flowVal2').textContent = fmtFlow(S.netFlow);
+
+  /* 封顶横幅（B1 饱和护栏 · once 语义：首达 99 分那周弹一次，收下后不再弹） */
+  const crowned = S.score >= 99;
+  if (crowned && !S.crownShown) { S.crownShown = true; $('crown').classList.add('on'); }
+  if (!crowned) { S.crownShown = false; $('crown').classList.remove('on'); }
+  $('crownCrown').textContent = '~' + S.crownWeeks;
+  $('crownFog').textContent = S.fogLit + '/14';
+  $('crownInfl').textContent = '~' + S.influence;
+
+  /* 自由期三线（RF-02 两阶段：W25 起常显 / 封顶升主权重） */
+  const threeOn = (S.week >= 25) || (S.phase === 'freedom');
+  $('threeline').classList.toggle('on', threeOn);
+  $('threeline').classList.toggle('primary', crowned);
+  $('tlCrown').textContent = '~' + S.crownWeeks + ' 周';
+  $('tlFog').textContent = S.fogLit + '/14';
+  $('tlInfl').textContent = '~' + S.influence;
+
+  /* 竞对条 */
+  $('rivalBar').style.width = Math.min(100, Math.round(S.rivalScore)) + '%';
+  $('rivalScore').textContent = '~' + S.rivalScore.toFixed(0) + ' 分';
+  const t = tierOf(S.score);
+  const badge = $('rankBadge');
+  badge.className = 'badge ' + t.cls;
+  badge.textContent = t.label;
+  /* RU-01 分段显示：score<~10 主台只出档位标签（不含裸数字）；≥~10 显示分数+名次 */
+  const showTruth = (S.score >= 10) || S.truth;
+  $('rankTruth').textContent = showTruth ? ('我方 ~' + S.score.toFixed(1) + ' 分 · ' + rankOf(S.score)) : '';
+  $('rankTruth').style.display = showTruth ? '' : 'none';
+  $('lampText').textContent = S.score >= 60 ? '绿灯' : '黄灯';
+  $('lamp').className = 'lamp ' + (S.score >= 60 ? 'green' : 'yellow');
+
+  /* 训练位 */
+  $('trainPct').textContent = S.trainPct + '%';
+  $('trainBar').style.width = S.trainPct + '%';
+  $('trainTag').textContent = S.trainPct >= 100 ? '已出分 · 封顶' : '出分预计 ~' + S.trainEta + ' 周';
+  $('trainStage').textContent = S.trainPct >= 100 ? '阶段：守成' : '阶段：损失下降中';
+  $('trainName').textContent = S.phase === 'freedom'
+    ? '璞石·洗尘 1b → 通识试金石（GKP）· 榜首'
+    : '璞石·洗尘 1b → 通识试金石（GKP）';
+
+  /* 任务槽 */
+  $('slotBar').style.width = S.slotPct + '%';
+  $('slotEta').textContent = '剩余 ~' + Math.max(1, S.slotEta) + ' 周';
+
+  /* Dock */
+  $('dockTechSub').textContent = S.fogLit + '/14';
+  $('reportDot').style.display = S.reportPending ? '' : 'none';
+}
+
+/* 时钟三态互斥（V1-04） */
+function paintClock() {
+  const el = document.getElementById('clockState');
+  const g = document.getElementById('clockGlyph');
+  const tx = document.getElementById('clockText');
+  if (S.clock === 'run') { el.className = 'clockstate run'; g.textContent = '▶'; tx.textContent = '运行中'; }
+  else if (S.clock === 'user') { el.className = 'clockstate user'; g.textContent = '‖'; tx.textContent = '已暂停'; }
+  else { el.className = 'clockstate auto'; g.textContent = '‖'; tx.textContent = '自动暂停'; }
+  const blocked = (S.clock === 'auto');
+  document.querySelectorAll('.spd[data-s]').forEach((b) => {
+    b.disabled = blocked;
+    b.title = blocked ? '决策等待中' : (b.dataset.s + ' 倍速');
+  });
+  document.getElementById('btnPause').disabled = blocked;
+  document.getElementById('btnPause').textContent = (S.clock === 'user') ? '▶ 继续' : '‖ 暂停';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PanelStack（z0–z3 · DR-020 遮罩规则 · 同屏待决 ≤1）
+   ══════════════════════════════════════════════════════════════════ */
+let z1Open = null, z2Open = null, preClock = 'run';
+
+function panelEl(id) { return document.getElementById('p-' + id); }
+function maskEl() { return document.getElementById('mask'); }
+
+function openPanel(id, layer) {
+  const p = panelEl(id);
+  if (!p) return;
+  const L = layer || p.dataset.layer;
+
+  if (L === 'z2') {
+    if (z2Open && z2Open !== id) return;   /* 同屏待决 ≤1：z2 互斥 */
+    closeZ1();
+    p.dataset.layer = 'z2';
+    p.classList.add('on');
+    z2Open = id;
+    preClock = (S.clock === 'auto') ? 'run' : S.clock;
+    S.clock = 'auto';                       /* z2 = 世界等玩家 */
+    paintClock();
+    maskEl().classList.add('on', 'z2');
+    const lz = document.getElementById('repLayerTag');
+    if (lz && id === 'report') lz.textContent = 'z2';
+    if (id === 'report') S.reportPending = false;
+  } else {
+    if (z2Open) return;                     /* 阻塞期间 z1 不可开 */
+    closeZ1();
+    p.dataset.layer = 'z1';
+    p.classList.add('on');
+    z1Open = id;
+    maskEl().classList.add('on');
+    maskEl().classList.remove('z2');
+    const lz = document.getElementById('repLayerTag');
+    if (lz && id === 'report') lz.textContent = 'z1';
+    if (id === 'report') S.reportPending = false;
+  }
+  render();
+}
+
+function closeZ1() {
+  if (!z1Open) return;
+  panelEl(z1Open).classList.remove('on');
+  z1Open = null;
+  if (!z2Open) maskEl().classList.remove('on');
+}
+
+function closeZ2() {
+  if (!z2Open) return;
+  panelEl(z2Open).classList.remove('on');
+  z2Open = null;
+  maskEl().classList.remove('on', 'z2');
+  S.clock = preClock === 'auto' ? 'run' : preClock;
+  paintClock();
+  render();
+}
+
+function closeAll() { closeZ1(); closeZ2(); }
+
+/* 遮罩规则：z1 点击关；z2 只有暂停菜单可关 */
+maskEl().addEventListener('click', () => {
+  if (z2Open) {
+    if (z2Open === 'pause') closeZ2();
+    else nudge(panelEl(z2Open));
+  } else closeZ1();
+});
+
+/* 遮罩不关时的轻反馈（"拒绝被理解"） */
+function nudge(el) {
+  if (!el) return;
+  el.style.transform = el.dataset.layer === 'z2'
+    ? 'translate(-50%,50%) scale(0.985)' : 'translate(-50%,0) scale(0.985)';
+  setTimeout(() => { el.style.transform = ''; }, 110);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   z3 toast 队列（同屏 ≤3 · 零红点零角标 · 点即消散）
+   ══════════════════════════════════════════════════════════════════ */
+function toast(text, important) {
+  const box = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast' + (important ? ' important' : '');
+  el.setAttribute('data-b', 'toast');
+  el.innerHTML = '<span>' + text + '</span><span class="t">第 ' + S.week + ' 周</span>';
+  el.addEventListener('click', () => el.remove());
+  box.appendChild(el);
+  while (box.children.length > 3) box.removeChild(box.firstChild);
+  setTimeout(() => el.remove(), 6500);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   周结算模拟（推进一周 · 演示数值联动与事件闸节奏）
+   ══════════════════════════════════════════════════════════════════ */
+function advanceWeek() {
+  if (z2Open) { toast('先处理当前决策'); return; }
+
+  S.week += 1;
+  S.money += S.netFlow;
+  S.influence += (S.week % 3 === 0) ? 4 : 2;
+
+  if (S.phase === 'lab') {
+    S.score = Math.min(9.9, +(S.score + 0.6).toFixed(1));
+    S.rivalScore = Math.min(32, +(S.rivalScore + 0.7).toFixed(1));
+    S.trainPct = Math.min(100, S.trainPct + 6);
+    S.slotPct = Math.min(100, S.slotPct + 11);
+    if (S.slotPct >= 100) { S.slotPct = 12; S.slotEta = 3; }
+    if (S.trainPct >= 100) { S.trainPct = 100; S.trainEta = 0; }
+    if (S.week === 20) S.fogLit = 9;
+    if (S.week === 26) S.fogLit = 10;
+  } else {
+    /* 自由期：分数封顶，三线接管 */
+    S.crownWeeks += 1;
+    S.score = 99;
+    S.rivalScore = Math.min(90, +(S.rivalScore + 0.2).toFixed(1));
+    if (S.crownWeeks % 4 === 0) S.influence += 20;
+    if (S.crownWeeks === 3) { S.fogLit = 12; toast('千卷过目已点亮'); }
+  }
+
+  buildReport();
+  render();
+
+  /* 事件闸 C2：p_week ~0.33（约每 3 周 1 张）；同周撞车时决策卡优先（同屏待决 ≤1） */
+  const cardDue = (S.week % 3 === 0);
+  const reportDue = (S.week % 4 === 0);
+  if (cardDue) {
+    S.reportPending = true;
+    openPanel('card', 'z2');
+  } else if (reportDue) {
+    openPanel('report', 'z2');      /* 显著变化周自动弹 z2（停喂） */
+  } else {
+    S.reportPending = true;         /* 其余周只留 Dock 角标（DR-020 R3） */
+    toast('新周报已生成', false);
+  }
+
+  /* N12 内容锚点：W47 ChatGPT 时刻（纯文案/通知层） */
+  if (S.week === 47) toast('圈里都在聊一个会写诗的模型', true);
+}
+
+/* 周报行（GDD §14 字段集：收支/声誉/事件/迷雾/训练 + 自由期三线） */
+function buildReport() {
+  const $ = (id) => document.getElementById(id);
+  $('repTitle').textContent = '第 ' + S.week + ' 周 · 周报';
+
+  const income = S.phase === 'lab' ? 60000 : 240000;
+  const spend = 9000;
+  const net = income - spend;
+  $('repMoney').textContent = '收入 ' + fmtMoney(income) + ' · 支出 -¥9.0k · 净 ' + fmtMoney(net);
+
+  $('repEvent').textContent = S.phase === 'lab'
+    ? '深巷科技发布「巷灯 L2」，榜首位易主'
+    : '圈里都在聊一个会写诗的模型';
+  $('repFog').textContent = S.phase === 'lab'
+    ? '长忆线已探明 1/2 · 全局 ' + S.fogLit + '/14'
+    : '全局 ' + S.fogLit + '/14 · 他者道路 3 条不可研';
+  $('repTrain').textContent = S.phase === 'lab'
+    ? '璞石推进至 ' + S.trainPct + '% · 距榜首还差 ~9 分'
+    : '璞石已封顶，分数不再成长';
+  $('repRank').textContent = S.phase === 'lab'
+    ? '我方 ' + S.score.toFixed(1) + ' 分 · 未入榜 · 深巷 ' + S.rivalScore.toFixed(0) + ' 分'
+    : '我方 99.0 分 · 第 1 · 霸榜 ' + S.crownWeeks + ' 周';
+
+  const fr = $('repFreedom');
+  fr.style.display = (S.phase === 'freedom') ? '' : 'none';
+  fr.innerHTML = '<span class="k" style="display:block;font-size:11px;color:var(--ink3)">自由期三线（V1-16 · 固定槽位）</span>'
+    + '霸榜 <b>~' + S.crownWeeks + ' 周</b> → ~45 · 探明 <b>' + S.fogLit + '/14</b> · 影响力 <b>~' + S.influence + '</b> → ~500';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   阶段切换（原型工具：实验室期 ↔ 已登顶·自由期）
+   ══════════════════════════════════════════════════════════════════ */
+function toLab() {
+  Object.assign(S, {
+    week: 14, phase: 'lab', money: 50000, compute: 40, tier: 1, influence: 12,
+    score: 7.2, rivalScore: 24, crownWeeks: 0, fogLit: 8,
+    trainPct: 62, trainEta: 3, slotPct: 78, slotEta: 2, netFlow: 1400,
+    reportPending: false, crownShown: false
+  });
+  document.getElementById('crown').classList.remove('on');
+  buildReport(); render();
+  toast('已回到实验室期');
+}
+function toFreedom() {
+  Object.assign(S, {
+    week: 78, phase: 'freedom', money: 180000000, compute: 320, tier: 4, influence: 420,
+    score: 99, rivalScore: 88, crownWeeks: 24, fogLit: 11,
+    trainPct: 100, trainEta: 0, slotPct: 100, slotEta: 0, netFlow: 231000, reportPending: false
+  });
+  buildReport(); render();
+  toast('已登顶，进入自由期', true);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   交互绑定
+   ══════════════════════════════════════════════════════════════════ */
+document.querySelectorAll('[data-close]').forEach((b) => {
+  b.addEventListener('click', () => { if (z2Open) closeZ2(); else closeZ1(); });
+});
+
+document.getElementById('dockTech').addEventListener('click', () => openPanel('tech', 'z1'));
+document.getElementById('dockReport').addEventListener('click', () => { buildReport(); openPanel('report', 'z1'); });
+document.getElementById('dockCodex').addEventListener('click', () => openPanel('codex', 'z1'));
+document.getElementById('dockPause').addEventListener('click', () => openPanel('pause', 'z2'));
+
+document.querySelectorAll('.staff[data-staff]').forEach((c) => {
+  c.addEventListener('click', () => { selectStaff(c.dataset.staff); openPanel('staff', 'z1'); });
+});
+document.getElementById('staffEmpty').addEventListener('click', () => toast('招聘入口待拍板'));
+
+document.getElementById('slotHead').addEventListener('click', () => {
+  toast('已选中任务槽');
+  openPanel('staff', 'z1');
+});
+
+document.getElementById('btnBreakdown').addEventListener('click', (e) => {
+  const b = document.getElementById('breakdown');
+  b.classList.toggle('on');
+  e.currentTarget.textContent = b.classList.contains('on') ? '收起结构' : '收支结构';
+});
+
+/* 世界时钟：暂停键 + 三档变速 */
+document.getElementById('btnPause').addEventListener('click', () => {
+  if (S.clock === 'auto') return;
+  S.clock = (S.clock === 'user') ? 'run' : 'user';
+  paintClock();
+});
+document.querySelectorAll('.spd[data-s]').forEach((b) => {
+  b.addEventListener('click', () => {
+    if (b.disabled) return;
+    S.speed = parseInt(b.dataset.s, 10);
+    document.querySelectorAll('.spd[data-s]').forEach((x) => x.classList.toggle('on', x === b));
+  });
+});
+
+/* 决策卡选项 */
+document.querySelectorAll('#p-card .opt').forEach((o) => {
+  o.addEventListener('click', () => {
+    if (o.classList.contains('dis')) { nudge(panelEl('card')); return; }
+    o.classList.add('sel');
+    const pick = o.dataset.pick;
+    if (pick === 'lock') { S.money -= 120000; toast('已锁价 8 周', true); }
+    else { S.money -= 36000; toast('随行就市，赌一把', true); }
+    render();
+    setTimeout(() => { closeZ2(); }, 160);
+  });
+});
+
+/* 暂停菜单选项 */
+document.querySelectorAll('#p-pause .opt').forEach((o) => {
+  o.addEventListener('click', () => {
+    const k = o.dataset.pause;
+    if (k === 'resume') { closeZ2(); }
+    else if (k === 'save') { closeZ2(); toast('已保存并退出'); }
+    else { closeZ2(); toLab(); toast('已重开一局'); }
+  });
+});
+
+/* 员工名册：选中 / 改派 / 吐槽 */
+const STAFF = {
+  lin: { name: '林望舒', task: '复现 · 灵犀通识评测', eta: '~2 周', status: '复现中',
+    obs: '盯着 loss 曲线的眼神像在看别人家的孩子——稳，但憋着一口气。',
+    gossip: '再调一版，这波稳的' },
+  chen: { name: '陈北辰', task: '研究 · 喂 RP', eta: '~5 周', status: '研究中',
+    obs: '笔记比代码长，坚信"想清楚了再动手"。',
+    gossip: '算力呢？我的算力呢？' },
+  zhou: { name: '周霁明', task: '支援训练 · 璞石', eta: '~3 周', status: '支援中',
+    obs: '永远第一个到实验室，咖啡机是她的第二个工位。',
+    gossip: '这机器的风扇声比我家猫还响' }
+};
+let curStaff = 'lin';
+
+function selectStaff(id) {
+  curStaff = id;
+  document.querySelectorAll('.staff[data-staff]').forEach((c) => c.classList.toggle('sel', c.dataset.staff === id));
+  const d = STAFF[id];
+  document.getElementById('sdName').textContent = d.name;
+  document.getElementById('sdStatus').textContent = d.status;
+  document.getElementById('sdObserve').textContent = d.obs;
+  document.getElementById('sdTask').textContent = d.task;
+  document.getElementById('sdEta').textContent = d.eta;
+}
+
+document.querySelectorAll('#reassignOpts .opt').forEach((o) => {
+  o.addEventListener('click', () => {
+    if (o.classList.contains('dis')) { toast('上桌已满，换个人试试'); return; }
+    document.querySelectorAll('#reassignOpts .opt').forEach((x) => x.classList.remove('sel'));
+    o.classList.add('sel');
+    const k = o.dataset.assign;
+    if (k === 'keep') toast('保持当前指派');
+    else toast('已改派，进度重算', true);
+  });
+});
+
+/* 吐槽气泡（V1-17 · z3 浮层，锚定员工详情区） */
+let bubble = null, bubbleTimer = null;
+document.getElementById('btnGossip').addEventListener('click', () => {
+  if (!bubble) {
+    bubble = document.createElement('div');
+    bubble.className = 'gossip';
+    bubble.setAttribute('data-b', '正文');
+    panelEl('staff').appendChild(bubble);
+  }
+  bubble.textContent = '❝ ' + STAFF[curStaff].gossip;
+  bubble.classList.add('on');
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => bubble.classList.remove('on'), 3200);
+});
+
+/* 图鉴条目：已解锁可展开称谓详情（未解锁=掩码不可展开 · V1-08） */
+document.querySelectorAll('.cx').forEach((c) => {
+  c.addEventListener('click', () => {
+    if (c.classList.contains('masked')) { toast('还没解锁，继续经营'); return; }
+    const on = c.classList.toggle('sel');
+    const z = c.querySelector('.zero');
+    if (z) z.textContent = on ? '已收入名册 · 零数值收益' : '零数值收益';
+  });
+});
+
+/* 科技树节点：点亮/可研/传闻三态各自反馈（V1-08 列表口径） */
+document.querySelectorAll('#p-tech .node').forEach((n) => {
+  n.addEventListener('click', () => {
+    if (n.classList.contains('locked') || n.classList.contains('fog')) { toast('线索不足，再等等'); return; }
+    if (n.classList.contains('lit')) { toast('已点亮 · 效果生效中'); return; }
+    toast('可研究，去攒 RP 吧');
+  });
+});
+
+/* 排队槽：点击确认"自动顶入"语义（V1-05 真空三件套①） */
+document.getElementById('slotQueued').addEventListener('click', () => toast('队首完成后自动顶入'));
+
+/* 封顶横幅：收下后本局不再弹（once 语义 · RU-03） */
+document.getElementById('crownX').addEventListener('click', () => {
+  document.getElementById('crown').classList.remove('on');
+  toast('已收下 · 自由期继续');
+});
+
+/* 引导气泡：随手关，世界照走（V1-02） */
+document.getElementById('guideX').addEventListener('click', () => {
+  document.getElementById('guide').classList.remove('on');
+  toast('引导已收起，世界照走');
+});
+
+/* 原型工具条 */
+document.getElementById('swWeek').addEventListener('click', advanceWeek);
+document.getElementById('swCrown').addEventListener('click', toFreedom);
+document.getElementById('swLab').addEventListener('click', toLab);
+document.getElementById('swTruth').addEventListener('click', (e) => {
+  S.truth = !S.truth;
+  e.currentTarget.classList.toggle('on', S.truth);
+  e.currentTarget.textContent = S.truth ? '隐藏真值' : '显示真值';
+  render();
+});
+document.getElementById('swMobile').addEventListener('click', (e) => {
+  const on = document.body.classList.toggle('mobile');
+  e.currentTarget.classList.toggle('on', on);
+  e.currentTarget.textContent = on ? '横屏' : '竖屏';
+  setTimeout(runAudit, 60);
+});
+document.getElementById('swAudit').addEventListener('click', () => { runAudit(); openPanel('audit', 'z1'); });
+
+/* Esc：关 z1 / 关暂停菜单（z2 其余不响应） */
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (z2Open === 'pause') closeZ2();
+  else if (!z2Open) closeZ1();
+});
+
+/* ══════════════════════════════════════════════════════════════════
+   DR-010 文案预算自检 + 触屏目标自检
+   ══════════════════════════════════════════════════════════════════ */
+const BUDGET = { '选项': 8, 'toast': 20, '标题': 12, '周报': 30, '正文': 60 };
+
+function runAudit() {
+  const rows = [];
+  document.querySelectorAll('[data-b]').forEach((el) => {
+    const kind = el.dataset.b, lim = BUDGET[kind];
+    if (!lim || el.dataset.num) return;   /* 结构化数值行不计字数（DR-010） */
+    const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!txt) return;
+    const n = [...txt].length;
+    rows.push({ kind, txt, n, lim, ok: n <= lim });
+  });
+
+  /* 触屏目标：只检查当前可见的可点元素 */
+  const small = [];
+  document.querySelectorAll('button,[data-close],.opt,.staff,.slot,.cx').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return;
+    if (r.height < 47.5 || r.width < 47.5) {
+      small.push((el.textContent || '✕').trim().slice(0, 10) + ' (' + Math.round(r.width) + '×' + Math.round(r.height) + ')');
+    }
+  });
+
+  const bad = rows.filter((r) => !r.ok);
+  const out = document.getElementById('auditOut');
+  let html = '<div class="card"><div class="row"><b>文案条目</b><span class="tag '
+    + (bad.length ? 'red' : 'green') + '">' + rows.length + ' 条 · 违规 ' + bad.length + '</span></div>';
+  if (bad.length) {
+    html += '<div class="dim" style="margin-top:6px">超预算条目：</div>';
+    bad.forEach((b) => {
+      html += '<div class="kv"><span>' + b.kind + ' · ' + b.n + '/' + b.lim + '</span><b class="neg">' + b.txt + '</b></div>';
+    });
+  } else {
+    html += '<div class="dim" style="margin-top:6px">全部合规 ✓（选项≤8 / toast≤20 / 标题≤12 / 周报≤30 / 正文≤60）</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="card" style="margin-top:10px"><div class="row"><b>触屏目标</b><span class="tag '
+    + (small.length ? 'red' : 'green') + '">' + (small.length ? small.length + ' 个偏小' : '≥48px ✓') + '</span></div>';
+  if (small.length) html += '<div class="dim" style="margin-top:6px">' + small.join(' · ') + '</div>';
+  else html += '<div class="dim" style="margin-top:6px">当前可见可点元素均 ≥48px</div>';
+  html += '</div>';
+
+  html += '<div class="card" style="margin-top:10px"><div class="row"><b>面板栈</b>'
+    + '<span class="tag blue">z1=' + (z1Open || '—') + ' · z2=' + (z2Open || '—') + '</span></div>'
+    + '<div class="dim" style="margin-top:6px">同屏待决 ≤1（z2 互斥）· 阻塞期间 z1 不可开 · 遮罩规则 z1 关 / z2 仅暂停菜单关</div></div>';
+
+  out.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   启动
+   ══════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   启动
+   ══════════════════════════════════════════════════════════════════ */
+selectStaff('lin');
+render();
+document.getElementById('guide').classList.add('on');
+/* 首屏两条演示通知（通知层零红点零角标） */
+toast('灵感闪现：蒸馏小型化', true);
+setTimeout(() => toast('课题结项：西麓横向到账'), 900);
+</script>
+</body>
+</html>
