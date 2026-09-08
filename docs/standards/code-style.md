@@ -33,6 +33,23 @@ var data: Dictionary = parsed
 
 - 跨类型节点获取必须断言：`var player := %Player as Player`，禁止裸 `get_node()` 弱类型蔓延。
 
+### 2.1 stringly-typed 防线（v0.1.3 两次真实事故沉淀）
+
+字符串字面量当类型用是本项目已两次付出代价的缺陷源，纪律如下：
+
+- **封闭集合一律 enum，禁止字符串常量注册表**。事故一（v0.1.2 评审 P0）：
+  `DESIGN_SIZES` 用类名做键、运行时用蛇形文件名查表 → 永不命中，全弹层静默落
+  fallback；事故二（v0.1.3 反馈①）：presenter 写键 `"staff"`、消费方读键
+  `"staff_assigned"` → 统计恒 0。两者在 enum 下都是编译期错误。
+  已落地：`PanelStack.PanelId/Layer`（v0.1.3 起面板/层级禁字符串）。
+- **跨模块字典键，查表方与写表方必须有一方派生自另一方**（同源派生，
+  如统一 `resource_path.get_file().get_basename()`），并在键定义处注释禁令。
+- **状态字段/信号载荷中的"标识符"值同样枚举化**（`Array[String] → Array[PanelId]`）；
+  唯一例外：入存档/快照的开放容器（`flags` 等）保持字符串（跨版本兼容优先，
+  枚举序列化会把历史包袱焊死在存档 schema 里）。
+- 信号签名变化时，**全部 connect 点的 lambda/方法签名同步改**（GDScript 信号
+  参数类型不匹配是运行期错误，靠 grep 连接点兜底）。
+
 ## 3. 命名法
 
 | 对象 | 规则 | 示例 |
