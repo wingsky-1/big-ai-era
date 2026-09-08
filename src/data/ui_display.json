@@ -79,5 +79,12 @@
 		"separator": " · ",
 		"unresearchable_note": "不可研",
 		"_comment_unresearchable_note": "DR-031/D3 分母口径 (b)：逐域显示 n/该域实表节点数，非可研域（elsewhere）标注此注记，不把分母改成 11。"
+	},
+	"rival_bar": {
+		"gap_ahead_prefix": "领先 ",
+		"gap_behind_prefix": "落后 ",
+		"gap_separator": " ",
+		"gap_unavailable": "—",
+		"_comment": "竞对条差距文案（#77 / X3 字段修复）：gap = 竞对分 − 玩家分；>0 落后、≤0 领先。数值格式化用 benchmarks.json.score_precision。"
 	}
 }

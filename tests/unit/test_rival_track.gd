@@ -99,3 +99,61 @@ func test_acceptance_point_4_warning_thresholds_and_zero_false_alarm() -> void:
 	assert_signal_emitted_with_parameters(
 		rival_yellow, "rival_warned", [RivalTrack.WARN_YELLOW, "rv_launch_l1", 5]
 	)
+
+
+## ============ #77（0.1.5-1f）竞对死表重标专项 ============
+
+
+func test_rival_scores_within_reach_band() -> void:
+	# [T] #77：重标后每个发版动作所需 A ≤ 玩家可达上限 A（离线标定口径，不改引擎）
+	var benchmarks: Dictionary = DataLoader.load_json("res://src/data/benchmarks.json")
+	var params: Dictionary = ScoreMath.normalize_params(benchmarks["bench_gkp"])
+	assert_false(params.is_empty(), "出分参数必须可注入（benchmarks.json）")
+	# 玩家可达上限配置（纪要 §2.4 满配）：eff=187（3 人上桌）+ 满树 tb=1.40 + tier4 + 深渊 q=1.0
+	var max_ability: float = ScoreMath.calculate_ability(187, 1.4, 4, 1.0, params)
+	assert_almost_eq(max_ability, 213.4, 1.0, "满配 A 上限 ~213.4")
+	var max_score: float = ScoreMath.calculate_score(max_ability, params)
+	var launches: int = 0
+	for act_variant: Variant in _rival_cfg.get("timeline", []):
+		var act: Dictionary = act_variant
+		if str(act.get("type", "")) != "launch":
+			continue
+		launches += 1
+		var score: float = float(act.get("score", 0.0))
+		var required_a: float = ScoreMath.ability_for_score(score, params)
+		assert_lte(
+			required_a,
+			max_ability,
+			(
+				"动作 %s（%.1f 分）所需 A %.1f 应 ≤ 玩家上限 %.1f"
+				% [str(act.get("id", "")), score, required_a, max_ability]
+			)
+		)
+		assert_gte(max_score, score, "满配可达分 %.1f 应 ≥ 死表分 %.1f（霸榜可达）" % [max_score, score])
+	assert_eq(launches, 4, "发版动作应为 4 个（L1–L4）")
+	# 死表纪律：±15% 扰动只作用于周次（分数无随机）——时间线周次不动（DR-027④）
+	assert_true(_rival_cfg.has("jitter_pct"), "扰动参数必须在表级")
+	for act_variant: Variant in _rival_cfg.get("timeline", []):
+		var act: Dictionary = act_variant
+		assert_true(act.has("week"), "动作 %s 必须带名义周次" % str(act.get("id", "")))
+
+
+func test_rival_l4_within_guard_band() -> void:
+	# [T] #77：L4 死表分 ∈[93,98] 且 < 玩家封顶 99（禁超玩家）
+	var l4: Dictionary = {}
+	for act_variant: Variant in _rival_cfg.get("timeline", []):
+		var act: Dictionary = act_variant
+		if str(act.get("id", "")) == "rv_launch_l4":
+			l4 = act
+	assert_false(l4.is_empty(), "L4 动作必须存在")
+	var score: float = float(l4.get("score", 0.0))
+	assert_between(score, 93.0, 98.0, "L4 死表分 %.1f 应落守卫带 [93,98]" % score)
+	assert_lt(score, 99.0, "L4 禁超玩家封顶 99 分")
+	assert_eq(int(l4.get("week", 0)), 82, "L4 发版周次 82 不动（守 DR-027④ 先发率）")
+	# 三层张力：L4 高于 L3，形成"越追越紧"的压迫曲线
+	var l3_score: float = 0.0
+	for act_variant: Variant in _rival_cfg.get("timeline", []):
+		var act: Dictionary = act_variant
+		if str(act.get("id", "")) == "rv_launch_l3":
+			l3_score = float(act.get("score", 0.0))
+	assert_gt(score, l3_score, "L4（%.1f）应高于 L3（%.1f）" % [score, l3_score])
