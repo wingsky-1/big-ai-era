@@ -52,9 +52,16 @@ func can_start_training(base_id: String, context: Dictionary) -> Dictionary:
 			var hours_variant: Variant = DataLoader.require_key(
 				base_data, "hours_per_week", BASES_PATH
 			)
+			var max_staff_variant: Variant = DataLoader.require_key(
+				base_data, "max_staff", BASES_PATH
+			)
 			var economy: Economy = context.get("economy")
-			if hours_variant == null:
+			var headcount: int = int(context.get("training_headcount", 0))
+			if hours_variant == null or max_staff_variant == null:
 				reason = "invalid_base_config"
+			elif headcount > int(max_staff_variant):
+				# 上桌人数上限（DR-031/B2：基座 max_staff；min_staff 本版不启用）
+				reason = "headcount_exceeds_base_limit"
 			elif economy != null and int(hours_variant) > economy.get_compute_supply():
 				reason = "insufficient_weekly_compute"
 	return {"ok": reason.is_empty(), "reason": reason}

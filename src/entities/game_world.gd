@@ -276,6 +276,7 @@ func start_training(base_id: String) -> void:
 		"compute_tier": economy.get_compute()["tier"],
 		"money": get_money(),
 		"economy": economy,
+		"training_headcount": roster.get_slot_count(StaffRoster.SLOT_TRAINING),
 	}
 	var res := training.start_training(base_id, context)
 	if res.get("ok", false):

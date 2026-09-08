@@ -5,8 +5,9 @@ extends RefCounted
 ##
 ## 管理员工状态与工位/槽位分配：
 ## - 单人单槽：一名员工同一时刻至多分配到一个槽位
-## - 单槽独占：一个槽位同一时刻至多容纳一名员工
-## - DR-005R：科研效率采用加总计算（禁止均值）
+## - **多人槽**：一个槽位可容纳多名员工（上桌人数上限由 model_bases.max_staff 在
+##   TrainingProject 侧校验；本类只管"槽内集合"）
+## - DR-005R：科研效率 = **Σ 槽内全部员工的 research**（严禁均值）
 
 const SLOT_NONE: String = ""
 const SLOT_TASK: String = "task"
@@ -14,9 +15,10 @@ const SLOT_TRAINING: String = "training"
 const VALID_SLOTS: Array[String] = [SLOT_TASK, SLOT_TRAINING]
 
 var _staff: Dictionary = {}
+## 槽位 -> 占用者 ID 数组（顺序 = 上桌顺序；存档仍导出 staff→slot 的映射）
 var _slots: Dictionary = {
-	SLOT_TASK: "",
-	SLOT_TRAINING: "",
+	SLOT_TASK: [],
+	SLOT_TRAINING: [],
 }
 
 
@@ -24,8 +26,8 @@ var _slots: Dictionary = {
 func setup(staff_data: Dictionary, opening_data: Dictionary) -> void:
 	_staff = {}
 	_slots = {
-		SLOT_TASK: "",
-		SLOT_TRAINING: "",
+		SLOT_TASK: [],
+		SLOT_TRAINING: [],
 	}
 	var staff_ids: Array = opening_data.get("staff_ids", [])
 	for staff_id_variant: Variant in staff_ids:
@@ -42,30 +44,27 @@ func setup(staff_data: Dictionary, opening_data: Dictionary) -> void:
 			}
 
 
-## 槽位分配：将员工指派到目标槽位（保证单人单槽与单槽独占）
+## 槽位分配：把员工加入目标槽（单人单槽；已在槽内则幂等返回 true）
 func assign_staff(staff_id: String, slot_id: String) -> bool:
 	if not _staff.has(staff_id):
 		return false
 	if not VALID_SLOTS.has(slot_id):
 		return false
 
-	# 单人单槽：若原先在其他槽位，清理原槽位
+	# 单人单槽：若原先在其他槽位，先从原槽位移除
 	var current_slot: String = str(_staff[staff_id].get("assigned", ""))
-	if current_slot != "" and _slots.has(current_slot):
-		_slots[current_slot] = ""
+	if current_slot != "" and current_slot != slot_id and _slots.has(current_slot):
+		_remove_from_slot(current_slot, staff_id)
 
-	# 单槽独占：若目标槽位已被他人占用，解除其分配
-	var current_occupant: String = str(_slots.get(slot_id, ""))
-	if current_occupant != "" and current_occupant != staff_id and _staff.has(current_occupant):
-		_staff[current_occupant]["assigned"] = ""
-
-	# 设置新分配关系
-	_slots[slot_id] = staff_id
+	var occupants: Array = _slots.get(slot_id, [])
+	if not occupants.has(staff_id):
+		occupants.append(staff_id)
+	_slots[slot_id] = occupants
 	_staff[staff_id]["assigned"] = slot_id
 	return true
 
 
-## 解除分配：清空指定员工的槽位占用
+## 解除分配：把员工从其槽位移除
 func unassign_staff(staff_id: String) -> bool:
 	if not _staff.has(staff_id):
 		return false
@@ -73,8 +72,7 @@ func unassign_staff(staff_id: String) -> bool:
 	if current_slot == "":
 		return false
 
-	if _slots.has(current_slot) and _slots[current_slot] == staff_id:
-		_slots[current_slot] = ""
+	_remove_from_slot(current_slot, staff_id)
 	_staff[staff_id]["assigned"] = ""
 	return true
 
@@ -91,9 +89,24 @@ func get_all_staff() -> Dictionary:
 	return _staff.duplicate(true)
 
 
-## 查询槽位当前占用者 ID（空槽返回 ""）
+## 查询槽位当前占用者 ID（**单人语义保留**：返回首个上桌者，空槽返回 ""）
 func get_slot_occupant(slot_id: String) -> String:
-	return str(_slots.get(slot_id, ""))
+	var occupants: Array[String] = get_slot_occupants(slot_id)
+	return occupants[0] if not occupants.is_empty() else ""
+
+
+## 查询槽位全部占用者（多人槽；顺序 = 上桌顺序）
+func get_slot_occupants(slot_id: String) -> Array[String]:
+	var result: Array[String] = []
+	for occupant_variant: Variant in _slots.get(slot_id, []):
+		result.append(str(occupant_variant))
+	return result
+
+
+## 槽位当前人数（上桌人数校验用）
+func get_slot_count(slot_id: String) -> int:
+	var occupants: Array = _slots.get(slot_id, [])
+	return occupants.size()
 
 
 ## 获取员工总数
@@ -109,17 +122,16 @@ func get_total_wage() -> int:
 	return total
 
 
-## 求和版 research_eff（DR-005R）：若 slot_id 不为空，计算该槽位占用的员工的 research 之和
+## 求和版 research_eff（DR-005R）：Σ 槽内全部员工的 research（严禁均值）
 func get_research_eff(slot_id: String = SLOT_TRAINING) -> int:
-	if slot_id == "":
-		return 0
-	var occupant_id: String = get_slot_occupant(slot_id)
-	if occupant_id == "" or not _staff.has(occupant_id):
-		return 0
-	return int(_staff[occupant_id].get("research", 0))
+	var total: int = 0
+	for staff_id: String in get_slot_occupants(slot_id):
+		if _staff.has(staff_id):
+			total += int(_staff[staff_id].get("research", 0))
+	return total
 
 
-## 对传入员工（staff_id 列表或包含 research 字段的字典列表）的 research 属性做求和（用于验收点 90 + 63 = 153 的组合断言，严格禁止均值）
+## 对传入员工（staff_id 列表或包含 research 字段的字典列表）的 research 属性做求和
 func calculate_aggregate_research(staff_list: Array) -> int:
 	var total: int = 0
 	for item_variant: Variant in staff_list:
@@ -141,6 +153,7 @@ func to_snapshot() -> Array[Dictionary]:
 
 
 ## 存盘导出：返回 {"assigned": {staff_id: slot_id}, "condition": []}
+## **形状不变**（staff→slot 多对一）：多人同槽也只是一张映射表，零迁移。
 func to_save() -> Dictionary:
 	var assigned_dict: Dictionary = {}
 	for staff_id: String in _staff.keys():
@@ -153,17 +166,26 @@ func to_save() -> Dictionary:
 	}
 
 
-## 存盘恢复：恢复 assigned 分配状态
+## 存盘恢复：恢复 assigned 分配状态（按 staff_id 排序保证多人槽顺序确定）
 func restore(saved_staff: Dictionary) -> void:
-	# 清空现有分配
 	for slot_id: String in _slots.keys():
-		_slots[slot_id] = ""
+		_slots[slot_id] = []
 	for staff_info: Dictionary in _staff.values():
 		staff_info["assigned"] = ""
 
 	var assigned_dict: Dictionary = saved_staff.get("assigned", {})
-	for staff_id_variant: Variant in assigned_dict.keys():
+	var staff_ids: Array = assigned_dict.keys()
+	staff_ids.sort()
+	for staff_id_variant: Variant in staff_ids:
 		var staff_id: String = str(staff_id_variant)
 		var slot_id: String = str(assigned_dict[staff_id_variant])
 		if _staff.has(staff_id) and VALID_SLOTS.has(slot_id):
 			assign_staff(staff_id, slot_id)
+
+
+func _remove_from_slot(slot_id: String, staff_id: String) -> void:
+	if not _slots.has(slot_id):
+		return
+	var occupants: Array = _slots[slot_id]
+	occupants.erase(staff_id)
+	_slots[slot_id] = occupants
