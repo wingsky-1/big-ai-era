@@ -12,6 +12,8 @@ const TECH_TREE_SCENE: PackedScene = preload("res://src/ui/modals/tech_tree_dial
 const STAFF_ROSTER_SCENE: PackedScene = preload("res://src/ui/modals/staff_roster_dialog.tscn")
 const INTRO_SCENE: PackedScene = preload("res://src/ui/modals/intro_dialog.tscn")
 const PAUSE_MENU_SCENE: PackedScene = preload("res://src/ui/modals/pause_menu_dialog.tscn")
+const NAMING_DIALOG_SCENE: PackedScene = preload("res://src/ui/modals/naming_dialog.tscn")
+const TOKENS_COLORS: Resource = preload("res://src/ui/theme/tokens_colors.tres")
 
 var _world: GameWorld
 var _world_ref: WeakRef
@@ -23,6 +25,11 @@ var _active_modals: Dictionary = {}
 var _mask_overlay: ColorRect
 var _debug_beacon_enabled: bool = false
 var _debug_shot_mode: bool = false
+## 净流入预告副行（#78 / V1-18：动态挂载为 %ResourceSubrow 的兄弟行，竖屏保留不折叠）
+var _forecast_row: HBoxContainer
+var _forecast_label: Label
+var _forecast_detail_label: Label
+var _forecast_expanded: bool = false
 
 @onready var resource_bar: PanelContainer = %ResourceBar
 @onready var resource_subrow: HBoxContainer = %ResourceSubrow
@@ -232,9 +239,54 @@ func _init_runtime_systems() -> void:
 	_layout_mgr.layout_folded.connect(_on_layout_folded)
 
 	_setup_mask_overlay()
+	_setup_forecast_row()
 
 	# 初始同步折叠状态（后续随视口变化由信号与 RESIZED 钩子驱动）
 	_sync_folded_elements()
+
+
+## 资源栏净流入预告副行（#78 / V1-18）：挂在资源栏主行之下、与 %ResourceSubrow 平级，
+## 竖屏第一折只折叠 %ResourceSubrow（研发力/技术加成），预告副行保留不折叠。
+## 数值与文案键全部来自 L2 数据面（dashboard_presenter.forecast_text/forecast_lines）。
+func _setup_forecast_row() -> void:
+	var host: Node = resource_subrow.get_parent()
+	if host == null:
+		return
+	_forecast_row = HBoxContainer.new()
+	_forecast_row.name = "ForecastRow"
+	_forecast_row.add_theme_constant_override("separation", 12)  # num-ok: 布局间距（表现层）
+	_forecast_label = Label.new()
+	_forecast_label.name = "ForecastLabel"
+	_forecast_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	_forecast_label.add_theme_color_override("font_color", TOKENS_COLORS.get_meta("ink3"))
+	_forecast_label.gui_input.connect(_on_forecast_row_clicked)
+	_forecast_row.add_child(_forecast_label)
+	_forecast_detail_label = Label.new()
+	_forecast_detail_label.name = "ForecastDetailLabel"
+	_forecast_detail_label.add_theme_color_override("font_color", TOKENS_COLORS.get_meta("ink3"))
+	_forecast_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_forecast_detail_label.visible = false
+	_forecast_row.add_child(_forecast_detail_label)
+	host.add_child(_forecast_row)
+	host.move_child(_forecast_row, resource_subrow.get_index() + 1)
+
+
+## 点开资源栏副行 → 展开/收起收支结构行（工资 / 运维 / 任务 = 净）。
+func _on_forecast_row_clicked(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_forecast_expanded = not _forecast_expanded
+		_update_forecast_row()
+
+
+func _update_forecast_row() -> void:
+	if _forecast_label == null:
+		return
+	var res_view: Dictionary = _presenter.get_resource_view()
+	_forecast_label.text = str(res_view.get("forecast_text", ""))
+	var lines: Array = res_view.get("forecast_lines", [])
+	if _forecast_detail_label != null:
+		_forecast_detail_label.text = "\n".join(lines)
+		_forecast_detail_label.visible = _forecast_expanded and not lines.is_empty()
 
 
 func _setup_mask_overlay() -> void:
@@ -339,6 +391,28 @@ func _on_panel_pushed(panel_id: PanelStack.PanelId, _layer: int) -> void:
 			modal.settings_requested.connect(_on_pause_settings_requested)
 			_active_modals[panel_id] = modal
 			_mount_modal(modal)
+
+		PanelStack.PanelId.NAMING_DIALOG:
+			# 命名仪式 UI 落点（X7）：此前 submit_model_name 无任何入口。
+			# 提交/跳过统一走契约命令，成功（model_name 非空）才关框。
+			var naming: NamingDialog = NAMING_DIALOG_SCENE.instantiate()
+			naming.setup(world.model_name)
+			naming.submitted.connect(
+				func(raw_name: String) -> void:
+					world.submit_model_name(raw_name)
+					if not world.model_name.is_empty():
+						_stack.pop_panel(PanelStack.PanelId.NAMING_DIALOG)
+						_update_views()
+			)
+			naming.skipped.connect(
+				func() -> void:
+					world.submit_model_name("")
+					if not world.model_name.is_empty():
+						_stack.pop_panel(PanelStack.PanelId.NAMING_DIALOG)
+						_update_views()
+			)
+			_active_modals[panel_id] = naming
+			_mount_modal(naming)
 
 
 func _on_panel_popped(panel_id: PanelStack.PanelId, _layer: int) -> void:
@@ -513,8 +587,10 @@ func _update_views() -> void:
 	idle_staff_label.visible = staff_idle > 0
 
 	var rival_view: Dictionary = _presenter.get_rival_view()
-	rival_name_label.text = str(rival_view.get("rival_name", "深巷科技"))
-	rival_gap_label.text = str(rival_view.get("gap_text", "追赶中"))
+	rival_name_label.text = str(rival_view.get("rival_name", ""))
+	# 显示分级（RU-01）：<阈值只显档位标签，真值由周报保留（score_line 由 L2 出数、L3 拼接）
+	rival_gap_label.text = str(rival_view.get("score_line", ""))
 	rival_progress_bar.value = float(rival_view.get("rival_progress", 0.0)) * 100.0  # num-ok: 百分比换算
 
+	_update_forecast_row()
 	_update_speed_buttons()

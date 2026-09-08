@@ -55,6 +55,15 @@ const DECISION_POLICY_META: StringName = &"decision_policy"
 const BENCHMARKS_PATH: String = "res://src/data/benchmarks.json"
 const BENCHMARK_KEY: String = "bench_gkp"
 const MODEL_BASES_PATH: String = "res://src/data/model_bases.json"
+const TASKS_PATH: String = "res://src/data/tasks.json"
+const ECONOMY_PATH: String = "res://src/data/economy.json"
+const RIVALS_PATH: String = "res://src/data/rivals.json"
+const TECHS_PATH: String = "res://src/data/techs.json"
+const UI_DISPLAY_PATH: String = "res://src/data/ui_display.json"
+## 预告口径：任务剩余周数 <= 该值即判定"下一周结完成"（settle_week 每周期减 1）。
+const FORECAST_SETTLE_WEEKS: int = 1
+## 十进制底数（分数文本精度换算用）。
+const DECIMAL_BASE: float = 10.0  # num-ok: 十进制底数（数学常数，非游戏数值）
 
 var week: int = 0  # 权威周数（游戏状态口径；clock.week 仅触发器内部计数，一致性由测试锁定）
 var research_eff: int = 0
@@ -88,23 +97,37 @@ var _named_ids: Dictionary = {}
 var _named_cursor: int = 0
 var _last_signal_report: Dictionary = {}
 var _last_emitted_progress: Dictionary = {}
+## 只读数据面缓存（ADR-0016：L3 零业务计算/L3 禁读 L4，派生数据一律 L2 出）。
+var _economy_cfg: Dictionary = {}
+var _tasks_cfg: Dictionary = {}
+var _techs_cfg: Dictionary = {}
+var _rivals_cfg: Dictionary = {}
+var _ui_display: Dictionary = {}
+var _score_params: Dictionary = {}
+## 出分与榜单（分级显示 / 命名仪式判定的数据源）。
+var _scored_once: bool = false
+var _player_best_score: float = 0.0
+var _last_ledger: Dictionary = {}
+var _rival_warn_level: String = RivalTrack.WARN_NONE
+var _rival_warn_weeks_left: int = 0
 
 
 ## 组装子系统（GameClock/Economy/StaffRoster/TaskQueue/TechTree/Stages 强持有+参数注入；不回指）。
 func _init() -> void:
+	_load_data_caches()
 	clock = GameClock.new()
 	clock.setup(DataLoader.load_json("res://src/data/clock.json"), self)
 	clock.week_boundary_reached.connect(_on_week_boundary)
 	clock.tick_advanced.connect(_on_clock_tick)
 	economy = Economy.new()
-	economy.setup(DataLoader.load_json("res://src/data/economy.json"))
+	economy.setup(_economy_cfg)
 	economy.warned.connect(
 		func(amount: int) -> void:
 			toast_queued.emit({"text_key": "sys_save_hint", "warned": amount})
 	)
 	roster = StaffRoster.new()
 	task_queue = TaskQueue.new()
-	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
+	task_queue.setup(_tasks_cfg)
 	tech_fog = TechFog.new()
 	tech_tree = TechTree.new()
 	stages = Stages.new()
@@ -112,13 +135,29 @@ func _init() -> void:
 	sota_board = SotaBoard.new()
 	rng_stream = RngStream.new()
 	rival_track = RivalTrack.new()
+	rival_track.rival_warned.connect(_on_rival_warned)
 	event_engine = EventEngine.new()
-	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
-	tech_fog.setup(techs_cfg)
-	tech_tree.setup(techs_cfg, tech_fog)
+	tech_fog.setup(_techs_cfg)
+	tech_tree.setup(_techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
-	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _load_score_params())
+	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _score_params)
 	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
+
+
+## 只读数据面配置缓存（L2 读 L4 唯一入口；L3 一律经数据面取数，ADR-0016）。
+func _load_data_caches() -> void:
+	_economy_cfg = DataLoader.load_json(ECONOMY_PATH)
+	_tasks_cfg = DataLoader.load_json(TASKS_PATH)
+	_techs_cfg = DataLoader.load_json(TECHS_PATH)
+	_rivals_cfg = DataLoader.load_json(RIVALS_PATH)
+	_ui_display = DataLoader.load_json(UI_DISPLAY_PATH)
+	_score_params = _load_score_params()
+
+
+## 竞对逼近预警缓存（rival_track 判定单点，L2 只做只读转述）。
+func _on_rival_warned(level: String, _action_id: String, weeks_left: int) -> void:
+	_rival_warn_level = level
+	_rival_warn_weeks_left = weeks_left
 
 
 ## 出分参数装载（benchmarks.json → ScoreMath.normalize_params；L0 不读盘，由 L2 注入）
@@ -149,6 +188,237 @@ func get_compute() -> Dictionary:
 	return economy.get_compute()
 
 
+## ============ 只读数据面（ADR-0016：L3 零业务计算，派生/统计/预测一律在此出数）============
+
+
+## 下周净流入预告（RU-02 / DR-031 D1⑥；不进命令面，随快照/周报载荷分发）。
+## 逐项 = 下一周结 ledger 同口径：已入账待结算项（economy 周账，ADR-0015 账期契约）
+## + 下周周结确定项（占槽任务结算收入 + 固定工资）。随机项（事件/竞对）不过账 money。
+func get_income_forecast() -> Dictionary:
+	var ledger: Dictionary = economy.get_week_ledger()
+	var wage: int = _wage_per_week()
+	var task_income: int = 0
+	var task_rp: int = 0
+	var active: Dictionary = task_queue.get_active_task()
+	if not active.is_empty():
+		var weeks_left: int = int(active.get("weeks_left", 0))
+		if weeks_left <= FORECAST_SETTLE_WEEKS:
+			var task_cfg: Dictionary = _tasks_cfg.get(str(active.get("task_id", "")), {})
+			task_income = int(task_cfg.get("income", 0))
+			task_rp = int(task_cfg.get("rp_output", 0))
+	var booked_income: int = int(ledger.get("income", 0))
+	var booked_expense: int = int(ledger.get("expense", 0))
+	var income: int = booked_income + task_income
+	var expense: int = booked_expense + wage
+	return {
+		"available": not _ui_display.is_empty(),
+		"income": income,
+		"expense": expense,
+		"net": income - expense,
+		"influence_delta": int(ledger.get("influence_delta", 0)) + task_rp,
+		"wage": wage,
+		"task_income": task_income,
+		"display": _forecast_display_cfg(),
+		"lines":
+		[
+			{"id": "wage", "amount": -wage},
+			{"id": "opex", "amount": -booked_expense},
+			{"id": "task", "amount": booked_income + task_income},
+		],
+	}
+
+
+## 预告文案键（L3 禁读 L4：文案随数据面下发，L3 只拼接排版）。
+func _forecast_display_cfg() -> Dictionary:
+	var cfg: Dictionary = _ui_display.get("forecast", {})
+	return {
+		"row_label": str(cfg.get("row_label", "")),
+		"expanded_label": str(cfg.get("expanded_label", "")),
+		"unavailable_text": str(cfg.get("unavailable_text", "")),
+		"approx_prefix": str(cfg.get("approx_prefix", "")),
+		"line_separator": str(cfg.get("line_separator", "")),
+		"net_separator": str(cfg.get("net_separator", "")),
+		"net_label": str(cfg.get("net_label", "")),
+		"line_labels": (cfg.get("line_labels", {}) as Dictionary).duplicate(true),
+	}
+
+
+## 员工三口径只读视图（ADR-0016；v0.1.3 反馈① total/assigned/idle）。
+func get_staff_view() -> Dictionary:
+	var rows: Array = roster.to_snapshot()
+	var assigned_count: int = 0
+	for row: Dictionary in rows:
+		if str(row.get("assigned", "")) != "":
+			assigned_count += 1
+	return {
+		"rows": rows,
+		"total": rows.size(),
+		"assigned": assigned_count,
+		"idle": rows.size() - assigned_count,
+	}
+
+
+## 域进度只读视图（{lit,total} 按域；ADR-0016 决策②：L3 禁读 L4 表）。
+func get_domain_progress() -> Dictionary:
+	var counts: Dictionary = tech_fog.get_domain_counts()
+	var nodes: Dictionary = _techs_cfg.get("nodes", {})
+	var totals: Dictionary = {}
+	for node_id: String in nodes:
+		var node_domain: String = str((nodes[node_id] as Dictionary).get("domain", ""))
+		totals[node_domain] = int(totals.get(node_domain, 0)) + 1
+	var labels: Dictionary = _ui_display.get("domain_labels", {})
+	var summary_cfg: Dictionary = _ui_display.get("domain_summary", {})
+	var domains: Array[Dictionary] = []
+	var lit_total: int = 0
+	for domain_variant: Variant in _techs_cfg.get("domain_enum", []):
+		var domain: String = str(domain_variant)
+		var lit: int = int(counts.get(domain, 0))
+		lit_total += lit
+		(
+			domains
+			. append(
+				{
+					"id": domain,
+					"label": str(labels.get(domain, domain)),
+					"lit": lit,
+					"total": int(totals.get(domain, 0)),
+					"mainline": _is_mainline_domain(domain),
+				}
+			)
+		)
+	return {
+		"domains": domains,
+		"lit_total": lit_total,
+		"total_nodes": tech_fog.get_total_nodes(),
+		"summary":
+		{
+			"label": str(summary_cfg.get("label", "")),
+			"label_separator": str(summary_cfg.get("label_separator", "")),
+			"total_label": str(summary_cfg.get("total_label", "")),
+			"separator": str(summary_cfg.get("separator", "")),
+		},
+	}
+
+
+## 科技节点列表只读视图（L3 渲染所需元数据；替代 L3 直读 techs.json）。
+func get_tech_list_view() -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	var nodes: Dictionary = _techs_cfg.get("nodes", {})
+	for tech_id: String in nodes:
+		var node: Dictionary = nodes[tech_id]
+		(
+			rows
+			. append(
+				{
+					"id": tech_id,
+					"name": str(node.get("name", tech_id)),
+					"cost": int(node.get("cost", 0)),
+					"rp_cost": int(node.get("rp_cost", 0)),
+					"parents": node.get("parents", []),
+					"state": tech_fog.get_state(tech_id),
+				}
+			)
+		)
+	return rows
+
+
+## 竞对/榜单只读视图（ADR-0016：名称/差距/进度/预警等级 + 玩家分数分级显示）。
+func get_rival_view() -> Dictionary:
+	var timeline: Array = _rivals_cfg.get("timeline", [])
+	var cursor: int = rival_track.get_cursor()
+	var progress: float = 0.0
+	if not timeline.is_empty():
+		progress = float(cursor) / float(timeline.size())
+	return {
+		"rival_name": str(_rivals_cfg.get("name", "")),
+		"rival_best": rival_best,
+		"player_model": model_name,
+		"player_score": _player_best_score,
+		"score_display": get_score_display(_player_best_score),
+		"gap": rival_best - _player_best_score,
+		"rival_progress": progress,
+		"rival_cursor": cursor,
+		"rival_total": timeline.size(),
+		"warn_level": _rival_warn_level,
+		"warn_weeks_left": _rival_warn_weeks_left,
+		"has_scored": _scored_once,
+	}
+
+
+## 分数分级显示（RU-01：低于阈值主台只显档位标签，真值由周报保留）。
+func get_score_display(score: float) -> Dictionary:
+	var tiers: Array = _ui_display.get("score_tiers", [])
+	var display_cfg: Dictionary = _ui_display.get("score_display", {})
+	var separator: String = str(display_cfg.get("tier_separator", ""))
+	var unavailable_text: String = str(display_cfg.get("unavailable_text", ""))
+	if tiers.is_empty():
+		# 阈值键缺失 = 退化为"显示真值"（V1-19 口径），不静默隐藏真值
+		push_error("GameWorld.get_score_display: %s 缺 score_tiers" % UI_DISPLAY_PATH)
+		return {
+			"tier_id": "",
+			"label": "",
+			"reveal_truth": true,
+			"score": score,
+			"score_text": _format_score(score),
+			"separator": separator,
+			"unavailable_text": unavailable_text,
+		}
+	var chosen: Dictionary = {}
+	for tier_variant: Variant in tiers:
+		var tier: Dictionary = tier_variant
+		if score >= float(tier.get("min_score", 0.0)):
+			chosen = tier
+	return {
+		"tier_id": str(chosen.get("id", "")),
+		"label": str(chosen.get("label", "")),
+		"reveal_truth": bool(chosen.get("reveal_truth", false)),
+		"score": score,
+		"score_text": _format_score(score),
+		"separator": separator,
+		"unavailable_text": unavailable_text,
+	}
+
+
+## 命名仪式视图（X7：出分且未命名 → L3 推 NAMING_DIALOG）。
+func get_naming_view() -> Dictionary:
+	return {
+		"has_scored": _scored_once,
+		"pending": _scored_once and model_name.is_empty(),
+		"model_name": model_name,
+	}
+
+
+## 最近一次周结账目（预告=实际对账用；只读，非契约命令）。
+func get_last_ledger() -> Dictionary:
+	return _last_ledger.duplicate(true)
+
+
+## 每周固定工资（economy.json 真源 × 在册人数；与 Economy.accrue_fixed_expense 同口径）。
+func _wage_per_week() -> int:
+	var wage_variant: Variant = DataLoader.require_key(_economy_cfg, "wage_per_staff", ECONOMY_PATH)
+	if wage_variant == null:
+		return 0
+	return int(wage_variant) * staff.size()
+
+
+## 域是否计入主线（techs.json domain_flags.counts_mainline；未标注域默认计入）。
+func _is_mainline_domain(domain: String) -> bool:
+	var flags: Dictionary = _techs_cfg.get("domain_flags", {})
+	var row: Variant = flags.get(domain)
+	if row is Dictionary:
+		return bool((row as Dictionary).get("counts_mainline", false))
+	return true
+
+
+## 分数文本（精度取 benchmarks.json score_precision；缺失退化为原值文本）。
+func _format_score(score: float) -> String:
+	var precision_variant: Variant = _score_params.get("score_precision")
+	if precision_variant == null or float(precision_variant) <= 0.0:
+		return str(score)
+	var digits: int = int(round(log(1.0 / float(precision_variant)) / log(DECIMAL_BASE)))
+	return ("%." + str(digits) + "f") % score
+
+
 ## ============ 命令面（11）============
 
 
@@ -170,7 +440,12 @@ func start_new_game(seed: int = 0) -> void:
 	_named_cursor = 0
 	sota_best = 0.0
 	staff = {}
-	economy.setup(DataLoader.load_json("res://src/data/economy.json"))
+	_scored_once = false
+	_player_best_score = 0.0
+	_last_ledger = {}
+	_rival_warn_level = RivalTrack.WARN_NONE
+	_rival_warn_weeks_left = 0
+	economy.setup(_economy_cfg)
 	var opening := DataLoader.load_json("res://src/data/opening.json")
 	var compute: Dictionary = opening.get("compute", {})
 	economy.init_resources(
@@ -184,16 +459,15 @@ func start_new_game(seed: int = 0) -> void:
 	var staff_table := DataLoader.load_json("res://src/data/staff.json")
 	roster.setup(staff_table, opening)
 	staff = roster.get_all_staff()
-	task_queue.setup(DataLoader.load_json("res://src/data/tasks.json"))
-	var techs_cfg := DataLoader.load_json("res://src/data/techs.json")
-	tech_fog.setup(techs_cfg)
-	tech_tree.setup(techs_cfg, tech_fog)
+	task_queue.setup(_tasks_cfg)
+	tech_fog.setup(_techs_cfg)
+	tech_tree.setup(_techs_cfg, tech_fog)
 	stages.setup(DataLoader.load_json("res://src/data/stages.json"))
-	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _load_score_params())
+	training.setup(DataLoader.load_json(MODEL_BASES_PATH), _score_params)
 	sota_board.setup(opening, DataLoader.load_json(BENCHMARKS_PATH))
 	sota_best = sota_board.get_best_score()
 	rival_best = sota_board.get_rival_best()
-	rival_track.setup(DataLoader.load_json("res://src/data/rivals.json"), rng_stream)
+	rival_track.setup(_rivals_cfg, rng_stream)
 	event_engine.setup(DataLoader.load_json("res://src/data/events.json"))
 	_named_ids.clear()
 	_last_signal_report = {}
@@ -410,6 +684,9 @@ func restore(data: Dictionary) -> void:
 	var flags: Dictionary = data.get("flags", {})
 	game_over_flag = bool(flags.get("game_over", false))
 	_named_cursor = int(flags.get("name_cursor", 0))
+	# 呈现层读档还原（#78）：出分标记与玩家最高分（分级显示/命名仪式判定数据源）
+	_scored_once = bool(flags.get("scored", false))
+	_player_best_score = float(flags.get("player_best_score", 0.0))
 	var names: Array = data.get("player_model_names", [])
 	model_name = str(names.back()) if not names.is_empty() else ""
 	_named_ids.clear()
@@ -487,6 +764,9 @@ func _sync_card_block() -> void:
 func settle_week() -> void:
 	week += 1
 
+	# 步序 0: 预告快照（周结前口径）——周报对账尾注与 [T] 预告=实际 同源
+	var forecast_before: Dictionary = get_income_forecast()
+
 	# 步序 1: 卡时预算重置（ADR-0011）+ 经营收入结算（占槽任务，DR-031/C1）+ 固定支出
 	economy.recharge_weekly()
 	var task_settle := task_queue.settle_week()
@@ -504,6 +784,7 @@ func settle_week() -> void:
 			task_state_changed.emit(str(next_active.get("task_id", "")), "active")
 	economy.accrue_fixed_expense(staff.size())
 	var ledger := economy.get_week_ledger()
+	_last_ledger = ledger.duplicate(true)  # 预告=实际对账锚（get_last_ledger）
 	economy.emit_week_warning(ledger)
 
 	# 步序 2: Game Over 短路判定（在全部经营收入结算之后；ADR-0015 / DR-021 B3）
@@ -527,6 +808,9 @@ func settle_week() -> void:
 	var train_res := training.settle_week(research_eff, tech_bonus, economy.get_compute()["tier"])
 	if train_res.get("completed", false):
 		var score: float = float(train_res.get("score", 0.0))
+		# 出分登记（分级显示/命名仪式判定的唯一来源；模型名沿用未命名占位）
+		_scored_once = true
+		_player_best_score = maxf(_player_best_score, score)
 		var current_name := model_name if model_name != "" else "未命名"
 		var broken := sota_board.submit_score(current_name, score)
 		if broken:
@@ -579,7 +863,7 @@ func settle_week() -> void:
 			"expense": Formatter.format_money(int(ledger["expense"])),
 			"net": Formatter.format_delta(int(ledger["net"])),
 		},
-		"rows": _build_report_rows(ledger),
+		"rows": _build_report_rows(ledger, forecast_before),
 		"line_state": economy.check_lines(),
 	}
 	_last_signal_report = report
@@ -595,8 +879,10 @@ func get_last_report() -> Dictionary:
 	return _last_signal_report.duplicate(true)
 
 
-## 周报文本行（TextService 单真源；L3 只渲染不拼装）
-func _build_report_rows(ledger: Dictionary) -> Array[String]:
+## 周报文本行（TextService 单真源；L3 只渲染不拼装）。
+## 尾部两行（出分后）：分数真值行（RU-01：主台可只显档位标签，周报恒留真值）
+## 与预告对账尾注（Δ-06：把"预告=实际"搬到玩家眼前）。
+func _build_report_rows(ledger: Dictionary, forecast_before: Dictionary = {}) -> Array[String]:
 	var rows: Array[String] = []
 	(
 		rows
@@ -630,7 +916,37 @@ func _build_report_rows(ledger: Dictionary) -> Array[String]:
 			)
 		)
 	)
+	if _scored_once:
+		rows.append(
+			Formatter.format_stat_line(
+				str(_ui_display.get("report_score_label", "")), _format_score(_player_best_score)
+			)
+		)
+	var check_row: String = _build_forecast_check_row(forecast_before, ledger)
+	if not check_row.is_empty():
+		rows.append(check_row)
 	return rows
+
+
+## 预告对账尾注（文案键在 ui_display.json；不一致时同样如实标注，不美化）。
+func _build_forecast_check_row(forecast_before: Dictionary, ledger: Dictionary) -> String:
+	var cfg: Dictionary = _ui_display.get("forecast", {})
+	var label: String = str(cfg.get("check_label", ""))
+	var template: String = str(cfg.get("check_template", ""))
+	if forecast_before.is_empty() or label.is_empty() or template.is_empty():
+		return ""
+	var approx: String = str(cfg.get("approx_prefix", ""))
+	var predicted: int = int(forecast_before.get("net", 0))
+	var actual: int = int(ledger.get("net", 0))
+	var text: String = template
+	text = text.replace("{predicted}", approx + Formatter.format_delta(predicted))
+	text = text.replace("{actual}", Formatter.format_delta(actual))
+	var mark: String = (
+		str(cfg.get("check_matched_mark", ""))
+		if predicted == actual
+		else str(cfg.get("check_mismatch_mark", ""))
+	)
+	return Formatter.format_stat_line(label, "%s %s" % [text, mark])
 
 
 ## 收入脉冲确定性随机源已在批 1a 随脉冲源退役删除（DR-031/C1 + ADR-0008 决策 3：

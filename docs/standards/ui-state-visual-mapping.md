@@ -31,6 +31,8 @@
 > 信标断言名全部"待回填"（信标落地前 lint 豁免该列，同 §1 口径）；
 > 标注（既有）= 信号已在码内，（待建）= 信号/谓词随对应 issue 实施；配套界面规格全集见
 > docs/discussion/2026-09-08-ui-interface-specs-v1.md（逐节含三态覆盖/链路断言/空态/竖屏/触屏）。
+> 注（#78 起）：行号后缀「已实施」= 该行随对应 issue 落码（本区段其余行仍为提案）；V1-18/19 见
+> docs/discussion/2026-09-08-ui-prototype-v1-notes.md §四，V1-23 为 #78 命名仪式新行。
 
 | 编号 | 状态值 | 触发源信号 | 常显表现 | 瞬时表现 | 禁用表现 | 信标断言名 | 竖屏折叠形态 | 对应功能点/issue |
 |---|---|---|---|---|---|---|---|---|
@@ -51,6 +53,9 @@
 | V1-15 | deploy idle / deploying / online(单在线位) / accruing | deploy_state_changed（待建）+ resources_changed（既有，收支行） | 主台工作区上线行常显：在线位占用/版本名/累计收支行（动态锚，随 tick 刻级增长）；周报流内 deploy 收支行；非在线态显示引导行 deploy_ready_hint | 上线键按下反馈；在线位切换 0.5s内刷新+收支行重置 | 无可上线版本时上线键置灰+原因（deploy_no_release_reason）；在线位已占用时二次上线置灰+原因（deploy_slot_occupied_reason，"单在线位，先下线当前"） | 待回填 | 工作区内行满宽纵排（行属工作区组件，不触发工作区折叠） | 15 deploy/上线运维面板或行（#30，单在线位） |
 | V1-16 | freedom_phase active / 前自由期或三线全零=未渲染 | week_settled（既有）+ freedom_counters_changed（待建，flags 键 freedom_*：霸榜周数=SOTA 保霸周 +1 / 树已探明=fog_changed 域计数 / 影响力存量=resources.influence 快照） | 自由期激活后周报流固定槽位三行常显（至局终）：霸榜周数行/探明 n/14 行/影响力存量行，"当前值 → 目标带"格式；结构化数值行不计字数（DR-010）；禁红点零角标（被动信息，无操作） | 行随自动周报出现；数值变化行瞬时高亮 | 无交互控件=无禁用态；未进自由期或三线全零=整行不渲染（零态不 NaN 不空行）；目标带未标定（数值稿未收口）时"目标待标定"后缀非空白 | 待回填 | 行满宽纵排，三线压缩为三短行（周报行口径同 V1-06） | 16 自由期三线差距行（N3 缺口规格 docs/discussion/2026-09-08-gap-issue-specs-v1.md；DR-029 C-6，随 PR5 计数/PR9b 行；与 V1-06 边界=V1-06 是 #34 竞对缠斗行，两者并存不合并） |
 | V1-17 | gossip bubble active / pool_empty / observation_line 常显 | gossip_bubble_requested（待建：吐槽键→逻辑层 F1 池确定性轮转取文本→文本就绪信号；零新 RNG，RNG 消费点仍恰 3 处） | 员工详情区观察文本行常显（观察文本替代数值面板，condition/traits 禁数字面板——DR-029 A-8/E-1）；吐槽键常显（真空期可见）；气泡+图标双通道（色盲安全） | 点吐槽键→气泡淡入（F1 池确定性轮转，池耗尽前不重复）后自动消散；点猫→零状态彩蛋气泡（不入档，E-1） | 空池/文本键缺失时吐槽键置灰+原因（gossip_pool_empty_reason），不弹空白气泡不崩 | 待回填 | 气泡锚点随员工卡横滑位重算，不遮 Dock；观察文本行满宽 | 17 吐槽气泡/观察文本行（N4 缺口规格 docs/discussion/2026-09-08-gap-issue-specs-v1.md；DR-029 A-8/E-1+F1 池，文本归内容席管线；员工卡关联 V1-03） |
+| V1-18（#78 已实施） | 净流入预告 normal / negative / expanded | `resources_changed`（既有）+ `week_settled`（既有）→ L2 `get_income_forecast()` | 资源栏副行常显「下周净流入 ~±¥X」（弱权重 ink3）；点开显收支结构「工资 -¥~6k / 运维 -¥~3k / 任务 +¥~42k = 净 +¥~33k」；现金流为负仍常显（文本通道，不靠颜色单通道） | 点副行展开/收起收支结构（明细行出现/消失）；周结后预告数值翻新（对账尾注同步刷新） | 无禁用（只读+展开）；无预测数据（数据面不可用）时显「—」不显 0 | 待回填（建议 `ui_net_inflow_forecast`） | 副行保留不折叠（第一折只折叠 %ResourceSubrow 的研发力/技术加成）；展开区满宽换行 | 呈现层⑥（DR-031/D1⑥）；需求 RU-02；[T] `test_forecast_view_matches_ledger`（#78；数据面真源 `src/data/ui_display.json`） |
+| V1-19（#78 已实施） | 档位标签 t0–t4 × 真值显隐（score<10 隐藏 / ≥10 显示） | `sota_updated`（既有）+ `week_settled`（既有）→ L2 `get_score_display()` | 竞对条名次行常显档位标签（起步档·榜外/新星档/中坚档/第一梯队/登顶档）；<10 主台不含裸数字；≥10 同显真值；真值在周报恒显（含对账尾注） | 档位切换时标签文本翻新；跨阈值那周翻新 | 无禁用（只读）；分级阈值键缺失=退化为「显示真值」并 error 上报 | 待回填（建议 `ui_score_grade_badge`） | 名次行折行左对齐，不横向滚动 | 呈现层⑥（DR-031/D1⑥）；需求 RU-01；[T] `test_score_display_tiering`（#78） |
+| V1-23（#78 已实施） | 命名仪式 pending / submitted / skipped | `week_settled`（既有）→ L2 `get_naming_view().pending` | z2 弹层常显：标题/署名提示/输入框/规则提示/两键（署名发布、交给命运）；世界等玩家才停（z2 阻塞，遮罩点击不关闭） | 提交键按下 → `model_named` 发射 → 弹层关闭 + 主台名次行显示新名 | 敏感词/超长/非法字符被拒时弹层不关闭（可重输）；跳过=默认名池确定性轮转 | 待回填（建议 `ui_naming_dialog`） | 弹层满宽纵排，输入框与键位 ≥48px | X7 命名仪式 UI 落点（`submit_model_name` 此前无入口）；[T] `test_naming_dialog_mounted_and_submits`（#78） |
 
 ## 3. 维护纪律
 

@@ -9,20 +9,9 @@ extends RefCounted
 
 
 ## UI 快照（只读视图；世界内部状态不外泄引用）。
+## 呈现层数据面扩展（#78 / ADR-0016）：forecast/staff_view/domain_progress/rival_view/naming
+## 均由 L2 出数（L3 只格式化），不经命令面（契约命令仍 12、信号仍 11）。
 static func ui_snapshot(world: GameWorld) -> Dictionary:
-	var staff_list: Array = []
-	for staff_id: String in world.staff:
-		var row: Dictionary = world.staff[staff_id]
-		(
-			staff_list
-			. append(
-				{
-					"staff_id": staff_id,
-					"name": row.get("name", ""),
-					"assigned": row.get("assigned", ""),
-				}
-			)
-		)
 	return {
 		"week": world.week,
 		"cum_income": world.cum_income,
@@ -43,8 +32,13 @@ static func ui_snapshot(world: GameWorld) -> Dictionary:
 		},
 		"tasks": world.task_queue.to_snapshot(),
 		"staff": world.roster.to_snapshot(),
+		"staff_view": world.get_staff_view(),
 		"training": world.training.to_snapshot(),
 		"rivals": world.rival_track.to_snapshot(),
+		"rival_view": world.get_rival_view(),
+		"domain_progress": world.get_domain_progress(),
+		"forecast": world.get_income_forecast(),
+		"naming": world.get_naming_view(),
 		"pending_decision": world.pending_decision.duplicate(true),
 		"user_paused": world.user_paused,
 		"game_over": world.game_over_flag,
@@ -87,7 +81,15 @@ static func to_save(world: GameWorld) -> Dictionary:
 		"stages": world.stages.to_save(),
 		"sota": world.sota_board.to_save(),
 		"tutorial": {"step": world.tutorial_step, "done": world.tutorial_done},
-		"flags": {"game_over": world.game_over_flag, "name_cursor": world._named_cursor},
+		"flags":
+		{
+			"game_over": world.game_over_flag,
+			"name_cursor": world._named_cursor,
+			# 呈现层读档还原（#78）：出分标记与玩家最高分——否则读档后分级显示退化
+			# 为起步档、命名仪式不再触发（flags 为开放容器，加键零迁移）。
+			"scored": world._scored_once,
+			"player_best_score": world._player_best_score,
+		},
 	}
 
 
