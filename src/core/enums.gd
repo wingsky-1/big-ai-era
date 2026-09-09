@@ -9,6 +9,26 @@ enum ProjectType {
 	COMPUTE,
 }
 
+## 员工岗位四类（#130；真源=staff-spec G3 拍板"直接 4 岗"+staff-spec C.1 岗位文案键
+## staff_role_research/eval/data/engineering）。表内以稳定字符串承载（staff.json
+## staff_roles 键），代码侧 enum 映射单向集中在 Staff/Roster 解析处。
+enum StaffRole {
+	RESEARCH,
+	EVAL,
+	DATA,
+	ENGINEERING,
+}
+
+## 员工状态带三态（#130；真源=staff-spec A.3/B.2/C.1：专注/摸鱼/灵感走高）。
+## 状态值=enum 禁字符串（硬约束 3）；周粒度掷点由周结外部调用驱动（Settlement #135）。
+## 表内稳定字符串键真源=staff_state_weights/staff_state_modifier 三态键
+## （focus/slacking/inspired），enum→字符串映射集中在 Staff 内（同源派生）。
+enum StaffState {
+	FOCUS,
+	SLACKING,
+	INSPIRED,
+}
+
 ## 时间节拍仪式类型（#127：节拍日历行类型；与 time.json 节拍表键同源派生，
 ## enum 只在 L0/L2 内使用，数据表 JSON 内以稳定字符串承载）。
 enum RitualType {
