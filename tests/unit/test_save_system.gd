@@ -48,6 +48,7 @@ func test_save_atomic_keep_old_on_fail() -> void:
 
 func test_save_two_modes() -> void:
 	# 周结自动存 + 手动存两档同格式（同一 SnapshotCodec 信封）可覆盖同一路径
+	# （用默认档 user://savegame.json，即"关掉重开接着玩"的真实落盘点）
 	var world: Dictionary = {
 		"meta": {"saved_at_week": 1},
 		"game": {"week": 1, "seed": 1},
@@ -55,16 +56,19 @@ func test_save_two_modes() -> void:
 		"flags": {"scored": false},
 	}
 	var auto_save := SnapshotCodec.encode(world, SnapshotCodec.SAVE_KIND_AUTO)
-	assert_true(SaveSystem.save_game(auto_save, TEST_PATH), "周结自动存应成功")
-	assert_eq(_kind(SaveSystem.load_game(TEST_PATH)), SnapshotCodec.SAVE_KIND_AUTO, "落盘档类=auto")
+	assert_true(SaveSystem.save_game(auto_save, SaveSystem.SAVE_PATH), "周结自动存应成功")
+	assert_eq(
+		_kind(SaveSystem.load_game(SaveSystem.SAVE_PATH)), SnapshotCodec.SAVE_KIND_AUTO, "落盘档类=auto"
+	)
 	# 手动存覆盖同一路径（同格式可覆盖），档类=manual
 	var manual_save := SnapshotCodec.encode(world, SnapshotCodec.SAVE_KIND_MANUAL)
-	assert_true(SaveSystem.save_game(manual_save, TEST_PATH), "手动存应成功（覆盖自动档）")
-	var loaded := SaveSystem.load_game(TEST_PATH)
+	assert_true(SaveSystem.save_game(manual_save, SaveSystem.SAVE_PATH), "手动存应成功（覆盖自动档）")
+	var loaded := SaveSystem.load_game(SaveSystem.SAVE_PATH)
 	assert_eq(_kind(loaded), SnapshotCodec.SAVE_KIND_MANUAL, "手动档覆盖后档类=manual")
 	assert_eq(int(loaded.get("game", {}).get("week")), 1, "覆盖后业务数据一致（同格式）")
 	# 关掉重开语义：读档=同一 dict 信封完整（进度不丢，真人侧 [P] 以 IO 层保证）
 	assert_true(_is_world_state(loaded), "读档返回完整档面（信封+业务域）")
+	assert_true(SaveSystem.has_save(SaveSystem.SAVE_PATH), "默认档位置存在可续玩")
 
 
 func test_atomic_write_cleanup_tmp_and_bak_rotation() -> void:
@@ -113,7 +117,7 @@ func test_load_future_schema_rejected_keeps_disk() -> void:
 
 
 func _cleanup_test_files() -> void:
-	for path in [TEST_PATH, TEST_PATH + SaveSystem.SAVE_BAK_SUFFIX]:
+	for path in [TEST_PATH, SaveSystem.SAVE_PATH]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	var tmp_path: String = TEST_PATH + SaveSystem.SAVE_TMP_SUFFIX
@@ -122,3 +126,7 @@ func _cleanup_test_files() -> void:
 		DirAccess.remove_absolute(global_tmp)
 	elif FileAccess.file_exists(tmp_path):
 		DirAccess.remove_absolute(global_tmp)
+	for path in [TEST_PATH, SaveSystem.SAVE_PATH]:
+		var bak_global := ProjectSettings.globalize_path(path + SaveSystem.SAVE_BAK_SUFFIX)
+		if FileAccess.file_exists(path + SaveSystem.SAVE_BAK_SUFFIX):
+			DirAccess.remove_absolute(bak_global)
