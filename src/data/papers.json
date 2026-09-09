@@ -1,0 +1,109 @@
+{
+  "_comment": "papers.json v1.0.0（#133）。键名真源=papers-spec.md D.2 + numerics-master §二（91 行：RP 主域 30/副域 18、影响力 20、cash 课题 4 万/研究 2 万）；护栏跟键走 _bounds（#128 D6/ADR-0022）。选题池=五域各题（与 texts-keys paper_topic_* 键一一对应，texts.json 已落文案）。",
+  "paper_ndim_set": ["novelty", "rigor", "impact", "repro"],
+  "paper_ndim_weight": {
+    "novelty": 0.3,
+    "rigor": 0.3,
+    "impact": 0.2,
+    "repro": 0.2
+  },
+  "paper_quality_drivers": {
+    "staff": 0.5,
+    "tree": 0.25,
+    "topic": 0.25
+  },
+  "paper_accept_threshold": 85,
+  "paper_accept_max_per_game": 6,
+  "paper_ablation_bonus": 5,
+  "paper_exp_card_hours": {
+    "repro": 1,
+    "research": 3,
+    "contract": 2
+  },
+  "paper_duration_weeks": {
+    "repro": {"min": 2, "max": 3},
+    "research": {"min": 4, "max": 6},
+    "contract": {"min": 3, "max": 4}
+  },
+  "paper_rp_primary": 30,
+  "paper_rp_secondary": 18,
+  "paper_rp_multi_min": 0.5,
+  "paper_rp_multi_max": 0.7,
+  "paper_income_cash": {
+    "repro": 30000,
+    "research": 20000,
+    "contract": 40000
+  },
+  "paper_influence": {
+    "repro": 10,
+    "research": 20,
+    "contract": 6
+  },
+  "paper_domains": ["align", "distill", "memory", "tool", "multimodal"],
+  "paper_topics": {
+    "align": [
+      {
+        "id": "lora_align",
+        "title_key": "paper_topic_lora_align",
+        "type": "repro",
+        "domain": "align",
+        "duration_weeks": 3,
+        "rp_primary": true,
+        "quality_hint": {"novelty": 0.5, "repro": 0.8}
+      }
+    ],
+    "distill": [
+      {
+        "id": "distill_1",
+        "title_key": "paper_topic_distill_1",
+        "type": "research",
+        "domain": "distill",
+        "duration_weeks": 5,
+        "rp_primary": true,
+        "quality_hint": {"novelty": 0.8, "rigor": 0.5}
+      }
+    ],
+    "memory": [
+      {
+        "id": "memory_ctx",
+        "title_key": "paper_topic_memory_ctx",
+        "type": "research",
+        "domain": "memory",
+        "duration_weeks": 4,
+        "rp_primary": true,
+        "quality_hint": {"repro": 0.7, "impact": 0.5}
+      }
+    ],
+    "tool": [
+      {
+        "id": "tool_use",
+        "title_key": "paper_topic_tool_use",
+        "type": "research",
+        "domain": "tool",
+        "duration_weeks": 4,
+        "rp_primary": true,
+        "quality_hint": {"novelty": 0.8, "repro": 0.2}
+      }
+    ],
+    "multimodal": [
+      {
+        "id": "mm_clip",
+        "title_key": "paper_topic_mm_clip",
+        "type": "contract",
+        "domain": "multimodal",
+        "duration_weeks": 4,
+        "rp_primary": true,
+        "quality_hint": {"rigor": 0.7, "impact": 0.7}
+      }
+    ]
+  },
+  "_bounds": {
+    "paper_accept_threshold": [80, 88],
+    "paper_accept_max_per_game": [1, 6],
+    "paper_rp_primary": [20, 40],
+    "paper_rp_secondary": [10, 25],
+    "paper_rp_multi_min": [0.4, 0.6],
+    "paper_rp_multi_max": [0.6, 0.8],
+    "paper_ablation_bonus": [3, 6]
+  }
+}

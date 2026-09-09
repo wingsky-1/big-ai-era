@@ -111,3 +111,30 @@ static func role_coef(role_key: String, attr_key: String, staff_table: Dictionar
 			if coefs is Dictionary and (coefs as Dictionary).has(attr_key):
 				return float((coefs as Dictionary).get(attr_key, 0.0))
 	return 0.0
+
+
+## #133 增补：通用加权和纯函数（Σ(维×权)，单一公式真源架构 §4.2/ADR-0019；
+## 三产物同构——#141 完整 compose 复用本函数，本函数不绑定产物）。
+## 权重表真源=各产物数据表（论文 paper_ndim_weight；模型/芯片 #140/#139 建表）。
+## 参数：values={dim_key: value}（0–100 原始维值）、weights={dim_key: weight}。
+## 返回：score ∈[0,100]（权重和=1 由表断言保证；本函数防御缺权重维=按 0 计）。
+## 零硬编码：权重值全部来自调用方传入表块；本函数只做 Σ。
+static func weighted_sum(values: Dictionary, weights: Dictionary) -> float:
+	if values.is_empty() or weights.is_empty():
+		return 0.0
+	var score := 0.0
+	for dim: Variant in values.keys():
+		var dim_key := str(dim)
+		if not weights.has(dim_key):
+			continue
+		score += float(values[dim_key]) * float(weights[dim_key])
+	return score
+
+
+## 权重和=1 校验（表断言辅助：#128 数据框架外对权重表块的运行时护栏；
+## 防"加维忘改权重"导致分数域漂移——numerics-master"权重公开+和=1"契约）
+static func weights_sum_to_one(weights: Dictionary) -> bool:
+	var total := 0.0
+	for dim: Variant in weights.keys():
+		total += float(weights[dim])
+	return absf(total - 1.0) < 0.0001
