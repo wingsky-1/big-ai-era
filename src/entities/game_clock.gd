@@ -88,6 +88,15 @@ func set_paused(paused: bool) -> void:
 	_user_paused = paused
 
 
+## 存档恢复面（批7.1 #188 读档续玩：周数/速度/暂停态纯值反写；周数=恢复
+## 断点语义，周内进度零补偿——与失焦恢复同口径）。存档域 game 反写调用。
+func restore_state(week: int, speed_index: int, paused: bool) -> void:
+	_week = maxi(1, week)
+	if speed_index >= 0 and speed_index < _speed_multipliers.size():
+		_speed_index = speed_index
+	_user_paused = paused
+
+
 ## z2 阻塞门控（决策卡/周报自动弹期间由装配方置 true；世界停+变速置灰）。
 func set_z2_blocked(blocked: bool) -> void:
 	_z2_blocked = blocked
