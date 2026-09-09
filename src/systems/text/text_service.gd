@@ -17,6 +17,7 @@ const ERROR_MISSING_VARIABLE: String = "missing variable"
 const SUPPORTED_INTERP_VARS: Array[String] = [
 	"实验室名",
 	"日期",
+	"周数",
 	"名字",
 	"课程",
 	"节点名",
