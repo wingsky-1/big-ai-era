@@ -133,8 +133,13 @@ func test_paper_slot_released_after_route() -> void:
 	# 论文完成槽释放（防 4 槽死局：#143 模型侧仪式消费，论文侧本批收口）
 	assert_eq(board.get_slot_state(0), CoreEnums.ProjectState.EMPTY, "论文完成槽已释放可复用")
 	assert_eq(board.get_empty_slot_count(), 4, "槽释放后 4 槽全空")
-	# 周报行（账本对账：论文影响力 +10）+ 显著周
+	# 周报行（账本对账：论文影响力到账，#153 校准 repro=18）+ 显著周
 	var view: Dictionary = report.get_report_view()
 	assert_eq(view["row_count"], 1, "周报含 1 行（论文影响力）")
 	assert_true(bool(view["significant"]), "论文完成周=显著周（0→影响力）")
-	assert_true(str(view["rows"][0]["text"]).contains("10"), "行文本含影响力数值（L2 格式化）")
+	var papers_table := DataLoader.load_json("res://src/data/papers.json")
+	var expected_influence := str(int((papers_table["paper_influence"] as Dictionary)["repro"]))
+	assert_true(
+		str(view["rows"][0]["text"]).contains(expected_influence),
+		"行文本含影响力数值 %s（L2 格式化，papers.json 表驱动）" % expected_influence,
+	)

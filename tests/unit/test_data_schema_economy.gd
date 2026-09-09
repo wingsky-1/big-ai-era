@@ -5,6 +5,7 @@ const ECONOMY_PATH: String = "res://src/data/economy.json"
 
 const ECONOMY_SCHEMA: Dictionary = {
 	"eco_startup_cash": {"type": "int"},
+	"eco_startup_influence": {"type": "int"},
 	"eco_salary_total_week": {"type": "int"},
 	"eco_ops_cost_week_t0": {"type": "int"},
 	"eco_ops_cost_week_t1": {"type": "int"},
@@ -36,6 +37,7 @@ const ECONOMY_SCHEMA: Dictionary = {
 
 const ECONOMY_NUMERIC_KEYS: Array[String] = [
 	"eco_startup_cash",
+	"eco_startup_influence",
 	"eco_salary_total_week",
 	"eco_warning_ratio",
 	"eco_loan_cap",

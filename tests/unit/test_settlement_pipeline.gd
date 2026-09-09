@@ -47,8 +47,8 @@ func test_paper_finish_routes_to_archive_and_ledger() -> void:
 		if str(row.get("category_key", "")) == "income_task":
 			income_total += int(row.get("amount", 0))
 	assert_eq(income_total, 30000, "复现论文收入 3 万过账（papers.json 表驱动）")
-	# 影响力增益
-	assert_eq(_resources.get_influence(), 10, "复现论文影响力 +10（papers.json 表驱动）")
+	# 影响力增益（#153：repro=18，tech-tree 护栏"首节点成本 ≤ 首任务影响力×2"）
+	assert_eq(_resources.get_influence(), 18, "复现论文影响力 +18（papers.json 表驱动）")
 
 
 func test_paper_contract_income_higher_than_research() -> void:

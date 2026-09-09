@@ -1,5 +1,5 @@
 {
-  "_comment": "papers.json v1.0.0（#133）。键名真源=papers-spec.md D.2 + numerics-master §二（91 行：RP 主域 30/副域 18、影响力 20、cash 课题 4 万/研究 2 万）；护栏跟键走 _bounds（#128 D6/ADR-0022）。选题池=五域各题（与 texts-keys paper_topic_* 键一一对应，texts.json 已落文案）。",
+  "_comment": "papers.json v1.0.0（#133）。键名真源=papers-spec.md D.2 + numerics-master §二（91 行：RP 主域 30/副域 18、影响力 20、cash 课题 4 万/研究 2 万）；护栏跟键走 _bounds（#128 D6/ADR-0022）。选题池=五域各题（与 texts-keys paper_topic_* 键一一对应，texts.json 已落文案）。#153 教学节拍对齐：lora_align duration 3→2（钉 paper_duration_weeks.repro.min=2 教学首选题材面，repro 型其余选题仍可用 3——首任务时长镜像键 onb_first_task_duration 对齐）；paper_influence.repro 10→18（tech-tree-spec D.2 护栏'首节点成本 ≤ 首任务影响力×2'即 30≤18×2=36 ✓，spec 占位 ~20 带内、papers-spec 语义序 研究20>复现18≥课题6 保持），W3 首任务结算后 30+18=48 可再点次节点（onboarding 护栏'首任务后影响力必可再点'）。",
   "paper_ndim_set": ["novelty", "rigor", "impact", "repro"],
   "paper_ndim_weight": {
     "novelty": 0.3,
@@ -35,7 +35,7 @@
     "contract": 40000
   },
   "paper_influence": {
-    "repro": 10,
+    "repro": 18,
     "research": 20,
     "contract": 6
   },
@@ -47,7 +47,7 @@
         "title_key": "paper_topic_lora_align",
         "type": "repro",
         "domain": "align",
-        "duration_weeks": 3,
+        "duration_weeks": 2,
         "rp_primary": true,
         "quality_hint": {"novelty": 0.5, "repro": 0.8}
       }

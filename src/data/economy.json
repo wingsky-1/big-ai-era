@@ -1,6 +1,7 @@
 {
-  "_comment": "economy.json v1.0.0（#135 劳务期参数先行 + 三阶段结构；产品/资本期参数占位 P 批）。键名真源=economy-spec.md D.2 + numerics-master §三阶段；护栏跟键走 _bounds（#128 D6/ADR-0022）。",
+  "_comment": "economy.json v1.0.0（#135 劳务期参数先行 + 三阶段结构；产品/资本期参数占位 P 批）。键名真源=economy-spec.md D.2 + numerics-master §三阶段；护栏跟键走 _bounds（#128 D6/ADR-0022）。eco_startup_influence=#153 端到端对齐新增：开局影响力真源（Resources 构造注入；onboarding-spec D.2 onb_startup_influence 同义键迁移本表统一开局资源面）。取值 30=tech_tree.json 首浅节点成本（tree_research_cost_by_node 最小值），兑现 onboarding 护栏'开局即够研究首节点（六步卡点树不空等）'——spec 建议区间 12-18 系首节点 ~12 旧口径残留（tech-tree-spec D.2 成本基线 30 为权威），#153 裁决护栏优先、区间残留登记。",
   "eco_startup_cash": 200000,
+  "eco_startup_influence": 30,
   "eco_salary_total_week": 16000,
   "eco_ops_cost_week_t0": 0,
   "eco_ops_cost_week_t1": 4000,
@@ -38,6 +39,7 @@
   },
   "_bounds": {
     "eco_startup_cash": [150000, 250000],
+    "eco_startup_influence": [30, 40],
     "eco_salary_total_week": [12000, 20000],
     "eco_warning_ratio": [0.25, 0.4],
     "eco_solvency_weeks_cap": [52, 120],
