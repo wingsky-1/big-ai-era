@@ -1,0 +1,85 @@
+{
+  "_comment": "rng.json v1.0.0 首批（#125 RNG 六域登记）。键名真源=randomness-spec.md D.2 公式与参数表；域清单真源=A.1 随机源登记表（六域 id 精确拼写）；护栏跟键走（architecture-100 D6/ADR-0022）：数值键一律在 _bounds 内嵌声明，运行时读键防改数不改护栏。后续 #130/#137/#144 模块批在此表增量加键，域参数只读不动。",
+  "rng_global_seed": 0,
+  "rng_domain_derivation": 0,
+  "rnd_event_rate": 0.25,
+  "rnd_task_var_rate": 0.15,
+  "rnd_task_var_cd": 6,
+  "rnd_task_var_range": 0.08,
+  "rnd_task_var_net": 0.0,
+  "rnd_task_bonus_p": 0.04,
+  "rnd_task_accident_p": 0.03,
+  "rnd_staff_mod_range": 0.08,
+  "rnd_staff_exp": 1.0,
+  "rnd_staff_pity": 3,
+  "rnd_insight_pity_max": 6,
+  "rnd_rival_jitter": 1.5,
+  "rnd_worst_case_floor": 0.8,
+  "rnd_bankrupt_shield": 4,
+  "rng_domains": {
+    "_order": ["event", "insight", "rival", "task", "staff", "recruit"],
+    "event": {
+      "supply_note": "事件卡域（通知 z3/决策 z2）｜周结消费｜事件收支入供给台账（±小、有界）"
+    },
+    "insight": {
+      "supply_note": "灵感揭示域｜周结翻雾时机｜只定时机不定成败（pitch 纪律）；域内 pity 计数保底"
+    },
+    "rival": {
+      "supply_note": "竞对 ± 扰动域｜守卫分数 ± 微扰｜扰动=守卫张力随机源，幅度收口 ±2 内（rivals-spec 同源）"
+    },
+    "task": {
+      "supply_note": "任务事件壳域｜任务结算（波动/额外奖励/小事故）｜结算层收入波动 ≤±10%"
+    },
+    "staff": {
+      "supply_note": "员工状态带域｜周结周粒度掷一次｜产出乘数带与任务波动同量级 ≤±10%，期望 ≈1.00"
+    },
+    "recruit": {
+      "supply_note": "招募候选池域（P2）｜周结/刷新生成候选池｜稀有度频率带断言（防 SSR 通胀/枯竭）"
+    }
+  },
+  "rnd_freq_band": {
+    "theory_tolerance": 0.2,
+    "theory_tolerance_bounds": [0.1, 0.3],
+    "domains": {
+      "event": {
+        "domain": "event",
+        "rate_key": "rnd_event_rate",
+        "supply_note": "事件卡周触发率频率带（randomness-spec D.2 rnd_freq_band_*）"
+      },
+      "task_var": {
+        "domain": "task",
+        "rate_key": "rnd_task_var_rate",
+        "supply_note": "任务壳触发率频率带（每任务结算判定）"
+      },
+      "task_bonus": {
+        "domain": "task",
+        "rate_key": "rnd_task_bonus_p",
+        "supply_note": "任务壳额外奖励子触发率频率带"
+      },
+      "task_accident": {
+        "domain": "task",
+        "rate_key": "rnd_task_accident_p",
+        "supply_note": "任务壳小事故子触发率频率带"
+      }
+    },
+    "note": "各域万周频率带=理论触发率 ±theory_tolerance（randomness-spec D.2 rnd_freq_band_* 行）。批量登记=按 spec 已冻结率键逐域挂载；insight/rival/recruit/staff 分布率键随 #137/#144/#130 模块表落位后在此加行（表驱动，代码零改）。"
+  },
+  "_bounds": {
+    "rng_global_seed": [-2147483648, 2147483647],
+    "rng_domain_derivation": [0, 1],
+    "rnd_event_rate": [0.2, 0.3],
+    "rnd_task_var_rate": [0.1, 0.2],
+    "rnd_task_var_cd": [4, 8],
+    "rnd_task_var_range": [0.05, 0.1],
+    "rnd_task_var_net": [-0.01, 0.01],
+    "rnd_task_bonus_p": [0.03, 0.06],
+    "rnd_task_accident_p": [0.02, 0.05],
+    "rnd_staff_mod_range": [0.0, 0.1],
+    "rnd_staff_exp": [0.98, 1.02],
+    "rnd_staff_pity": [2, 3],
+    "rnd_insight_pity_max": [5, 8],
+    "rnd_rival_jitter": [1.0, 2.0],
+    "rnd_worst_case_floor": [0.78, 0.82],
+    "rnd_bankrupt_shield": [3, 5]
+  }
+}
