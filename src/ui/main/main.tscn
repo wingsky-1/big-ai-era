@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/ui/main/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://src/ui/dashboard/workspace_view.gd" id="2_workspace"]
+[ext_resource type="Script" path="res://src/ui/staff_area/staff_area_view.gd" id="3_staff_area"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -41,10 +42,12 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="StaffPlaceholder" type="Label" parent="MainStage/MiddleRow/StaffZone"]
+[node name="StaffArea" type="Control" parent="MainStage/MiddleRow/StaffZone"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "员工区"
-horizontal_alignment = 1
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("3_staff_area")
 
 [node name="BottomBar" type="VBoxContainer" parent="MainStage"]
 layout_mode = 2

@@ -9,7 +9,7 @@
 | 前缀 | 模块 | 数量 |
 |---|---|---|
 | onb_ | 新手引导 | 22 |
-| staff_ | 员工 | 30 |
+| staff_ | 员工 | 31 |
 | time_ | 时间 | 25 |
 | eco_ | 经济 | 38 |
 | rnd_ | 随机 | 15 |
@@ -21,7 +21,7 @@
 | ui_ | UI·UX 通用 | 32 |
 | term_ | 术语提示 | 28 |
 | name_filter_ | 敏感词三层 | 5 |
-| 总计 | | ~335（含池/占位） |
+| 总计 | | ~336（含池/占位） |
 
 ## 二、键名全表（冲突自检：前缀内与跨前缀均唯一）
 
@@ -71,12 +71,13 @@
 | staff_state_focus | 专注 | 2 | ✓ |
 | staff_state_slacking | 摸鱼 | 2 | ✓ |
 | staff_state_inspired | 灵感走高 | 4 | ✓ |
-| staff_state_output_hint | 出活 92%–108% | 8 | 周报 30 ✓ |
+| staff_state_output_hint | 出活 <下限>%–<上限>% | 11 | 周报 30 ✓（#147 起插值化：下限/上限数值由 L3 注入，防文案数值两张皮） |
 | staff_collab_same | 同岗组合 ×1.0 | 6 | 选项 8 ✓ |
 | staff_collab_adjacent | 相邻组合 ×1.05 | 8 | 选项 8 ✓ |
 | staff_collab_complement | 互补组合 ×1.15 | 8 | 选项 8 ✓ |
 | staff_assign_disabled_reason | 没有空闲研究员可指派 | 11 | 正文 ✓ |
 | staff_slot_empty | 空位 · 待招募 | 6 | 标题 12 ✓ |
+| staff_ontable_project | 在岗：<项目名> | 8 | 标题 12 ✓（#147 员工卡在岗行；<项目名> 由 L3 注入） |
 | staff_train_disabled_reason | 资金不足，课程费 ¥X | 11 | 正文 ✓ |
 | staff_transfer_cd_reason | 转岗冷却中 · 剩 X 周 | 10 | 正文 ✓ |
 | staff_retain_disabled_reason | 资金不足，留人需 ¥X | 11 | 正文 ✓ |

@@ -32,6 +32,9 @@ const SUPPORTED_INTERP_VARS: Array[String] = [
 	"域标签",
 	"目标维",
 	"面板名",
+	"下限",
+	"上限",
+	"项目名",
 ]
 
 static var _table: Dictionary = {}
