@@ -1,5 +1,5 @@
 {
-  "_comment": "models.json v1.0.0（#140 基座表首落：训练项目入槽数据源）。键名真源=models-spec.md D.2（model_ndim_set/weight/model_base_tier_req/model_train_duration/model_card_hours_week/model_on_table_cap/model_ckpt_week/model_base_profile）+ D.1（models.json：基座表 域/档位要求/工期/卡时/上桌上限/画像倾向）；表内结构仿 chips.json chip_tiers / tech_tree.json tree_nodes（dict-of-rows + _order）。P0 可训=迷你/灵犀-1/轻羽-1（unlock_node 空=初始可训，issue 实施提示）；长河-1/执笔-1/通感-1=数据表占位行（unlock_node=树解锁节点 id；树点亮接线 #144，本单不接树效果——占位=缺省锁）。训练时长=定值（rng 红线不随随机波动）；卡时周耗≤档位供给护栏由#139 预算账本断言；checkpoint=50% 确定性事件（model_ckpt_progress=0.5，零掷骰零数值掉落）。基座 n 维画像=选型依据（读表胜天；最终分=#141 出分合成，本单只存画像倾向）。",
+  "_comment": "models.json v1.0.0（#140 基座表首落 + #141 model_ndim_drivers 三源权重）。键名真源=models-spec.md D.2（model_ndim_set/weight/model_ndim_drivers/model_base_tier_req/model_train_duration/model_card_hours_week/model_on_table_cap/model_ckpt_week/model_base_profile）+ D.1（models.json：基座表 域/档位要求/工期/卡时/上桌上限/画像倾向）+ numerics-master.md §1.2（n 维三大来源：模型=员工 50%×树 25%×芯片 25%，护栏=员工来源最大单项 50% 且 ≥20%）；表内结构仿 chips.json chip_tiers / tech_tree.json tree_nodes（dict-of-rows + _order）。P0 可训=迷你/灵犀-1/轻羽-1（unlock_node 空=初始可训，issue 实施提示）；长河-1/执笔-1/通感-1=数据表占位行（unlock_node=树解锁节点 id；树点亮接线 #144，本单不接树效果——占位=缺省锁）。训练时长=定值（rng 红线不随随机波动）；卡时周耗≤档位供给护栏由#139 预算账本断言；checkpoint=50% 确定性事件（model_ckpt_progress=0.5，零掷骰零数值掉落）。基座 n 维画像=选型依据（读表胜天；最终维值=#141 compose 三源合成，本单 drivers 权重落位）。",
   "model_ndim_set": [
     "reasoning",
     "knowledge",
@@ -13,6 +13,11 @@
     "chat": 0.15,
     "speed": 0.2,
     "cost": 0.2
+  },
+  "model_ndim_drivers": {
+    "staff": 0.5,
+    "tree": 0.25,
+    "chip": 0.25
   },
   "model_ckpt_progress": 0.5,
   "model_bases": {
