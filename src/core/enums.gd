@@ -51,6 +51,12 @@ enum SlotRejectReason {
 	UNASSIGN_NOT_ON_TABLE,
 	## 任务槽已满（4 槽全占——恒 4 常量见 TASK_SLOT_COUNT）
 	ALL_SLOTS_FULL,
+	## 基座档位门槛未达（#140：训练启动校验档位因；ModelProject.tier_required
+	## vs 注入的档位谓词；models-spec 六因"算力档不足"单一原因码）
+	TIER_REQUIRED_NOT_MET,
+	## 本周卡时不足（#140：训练启动校验卡时因；注入的预算谓词判周耗 vs 剩余；
+	## models-spec 六因"本周卡时不足"+chips-spec OP-CHP-03 拒绝条件）
+	CARD_HOURS_INSUFFICIENT,
 }
 
 ## 员工岗位四类（#130；真源=staff-spec G3 拍板"直接 4 岗"+staff-spec C.1 岗位文案键
