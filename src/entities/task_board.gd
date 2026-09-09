@@ -1,6 +1,6 @@
 class_name TaskBoard
 extends RefCounted
-## L2 统一任务槽容器（#131）：恒 4 槽 × Project 抽象基类，三类项目共槽互斥。
+## L2 统一任务槽容器（#131 + #132 指派完整流）：恒 4 槽 × Project 抽象基类。
 ## 硬约束（任务书/architecture-100 §4.1/ADR-0018/§4.4/§8/§5.2）：
 ## - RefCounted、零 Node/SceneTree 依赖（headless 可单测）；
 ## - **槽恒 4**：架构 §4.1"槽配置=固定 4，常量入 core/enums 或 ui.json"→ 本批
@@ -19,15 +19,22 @@ extends RefCounted
 ##   is_staff_assignable，装配方把 Roster.is_assignable + 过滤串起来注入；
 ##   #130 同款"装配方注入"方向，本类不自持 Roster 引用防环）；
 ##   上桌人数上限校验来自 Project 声明（get_seat_limit），本类不发明上限；
-##   完整指派流/协作系数组合计算= #132（本批=容器侧命令+拒绝原因落位）；
+## - #132 完整指派流：指派/撤派成功即按槽成员岗位组合重算协作系数
+##   （CollabFactor 表驱动；岗位键经注入 get_staff_role_key 查询，staff.json 整表
+##   经注入 staff_table 提供——本类不自读文件不自持 Staff 引用，防环同谓词），
+##   写入 Project.set_collab_factor（多人>2=最弱配对保守下限，真源 #140/#141）；
+##   0.5s 刷新语义=task_board_changed 信号发射 + 槽视图随查随新（#131 已有信号，
+##   本批指派载荷不变；L3 消费信号重查 get_task_view，见架构 §5.2）；
 ## - week_tick 驱动各槽项目推进（架构 §5.3 phase 2；完成→FINISHED_PENDING，
 ##   槽不自动释放——结算/释放归 Settlement #135，本批不发明接口）；
 ## - 信号（架构 §5.2）：task_board_changed（槽态变）真实发射点+消费点（测试）；
 ##   project_finished 载荷需 kind_view（Settlement 路由产物），#135 随结算管线
 ##   一并发射，本批不提前发射（防零载荷死信号，§5.2 纪律）；
 ## - 数据面 get_task_view() 只读深拷贝（L3 只画）；每槽"预计结账 Wx/进度/周耗/
-##   上桌者/上限/原因"全部出自本 view（槽卡呈现同源，禁双写）；
-## - 数值零硬编码：唯一数值=槽数 4（架构真源固定，见上）。
+##   上桌者/上限/原因"全部出自本 view（槽卡呈现同源，禁双写）；#132 起槽视图
+##   含协作系数/协作分类/上桌者角色键（协作角标数据面同源）；
+## - 数值零硬编码：唯一数值=槽数 4（架构真源固定，见上）；协作系数值零代码
+##   硬编码（读注入的 staff.json，见 CollabFactor）。
 ## 行数预算：≤500（architecture §8 严控）；超限拆子状态类（当前未超）。
 
 signal task_board_changed(change: Dictionary)
@@ -46,6 +53,14 @@ const EMPTY_SLOT_TYPE: int = -1
 var is_staff_known: Callable = func(_staff_id: String) -> bool: return false
 ## 员工可派性谓词（注入；默认=全拒，同上防御方向；#132 前默认装配=Roster 谓词）
 var is_staff_assignable: Callable = func(_staff_id: String) -> bool: return false
+## 员工岗位键查询（注入；#132 协作系数按槽成员岗位组合计算用。装配方把
+## Staff.role_to_key(roster.get_staff(id).get_role()) 串起来注入；本类不自持
+## Staff/Roster 引用防环（同谓词方向）。未知 id/未装配=空串→CollabFactor 防御
+## 回退 known=false 档。返回=岗位表内稳定字符串（research/eval/data/engineering）
+var get_staff_role_key: Callable = func(_staff_id: String) -> String: return ""
+## staff.json 整表（注入；#132 协作系数表驱动真源。装配方经 DataLoader 读表注入；
+## 本类不自读文件（单测可注入假表/真表）。空=防御回退同岗 1.0 档不抛错）
+var staff_table: Dictionary = {}
 
 var _slot_projects: Array = []
 var _slot_staff_ids: Array = []
@@ -104,9 +119,11 @@ func _start_project(project: Project, prefer_slot: int) -> Dictionary:
 
 
 ## 指派员工上桌到指定槽项目（架构 §4.1 指派命令落点；#132 完整流：
-## 协作组合/状态带联动等，本批=写点+校验+拒绝原因）。
+## 写入成功后按槽成员组合重算协作系数——组合角标/周耗加速的数据面同源）。
 ## 校验序=固定（_validate_assign 链）：槽/项目在位 → 员工存在 → 未在别槽 →
 ## 未在本槽 → 可派性 → 上桌上限。单因语义：命中即返，禁多因拼接。
+## 0.5s 刷新语义=task_board_changed 信号发射（载荷含新协作 factor/kind，
+## L3 收信号重查 get_task_view 即可 0.5s 内翻新卡与角标，架构 §5.2）。
 func assign_staff(staff_id: String, slot_index: int) -> CoreEnums.SlotRejectReason:
 	var slot: int = _resolve_target_slot(slot_index)
 	var rejection := _validate_assign(slot, staff_id)
@@ -114,17 +131,21 @@ func assign_staff(staff_id: String, slot_index: int) -> CoreEnums.SlotRejectReas
 		return rejection
 	var project := get_project(slot)
 	_slot_staff_ids[slot].append(staff_id)
+	var factor: float = _refresh_slot_collab(slot)
 	var change := {
 		"kind": "assigned",
 		"slot_index": slot,
 		"type": project.get_type(),
 		"staff_id": staff_id,
+		"collab_factor": factor,
+		"collab_kind": _slot_collab_kind(slot),
 	}
 	_emit_changed(change)
 	return CoreEnums.SlotRejectReason.NONE
 
 
-## 撤派（把员工移出槽成员；校验对象=在桌员工）。
+## 撤派（把员工移出槽成员；校验对象=在桌员工）。撤派后重算协作系数
+## （回单人=1.0；多人剩 2 人=按剩余两人组合）——角标随撤派即时消失。
 func unassign_staff(staff_id: String, slot_index: int) -> CoreEnums.SlotRejectReason:
 	var slot: int = _resolve_target_slot(slot_index)
 	if slot == INVALID_SLOT_INDEX:
@@ -134,6 +155,7 @@ func unassign_staff(staff_id: String, slot_index: int) -> CoreEnums.SlotRejectRe
 	if not _staff_ids(slot).has(staff_id):
 		return CoreEnums.SlotRejectReason.UNASSIGN_NOT_ON_TABLE
 	_slot_staff_ids[slot].erase(staff_id)
+	_refresh_slot_collab(slot)
 	var change := {
 		"kind": "unassigned",
 		"slot_index": slot,
@@ -302,6 +324,8 @@ func _slot_view(slot: int) -> Dictionary:
 		"seat_limit": 0,
 		"assigned_staff": _slot_staff_ids[slot].duplicate(),
 		"assigned_count": 0,
+		"assigned_roles": {},
+		"collab_kind": CollabFactor.KIND_NONE,
 		"collab_factor": 1.0,
 	}
 	if project == null:
@@ -309,12 +333,14 @@ func _slot_view(slot: int) -> Dictionary:
 	base["type"] = project.get_type()
 	base["title_key"] = project.get_title_key()
 	base["progress"] = project.get_progress()
-	base["weeks_left"] = project.get_weeks_remaining()
-	base["eta_weeks"] = project.get_eta_weeks()
+	base["weeks_left"] = project.get_weeks_remaining_display()
+	base["eta_weeks"] = project.get_weeks_remaining_display()
 	base["card_hours_per_week"] = project.get_card_hours_per_week()
 	base["seat_limit"] = project.get_seat_limit()
 	base["assigned_staff"] = _slot_staff_ids[slot].duplicate()
 	base["assigned_count"] = _slot_staff_ids[slot].size()
+	base["assigned_roles"] = _slot_assigned_roles(slot)
+	base["collab_kind"] = _slot_collab_kind(slot)
 	base["collab_factor"] = project.get_collab_factor()
 	return base
 
@@ -370,6 +396,94 @@ func _slot_type(slot: int) -> int:
 	if project == null:
 		return EMPTY_SLOT_TYPE
 	return project.get_type()
+
+
+## 槽上桌者岗位键表（{staff_id: role_key}；角标/组合计算同源；仅 L2 内部）
+func _slot_assigned_roles(slot: int) -> Dictionary:
+	var roles: Dictionary = {}
+	for staff_id: Variant in _slot_staff_ids[slot]:
+		roles[str(staff_id)] = get_staff_role_key.call(str(staff_id))
+	return roles
+
+
+## 槽协作状态单点计算（{factor: float, kind: String}）：0–1 人=1.0/none；
+## 2 人=两人岗位组合（CollabFactor 表驱动）；≥3 人=取最弱配对保守下限
+## （多人组合语义真源 #140/#141 收口前不发明叠乘，只保证角标可见且不超
+## 单人最大组合）。未知角色/空表=防御回退 1.0（不抛错）。
+func _slot_collab_state(slot: int) -> Dictionary:
+	var members: Array = _slot_staff_ids[slot]
+	if members.size() < 2:
+		return {"factor": 1.0, "kind": CollabFactor.KIND_NONE}
+	if members.size() == 2:
+		var pair: Dictionary = (
+			CollabFactor
+			. pair_factor(
+				get_staff_role_key.call(str(members[0])),
+				get_staff_role_key.call(str(members[1])),
+				staff_table,
+			)
+		)
+		return {
+			"factor": float(pair.get("factor", 1.0)),
+			"kind": str(pair.get("kind", CollabFactor.KIND_SAME)),
+		}
+	# ≥3 人=最弱配对保守下限（多人语义 #140/#141 收口前不发明叠乘）；
+	# 初值=首对结果再取 min/弱档（防"worst 从 1.0 起步吞掉真实对"）
+	var worst_factor := 1.0
+	var worst_kind := CollabFactor.KIND_SAME
+	var first_pair := true
+	for i: int in members.size():
+		for j: int in range(i + 1, members.size()):
+			var pair: Dictionary = (
+				CollabFactor
+				. pair_factor(
+					get_staff_role_key.call(str(members[i])),
+					get_staff_role_key.call(str(members[j])),
+					staff_table,
+				)
+			)
+			var factor := float(pair.get("factor", 1.0))
+			var kind := str(pair.get("kind", CollabFactor.KIND_SAME))
+			if first_pair:
+				worst_factor = factor
+				worst_kind = kind
+				first_pair = false
+			else:
+				worst_factor = minf(worst_factor, factor)
+				if _kind_rank(kind) < _kind_rank(worst_kind):
+					worst_kind = kind
+	return {"factor": worst_factor, "kind": worst_kind}
+
+
+## 指派/撤派后重算并写入协作系数（Project.set_collab_factor 接口位写入方）；
+## 返回写入值（载荷/调用方可直接取用）
+func _refresh_slot_collab(slot: int) -> float:
+	var project := get_project(slot)
+	if project == null:
+		return 1.0
+	var factor := float(_slot_collab_state(slot).get("factor", 1.0))
+	project.set_collab_factor(factor)
+	return factor
+
+
+## 槽协作分类（view/载荷呈现）：单人=none；双人起=真实组合分类（同岗=same，
+## 效率 ×1.0 由详情页协同表呈现，staff-spec OP-STA-02；项目卡角标浮现条件=
+## factor>1.0 由 L3 判定——同岗 ×1.0 是基准不显角标，D.2）
+func _slot_collab_kind(slot: int) -> String:
+	if _slot_staff_ids[slot].size() < 2:
+		return CollabFactor.KIND_NONE
+	return str(_slot_collab_state(slot).get("kind", CollabFactor.KIND_SAME))
+
+
+## 分类档位秩（same=0 < adjacent=1 < complement=2；呈现代码与计算同源单调）
+static func _kind_rank(kind: String) -> int:
+	match kind:
+		CollabFactor.KIND_ADJACENT:
+			return 1
+		CollabFactor.KIND_COMPLEMENT:
+			return 2
+		_:
+			return 0
 
 
 func _emit_changed(change: Dictionary) -> void:
