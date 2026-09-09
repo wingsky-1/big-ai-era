@@ -31,6 +31,9 @@ const COLLAB_PREFIX: String = "×"
 ## 空槽 type 哨兵镜像（TaskBoard.EMPTY_SLOT_TYPE=-1；L3 镜像常量防 import L2，
 ## 一致性由 test_task_slot_card 断言锁同源）
 const EMPTY_SLOT_TYPE: int = -1
+## 员工卡句键（产出区间=状态数值带同源插值化；在岗=<项目名>）
+const KEY_OUTPUT_HINT: String = "staff_state_output_hint"
+const KEY_ONTABLE: String = "staff_ontable_project"
 
 
 ## 槽 view → 槽卡字段（单点适配；空槽=状态句 + 其余留空，防假数据"A.5 空态"）。
@@ -80,3 +83,64 @@ static func slot_card_view(view: Dictionary) -> Dictionary:
 	if state == CoreEnums.ProjectState.FINISHED_PENDING:
 		fields["state_text"] = TextService.text(KEY_SLOT_FINISHED)
 	return fields
+
+
+## 员工卡适配（#147）：staff view + 任务槽 views → 员工卡字段（名/岗位/状态带
+## 色键+字样/产出区间/在岗项目/协作角标）。在岗信息=任务槽 view 反查（架构
+## §4.1：指派唯一写点在槽成员，本适配只读 view 数组，零业务计算）；状态带=色
+## +文字双通道（staff-spec A.1 状态带可读；产出区间=状态数值带同源防两张皮）。
+
+
+## staff view + 全部槽 view → 员工卡字段（深拷贝输入，只读适配）。
+static func staff_card_view(staff_view: Dictionary, task_views: Array) -> Dictionary:
+	var staff_id := str(staff_view.get("id", ""))
+	var fields := {
+		"id": staff_id,
+		"name": str(staff_view.get("name", "")),
+		"role_name": _resolve_key(str(staff_view.get("role_name_key", ""))),
+		"state_key": str(staff_view.get("state_key", "")),
+		"state_name": _resolve_key(str(staff_view.get("state_name_key", ""))),
+		"output_hint": "",
+		"on_slot": false,
+		"assigned_text": "",
+		"collab_badge": "",
+	}
+	var state_key: String = fields["state_key"]
+	if not state_key.is_empty():
+		# 产出区间提示=状态数值带同源（modifier_min/max → 百分数，文案键插值）
+		var band_min := float(staff_view.get("modifier_min", 0.0))
+		var band_max := float(staff_view.get("modifier_max", 0.0))
+		fields["output_hint"] = (
+			TextService
+			. format(
+				KEY_OUTPUT_HINT,
+				{"下限": str(round(band_min * 100.0)), "上限": str(round(band_max * 100.0))},
+			)
+		)
+	# 在岗反查（架构 §4.1 唯一写点在槽成员；匹配即取标题/协作系数，break 单槽）
+	for slot_view_variant: Variant in task_views:
+		var slot_view: Dictionary = slot_view_variant
+		var members: Array = slot_view.get("assigned_staff", [])
+		if not members.has(staff_id):
+			continue
+		fields["on_slot"] = true
+		fields["assigned_text"] = (
+			TextService
+			. format(
+				KEY_ONTABLE,
+				{"项目名": _resolve_key(str(slot_view.get("title_key", "")))},
+			)
+		)
+		var factor := float(slot_view.get("collab_factor", 1.0))
+		if factor > 1.0:
+			# 协作 active=组合效率 >1.0（同岗/单人 ×1.0 基准不显，task_board 同源）
+			fields["collab_badge"] = "%s%.2f" % [COLLAB_PREFIX, factor]
+		break
+	return fields
+
+
+## 文案键安全解析（空键=直接留空，防 TextService 对空键 push_error 熔断）
+static func _resolve_key(text_key: String) -> String:
+	if text_key.is_empty():
+		return ""
+	return TextService.text(text_key)

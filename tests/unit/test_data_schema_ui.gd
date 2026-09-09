@@ -1,8 +1,8 @@
 extends GutTest
-## #145 ui.json schema 断言（#128 data_schema 框架挂载）+ #146 增量
-## （类型色/图标/0.5s 槽卡键/主题色板 token/空槽置灰强度）。
+## #145 ui.json schema 断言（#128 data_schema 框架挂载）+ #146/#147 增量
+## （类型色/图标/0.5s 槽卡键/主题色板 token/空槽置灰强度 + 状态色带/网格列数）。
 ## 真源=ui-ux-spec.md D.2（ui_touch_min/ui_progress_visual/ui_anim_l1_dur
-## 行护栏 + #146 新增行）；#149/#150 同文件增量显示分级/金框/toast 键。
+## 行护栏 + #146/#147 新增行）；#149/#150 同文件增量显示分级/金框/toast 键。
 
 const UI_PATH: String = "res://src/data/ui.json"
 
@@ -15,6 +15,7 @@ const UI_NUMERIC_KEYS: Array[String] = [
 	"ui_slot_refresh_dur",
 	"ui_slot_finish_anim_dur",
 	"ui_slot_empty_dim",
+	"ui_staff_grid_columns",
 ]
 
 const UI_SCHEMA: Dictionary = {
@@ -25,6 +26,7 @@ const UI_SCHEMA: Dictionary = {
 	"ui_slot_refresh_dur": {"type": "number"},
 	"ui_slot_finish_anim_dur": {"type": "number"},
 	"ui_slot_empty_dim": {"type": "number"},
+	"ui_staff_grid_columns": {"type": "number"},
 	"ui_ink_bg": {"type": "string"},
 	"ui_ink_panel": {"type": "string"},
 	"ui_ink1": {"type": "string"},
@@ -33,6 +35,7 @@ const UI_SCHEMA: Dictionary = {
 	"ui_accent": {"type": "string"},
 	"ui_type_colors": {"type": "dict"},
 	"ui_type_icons": {"type": "dict"},
+	"ui_staff_state_colors": {"type": "dict"},
 }
 
 
@@ -62,6 +65,8 @@ func test_ui_key_spelling_matches_source() -> void:
 		"ui_accent",
 		"ui_type_colors",
 		"ui_type_icons",
+		"ui_staff_grid_columns",
+		"ui_staff_state_colors",
 	]
 	var result := DataSchema.validate_key_spelling(table, expected)
 	assert_true(result.ok, "ui.json 键名拼写与真源一致: %s" % str(result.errors))
@@ -118,3 +123,17 @@ func test_ui_slot_tokens_guardrails() -> void:
 		var color_text: String = str(colors[type_key])
 		assert_true(color_text.begins_with("#"), "%s 类型色须为 hex 字符串" % type_key)
 		assert_false(str(icons[type_key]).is_empty(), "%s 图标字非空" % type_key)
+
+
+func test_ui_staff_tokens_guardrails() -> void:
+	# #147 员工区 token（ui-ux B.5：横屏网格 2-3 列；B.1 状态色带=色+字样双通道）
+	var table := DataLoader.load_json(UI_PATH)
+	assert_true(
+		int(table["ui_staff_grid_columns"]) >= 2 and int(table["ui_staff_grid_columns"]) <= 3,
+		"横屏网格列数 2-3（B.5）",
+	)
+	var state_colors: Dictionary = table["ui_staff_state_colors"]
+	for state_key: String in ["focus", "slacking", "inspired"]:
+		assert_true(state_colors.has(state_key), "状态色带 token 缺 %s" % state_key)
+		var color_text: String = str(state_colors[state_key])
+		assert_true(color_text.begins_with("#"), "%s 状态色须为 hex 字符串" % state_key)

@@ -8,7 +8,9 @@ extends Control
 ## - Dock 三键（任务板/科技树/暂停）=PanelStack.PanelId 冻结集（本骨架期
 ##   只登记键+最小可点按钮；面板实体逐批装配，A8）；
 ## - PanelStack 实例（z0-z3 栈语义；后续面板批 open/close 消费）；
-## - 工作区=WorkspaceView（#146：4 张任务槽卡；数据面由装配方 bind 注入）。
+## - 工作区=WorkspaceView（#146：4 张任务槽卡；数据面由装配方 bind 注入）；
+## - 员工区=StaffAreaView（#147：员工卡横滑行/网格；折叠形态经 apply_shape 下发，
+##   判定仍只在 LayoutPolicy）。
 ## 触控纪律（ui-ux B.5）：全部可点元素 custom_minimum_size ≥48px（灰点
 ## ≥24）——Dock 三键按 ui.json ui_touch_min 声明（表断言锁定 48；本脚本
 ## 常量=表值镜像，防 L3 读表违规——双通道由 GUT 断言锁一致）。
@@ -23,6 +25,7 @@ var _panel_stack: PanelStack = PanelStack.new()
 @onready var _workspace: Control = %WorkspaceZone
 @onready var _workspace_view: WorkspaceView = %Workspace
 @onready var _staff_area: Control = %StaffZone
+@onready var _staff_area_view: StaffAreaView = %StaffArea
 @onready var _resource_bar: Control = %ResourceBarZone
 @onready var _dock: Control = %DockZone
 @onready var _dock_task: Button = %DockTask
@@ -45,6 +48,8 @@ func _apply_layout() -> void:
 		return
 	var portrait := LayoutPolicy.is_portrait(viewport.size.x, viewport.size.y)
 	var staff_fold := LayoutPolicy.fold_shape(LayoutPolicy.ZONE_STAFF, portrait)
+	# 员工卡容器形态下发（横滑行/网格切换由 StaffAreaView 执行，判定在本层）
+	_staff_area_view.apply_shape(staff_fold)
 	if staff_fold == LayoutPolicy.FOLD_HSCROLL:
 		# 竖屏：员工区折为横滑行单行（卡高 ≥48 由员工卡批声明）
 		_staff_area.custom_minimum_size = Vector2(0, 96.0)
@@ -76,3 +81,8 @@ func get_panel_stack() -> PanelStack:
 ## 工作区视图（测试/装配方绑数据面：workspace.bind(task_view_source, emitter, 信号)）
 func get_workspace_view() -> WorkspaceView:
 	return _workspace_view
+
+
+## 员工区视图（测试/装配方绑数据面：staff_area.bind(roster_source, task_source, …)）
+func get_staff_area_view() -> StaffAreaView:
+	return _staff_area_view
