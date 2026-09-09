@@ -36,8 +36,17 @@ trap 'rm -f "$IMPORT_LOG" "$GUT_LOG"; rm -rf "$XDG_DATA_HOME"' EXIT
 # ---------- 1. 静态检查 ----------
 step "静态检查 (gdformat --check + gdlint)"
 if command -v gdformat >/dev/null 2>&1 && command -v gdlint >/dev/null 2>&1; then
-    gdformat --check src tests
-    gdlint src tests
+    # 归档目录 _archive_legacy 为 v0.1.x 底料（ADR-0017），目录级豁免：
+    # gdformat/gdlint 均不支持排除语法，改为显式传非归档目录清单。
+    LINT_DIRS=()
+    for dir in src/*/ tests/*/; do
+        case "$dir" in
+            *_archive_legacy/) ;; # 跳过归档
+            *) LINT_DIRS+=("$dir") ;;
+        esac
+    done
+    gdformat --check "${LINT_DIRS[@]}"
+    gdlint "${LINT_DIRS[@]}"
 else
     echo "[verify] 跳过（gdformat/gdlint 未安装；可运行 scripts/setup_env.sh --with-lint）"
 fi
