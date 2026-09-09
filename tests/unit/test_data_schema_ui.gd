@@ -17,6 +17,8 @@ const UI_NUMERIC_KEYS: Array[String] = [
 	"ui_slot_empty_dim",
 	"ui_staff_grid_columns",
 	"ui_report_significant",
+	"ui_naming_max_len",
+	"ui_unlock_popup_dur",
 	"ui_anim_l2_dur",
 	"ui_anim_l3_count",
 	"ui_ndim_reveal_dur",
@@ -35,6 +37,8 @@ const UI_SCHEMA: Dictionary = {
 	"ui_anim_l3_count": {"type": "number"},
 	"ui_ndim_reveal_dur": {"type": "number"},
 	"ui_report_significant": {"type": "number"},
+	"ui_naming_max_len": {"type": "number"},
+	"ui_unlock_popup_dur": {"type": "number"},
 	"ui_ink_bg": {"type": "string"},
 	"ui_ink_panel": {"type": "string"},
 	"ui_ink1": {"type": "string"},
@@ -83,6 +87,8 @@ func test_ui_key_spelling_matches_source() -> void:
 		"ui_report_significant",
 		"ui_staff_state_colors",
 		"ui_anim_l2_dur",
+		"ui_naming_max_len",
+		"ui_unlock_popup_dur",
 		"ui_anim_l3_count",
 		"ui_ndim_reveal_dur",
 	]
@@ -190,4 +196,27 @@ func test_ui_report_significant_single_source() -> void:
 			and int(ui_table["ui_report_significant"]) <= 10
 		),
 		"显著阈值 1-10（time-spec D.2 变化<5%为平淡周）",
+	)
+
+
+func test_ui_naming_and_unlock_guardrails() -> void:
+	# #151 命名/解锁弹卡 token：命名上限=name_filter_max_len 同源镜像；
+	# 解锁自动收 ≤3s（A.2 轻量自动收）
+	var ui_table := DataLoader.load_json(UI_PATH)
+	var sensitive := DataLoader.load_json("res://src/data/sensitive_words.json")
+	assert_eq(
+		int(ui_table["ui_naming_max_len"]),
+		int(sensitive["name_filter_max_len"]),
+		"ui_naming_max_len == name_filter_max_len（同源镜像，防双源漂移）",
+	)
+	assert_true(
+		int(ui_table["ui_naming_max_len"]) >= 10 and int(ui_table["ui_naming_max_len"]) <= 20,
+		"命名上限 10-20（OP-UX-05 ≤12）",
+	)
+	assert_true(
+		(
+			float(ui_table["ui_unlock_popup_dur"]) >= 2.0
+			and float(ui_table["ui_unlock_popup_dur"]) <= 4.0
+		),
+		"解锁弹卡自动收 2-4s（≤3 收口）",
 	)

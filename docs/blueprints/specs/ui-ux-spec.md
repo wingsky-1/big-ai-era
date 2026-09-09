@@ -278,6 +278,8 @@ UI 文案禁"正在加载科技力量"式空话；加载态文案只用于真实
 | ui_danger | danger 色 token（B.1 红绿灯） | #DC2626 | 恒值 | 跌/预警文本通道（负值净流入/横幅）；L3 镜像=表值 |
 | ui_danger_bg | danger 浅底 token | #FEF2F2 | 恒值 | 预警横幅底（深字浅板；与 ui_danger 文本同通道） |
 | ui_report_significant | 周报显著变化阈值 | ≥5% 或符号翻转 | 表驱动 | 单一谓词源（time-spec 同标） |
+| ui_naming_max_len | 命名输入上限 | 12 字 | 10–20 | OP-UX-05「输入 ≤12 字」；=name_filter_max_len 同源镜像（GUT 断言两表一致） |
+| ui_unlock_popup_dur | 解锁弹卡自动收 | ≤3s | 2–4 | 轻量自动收（非金框非阻塞；A.2 解锁弹卡） |
 
 ### D.3 蓝图内部一致性对账（本模块）
 
