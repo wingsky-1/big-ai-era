@@ -17,6 +17,9 @@ const UI_NUMERIC_KEYS: Array[String] = [
 	"ui_slot_empty_dim",
 	"ui_staff_grid_columns",
 	"ui_report_significant",
+	"ui_anim_l2_dur",
+	"ui_anim_l3_count",
+	"ui_ndim_reveal_dur",
 ]
 
 const UI_SCHEMA: Dictionary = {
@@ -28,6 +31,9 @@ const UI_SCHEMA: Dictionary = {
 	"ui_slot_finish_anim_dur": {"type": "number"},
 	"ui_slot_empty_dim": {"type": "number"},
 	"ui_staff_grid_columns": {"type": "number"},
+	"ui_anim_l2_dur": {"type": "number"},
+	"ui_anim_l3_count": {"type": "number"},
+	"ui_ndim_reveal_dur": {"type": "number"},
 	"ui_report_significant": {"type": "number"},
 	"ui_ink_bg": {"type": "string"},
 	"ui_ink_panel": {"type": "string"},
@@ -76,6 +82,9 @@ func test_ui_key_spelling_matches_source() -> void:
 		"ui_staff_grid_columns",
 		"ui_report_significant",
 		"ui_staff_state_colors",
+		"ui_anim_l2_dur",
+		"ui_anim_l3_count",
+		"ui_ndim_reveal_dur",
 	]
 	var result := DataSchema.validate_key_spelling(table, expected)
 	assert_true(result.ok, "ui.json 键名拼写与真源一致: %s" % str(result.errors))
