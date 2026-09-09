@@ -37,6 +37,7 @@ enum PanelId {
 	DECISION_CARD,
 	WEEKLY_REPORT,
 	NAMING_DIALOG,
+	UNLOCK_POPUP,
 	## z3 通知层（toast；无遮罩同屏 ≤3——计数归 #149 批）
 	TOAST,
 }
@@ -63,6 +64,7 @@ const PANEL_Z: Dictionary = {
 	PanelId.DECISION_CARD: 2,
 	PanelId.WEEKLY_REPORT: 2,
 	PanelId.NAMING_DIALOG: 2,
+	PanelId.UNLOCK_POPUP: 2,
 	PanelId.TOAST: 3,
 }
 
@@ -74,6 +76,13 @@ var _open_stack: Array[PanelId] = []
 var _panels: Dictionary = {}  # PanelId → 面板数据（装配方挂渲染句柄；空=未实例）
 
 ## ---------- 注册表查询（只读） ----------
+
+
+## 遮罩点击可否关闭（ui-ux A.2：z1 轻遮罩可点外关闭；z2 阻塞=遮罩点击不关闭
+## 强迫处理；z3 无遮罩）。模态层（L3）据此拒绝 backdrop 关闭语义。
+static func backdrop_dismissable(panel: PanelId) -> bool:
+	var z := z_of(panel)
+	return z == 1
 
 
 static func z_of(panel: PanelId) -> int:

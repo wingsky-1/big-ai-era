@@ -25,6 +25,7 @@ func test_panelstack_registry_complete() -> void:
 		PanelStack.PanelId.DECISION_CARD,
 		PanelStack.PanelId.WEEKLY_REPORT,
 		PanelStack.PanelId.NAMING_DIALOG,
+		PanelStack.PanelId.UNLOCK_POPUP,
 		PanelStack.PanelId.TOAST,
 	]
 	for panel: PanelStack.PanelId in all_ids:
