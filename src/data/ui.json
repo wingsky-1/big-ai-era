@@ -1,0 +1,7 @@
+{
+  "_comment": "ui.json v1.0.0（#145 四主区骨架首落：触控目标/进度条主视觉/L1 动画时长）。键名真源=ui-ux-spec.md D.2（ui_touch_min=48 硬约束灰点例外 ≥24/ui_progress_visual 10-14/ui_anim_l1_dur ≤0.6s）。呈现参数（L2 出数只格式化不触碰玩法数值，ADR-0016 决策①）；触控纪律=可点 ≥48px 灰点 ≥24px（ui-ux B.5/触屏纪律）。显示分级/金框/toast/骨架等键归 #150/#149 同文件增量（键名前缀分区）。",
+  "ui_touch_min": 48,
+  "ui_touch_min_dot": 24,
+  "ui_progress_visual": 12,
+  "ui_anim_l1_dur": 0.4
+}

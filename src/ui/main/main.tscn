@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_main")
 
-[node name="PlaceholderLabel" type="Label" parent="."]
+[node name="MainStage" type="VBoxContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -19,6 +19,55 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "加载中…"
+
+[node name="MiddleRow" type="HBoxContainer" parent="MainStage"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="WorkspaceZone" type="VBoxContainer" parent="MainStage/MiddleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WorkspacePlaceholder" type="Label" parent="MainStage/MiddleRow/WorkspaceZone"]
+layout_mode = 2
+text = "工作区（任务槽 ×4）"
 horizontal_alignment = 1
-vertical_alignment = 1
+
+[node name="StaffZone" type="HBoxContainer" parent="MainStage/MiddleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StaffPlaceholder" type="Label" parent="MainStage/MiddleRow/StaffZone"]
+layout_mode = 2
+text = "员工区"
+horizontal_alignment = 1
+
+[node name="BottomBar" type="VBoxContainer" parent="MainStage"]
+layout_mode = 2
+
+[node name="ResourceBarZone" type="Label" parent="MainStage/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "资源栏：现金 ¥0 · 影响力 0 · 卡时 0/32"
+
+[node name="DockZone" type="HBoxContainer" parent="MainStage/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+
+[node name="DockTask" type="Button" parent="MainStage/BottomBar/DockZone"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "任务板"
+
+[node name="DockTree" type="Button" parent="MainStage/BottomBar/DockZone"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "科技树"
+
+[node name="DockPause" type="Button" parent="MainStage/BottomBar/DockZone"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "暂停"
