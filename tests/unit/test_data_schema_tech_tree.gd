@@ -79,8 +79,8 @@ func test_tree_own_keys_spelling_partitioned() -> void:
 		var key_str := str(key)
 		if key_str.begins_with("_"):
 			continue  # 元数据键（_comment/_bounds）
-		if key_str.begins_with("tree_research_"):
-			continue  # #138 分区键豁免（同文件增量，git 自动合并）
+		if _is_138_partition_key(key_str):
+			continue  # #138 分区键豁免（研究批增量同文件）
 		if key_str in OWN_KEYS:
 			continue
 		errors.append("多余未知键 '%s'（非本单分区）" % key_str)
@@ -143,3 +143,24 @@ func test_tree_cross_adjacent_domains_valid() -> void:
 		assert_true(from.size() >= 2, "交叉节点跨 ≥2 域（%s）" % str(row.get("id", "")))
 		for item: Variant in from:
 			assert_true(DOMAIN_IDS.has(str(item)), "相邻域 ∈ 五域: %s" % str(item))
+
+
+## #138 分区键（研究批增量：cost/effect/prereq/upgrade/budget 顶层键）
+func _is_138_partition_key(key_str: String) -> bool:
+	if key_str.begins_with("tree_research_"):
+		return true
+	if (
+		key_str
+		in [
+			"tree_upgrade_max",
+			"tree_tb_budget",
+			"tree_ndim_budget",
+			"tree_node_effect_ratio",
+			"tree_node_effects",
+			"tree_prereq_by_node",
+			"tree_research_cost_by_node",
+			"tree_research_weeks",
+		]
+	):
+		return true
+	return false

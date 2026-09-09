@@ -6,7 +6,13 @@
   "tree_reveal_cross": 1,
   "tree_fog_reveal_rate": 0.25,
   "tree_domains": {
-    "_order": ["align", "distill", "memory", "tool", "multimodal"]
+    "_order": [
+      "align",
+      "distill",
+      "memory",
+      "tool",
+      "multimodal"
+    ]
   },
   "tree_nodes": {
     "align": [
@@ -15,7 +21,10 @@
         "domain": "align",
         "name_key": "tree_nick_deep",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       },
@@ -24,7 +33,10 @@
         "domain": "align",
         "name_key": "tree_nick_deep",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       }
@@ -35,7 +47,10 @@
         "domain": "distill",
         "name_key": "tree_nick_dandelion",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": true
       },
@@ -44,7 +59,10 @@
         "domain": "distill",
         "name_key": "tree_nick_dandelion",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       }
@@ -55,7 +73,10 @@
         "domain": "memory",
         "name_key": "tree_nick_longmem",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": true
       },
@@ -64,7 +85,10 @@
         "domain": "memory",
         "name_key": "tree_nick_longmem",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       }
@@ -75,7 +99,10 @@
         "domain": "tool",
         "name_key": "tree_nick_utensil",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       },
@@ -84,7 +111,10 @@
         "domain": "tool",
         "name_key": "tree_nick_utensil",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       }
@@ -95,7 +125,10 @@
         "domain": "multimodal",
         "name_key": "tree_nick_synesthesia",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       },
@@ -104,7 +137,10 @@
         "domain": "multimodal",
         "name_key": "tree_nick_synesthesia",
         "fog_type": "domain",
-        "reveal_paths": ["weekly", "cross"],
+        "reveal_paths": [
+          "weekly",
+          "cross"
+        ],
         "cross_from": [],
         "spill_eligible": false
       }
@@ -116,8 +152,14 @@
       "domain": "cross",
       "name_key": "tree_nick_cross_paper",
       "fog_type": "cross",
-      "reveal_paths": ["weekly", "cross"],
-      "cross_from": ["align", "distill"],
+      "reveal_paths": [
+        "weekly",
+        "cross"
+      ],
+      "cross_from": [
+        "align",
+        "distill"
+      ],
       "spill_eligible": false
     },
     {
@@ -125,8 +167,14 @@
       "domain": "cross",
       "name_key": "tree_nick_cross_eval",
       "fog_type": "cross",
-      "reveal_paths": ["weekly", "cross"],
-      "cross_from": ["memory", "tool"],
+      "reveal_paths": [
+        "weekly",
+        "cross"
+      ],
+      "cross_from": [
+        "memory",
+        "tool"
+      ],
       "spill_eligible": false
     },
     {
@@ -134,8 +182,14 @@
       "domain": "cross",
       "name_key": "tree_nick_cross_scale",
       "fog_type": "cross",
-      "reveal_paths": ["weekly", "cross"],
-      "cross_from": ["tool", "multimodal"],
+      "reveal_paths": [
+        "weekly",
+        "cross"
+      ],
+      "cross_from": [
+        "tool",
+        "multimodal"
+      ],
       "spill_eligible": false
     }
   ],
@@ -151,10 +205,185 @@
     }
   ],
   "_bounds": {
-    "tree_node_total": [14, 14],
-    "tree_domain_nodes": [2, 2],
-    "tree_insight_pity_max": [5, 8],
-    "tree_reveal_cross": [1, 1],
-    "tree_fog_reveal_rate": [0.15, 0.35]
+    "tree_node_total": [
+      14,
+      14
+    ],
+    "tree_domain_nodes": [
+      2,
+      2
+    ],
+    "tree_insight_pity_max": [
+      5,
+      8
+    ],
+    "tree_reveal_cross": [
+      1,
+      1
+    ],
+    "tree_fog_reveal_rate": [
+      0.15,
+      0.35
+    ],
+    "tree_research_cost_base": [
+      20,
+      40
+    ],
+    "tree_research_cost_growth": [
+      1.4,
+      1.8
+    ],
+    "tree_upgrade_max": [
+      2,
+      3
+    ],
+    "tree_tb_budget": [
+      0.2,
+      0.3
+    ],
+    "tree_ndim_budget": [
+      0.15,
+      0.2
+    ]
+  },
+  "tree_research_cost_base": 30,
+  "tree_research_cost_growth": 1.6,
+  "tree_upgrade_max": 3,
+  "tree_tb_budget": 0.3,
+  "tree_ndim_budget": 0.2,
+  "tree_node_effect_ratio": {
+    "unlock": 8,
+    "mult": 2,
+    "cost": 3,
+    "rumor": 1
+  },
+  "tree_research_weeks": {
+    "shallow": 2,
+    "deep": 4
+  },
+  "tree_node_effects": {
+    "align_rlhf_align": {
+      "type": "unlock",
+      "target": "paper_domain:align",
+      "name_key": "tree_nick_deep"
+    },
+    "align_pref_opt": {
+      "type": "mult",
+      "target": "paper",
+      "amount_per_level": 0.03,
+      "placement": "shallow"
+    },
+    "distill_weight_distill": {
+      "type": "unlock",
+      "target": "base:distill_1",
+      "name_key": "tree_nick_dandelion"
+    },
+    "distill_token_distill": {
+      "type": "cost",
+      "target": "training",
+      "amount_per_level": 0.08
+    },
+    "memory_ctx_longmem": {
+      "type": "unlock",
+      "target": "base:memory_1",
+      "name_key": "tree_nick_longmem"
+    },
+    "memory_retrieval": {
+      "type": "cost",
+      "target": "training",
+      "amount_per_level": 0.08
+    },
+    "tool_agent_tool": {
+      "type": "unlock",
+      "target": "base:tool_1",
+      "name_key": "tree_nick_utensil"
+    },
+    "tool_api_tool": {
+      "type": "cost",
+      "target": "training",
+      "amount_per_level": 0.05
+    },
+    "multimodal_vlm_base": {
+      "type": "unlock",
+      "target": "base:mm_1",
+      "name_key": "tree_nick_eye"
+    },
+    "multimodal_audio_base": {
+      "type": "mult",
+      "target": "model",
+      "amount_per_level": 0.02,
+      "placement": "deep"
+    },
+    "cross_paper_bridge": {
+      "type": "unlock",
+      "target": "paper_pool:all",
+      "name_key": "tree_nick_cross_paper"
+    },
+    "cross_eval_bridge": {
+      "type": "unlock",
+      "target": "eval:unlock",
+      "name_key": "tree_nick_cross_eval"
+    },
+    "cross_scale_bridge": {
+      "type": "unlock",
+      "target": "roster:expand",
+      "name_key": "tree_nick_cross_scale"
+    },
+    "rumor_other_path": {
+      "type": "rumor",
+      "target": "",
+      "name_key": "tree_fog_rumored"
+    }
+  },
+  "tree_research_cost_by_node": {
+    "align_rlhf_align": 30,
+    "align_pref_opt": 30,
+    "distill_weight_distill": 45,
+    "distill_token_distill": 45,
+    "memory_ctx_longmem": 45,
+    "memory_retrieval": 45,
+    "tool_agent_tool": 60,
+    "tool_api_tool": 60,
+    "multimodal_vlm_base": 60,
+    "multimodal_audio_base": 90,
+    "cross_paper_bridge": 60,
+    "cross_eval_bridge": 75,
+    "cross_scale_bridge": 90,
+    "rumor_other_path": 0
+  },
+  "tree_prereq_by_node": {
+    "align_rlhf_align": [],
+    "align_pref_opt": [
+      "align_rlhf_align"
+    ],
+    "distill_weight_distill": [],
+    "distill_token_distill": [
+      "distill_weight_distill"
+    ],
+    "memory_ctx_longmem": [],
+    "memory_retrieval": [
+      "memory_ctx_longmem"
+    ],
+    "tool_agent_tool": [],
+    "tool_api_tool": [
+      "tool_agent_tool"
+    ],
+    "multimodal_vlm_base": [],
+    "multimodal_audio_base": [
+      "multimodal_vlm_base"
+    ],
+    "cross_paper_bridge": [
+      "align_rlhf_align",
+      "distill_weight_distill"
+    ],
+    "cross_eval_bridge": [
+      "multimodal_vlm_base",
+      "memory_ctx_longmem"
+    ],
+    "cross_scale_bridge": [
+      "tool_agent_tool",
+      "align_rlhf_align"
+    ],
+    "rumor_other_path": []
   }
 }
