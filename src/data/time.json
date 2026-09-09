@@ -1,0 +1,25 @@
+{
+  "_comment": "time.json v1.0.0 首批子集（#128 schema 框架的种子真表）。键名真源=time-spec.md D.2；护栏跟键走（architecture-100 D6）：_bounds 内嵌声明，数值键必带。后续 #126/#127 在此表增量加键。",
+  "time_wall_clock_1x": 20,
+  "time_wall_clock_2x": 2,
+  "time_wall_clock_4x": 4,
+  "time_week_per_quarter": 13,
+  "time_week_per_year": 52,
+  "time_quarters_in_game": 12,
+  "time_ritual_density": 10,
+  "time_focus_loss_pause": 0.5,
+  "time_settle_seq_dur": 2.0,
+  "time_bland_threshold": 5,
+  "_bounds": {
+    "time_wall_clock_1x": [18, 30],
+    "time_wall_clock_2x": [2, 2],
+    "time_wall_clock_4x": [4, 4],
+    "time_week_per_quarter": [13, 13],
+    "time_week_per_year": [52, 52],
+    "time_quarters_in_game": [12, 12],
+    "time_ritual_density": [8, 16],
+    "time_focus_loss_pause": [0.3, 1.0],
+    "time_settle_seq_dur": [1.5, 3.0],
+    "time_bland_threshold": [1, 10]
+  }
+}
