@@ -1,5 +1,5 @@
 {
-  "_comment": "rivals.json v1.0.0（#142 守卫带 L1-L4 最小块 + #144 时间线/动作键前缀分区追加）。键名真源=rivals-spec.md D.2（rival_guard_L1-L4：score 带 20-40/40-60/60-80/80-100；L4 永不超玩家封顶 100 硬红线）+ numerics-master §1.4（guard_L1-L4 同标）。守卫带=玩家分数所在威胁分层的查询真源（SotaBoard 读）；深巷时间线/动作/频率/曲线键归 #144 同文件增量（键名前缀分区，git 自动合并）。本单范围：#142 只落守卫带块与表骨架。",
+  "_comment": "rivals.json v1.0.0（#142 守卫带 L1-L4 + #144 深巷时间线/动作/频率）。键名真源=rivals-spec.md D.2（rival_guard_L1-L4/rival_jitter/rival_action_schedule/rival_paper_effect/rival_release_freq/rival_pricewar_freq/rival_poach_freq）+ numerics-master §守卫带联标。守卫带=玩家分数所在威胁分层查询真源（SotaBoard 读）；动作时间线=确定性脚本（零博弈 AI，rivals-spec A.1 红线）；发版周 ∉ 季度大赏周 13n（time_ritual_no_overlap 错峰）；score 曲线=运行态发版轨迹（Rival 维护，architecture E6 score_curve/actual_weeks 入档）非表配置。",
   "rival_guard_L1": {
     "min": 20,
     "max": 40
@@ -15,5 +15,100 @@
   "rival_guard_L4": {
     "min": 80,
     "max": 100
+  },
+  "rival_jitter": 1.5,
+  "rival_release_freq_min": 6,
+  "rival_pricewar_freq_per_quarter": 1,
+  "rival_poach_freq_per_quarter": 1,
+  "rival_poach_max_per_staff": 2,
+  "rival_paper_effect": {
+    "type": "fog_spill",
+    "domain_hint": "spill_eligible"
+  },
+  "rival_actors": {
+    "_order": [
+      "deep_alley"
+    ],
+    "deep_alley": {
+      "name_key": "rival_deepalley",
+      "timeline": [
+        {
+          "week": 10,
+          "action": "paper",
+          "domain": "distill"
+        },
+        {
+          "week": 22,
+          "action": "release",
+          "score": 28.0
+        },
+        {
+          "week": 30,
+          "action": "paper",
+          "domain": "memory"
+        },
+        {
+          "week": 40,
+          "action": "release",
+          "score": 42.0
+        },
+        {
+          "week": 48,
+          "action": "pricewar"
+        },
+        {
+          "week": 54,
+          "action": "release",
+          "score": 52.0
+        },
+        {
+          "week": 62,
+          "action": "paper",
+          "domain": "align"
+        },
+        {
+          "week": 70,
+          "action": "release",
+          "score": 62.0
+        },
+        {
+          "week": 76,
+          "action": "poach"
+        },
+        {
+          "week": 86,
+          "action": "release",
+          "score": 70.0
+        },
+        {
+          "week": 94,
+          "action": "paper",
+          "domain": "tool"
+        },
+        {
+          "week": 100,
+          "action": "pricewar"
+        },
+        {
+          "week": 102,
+          "action": "release",
+          "score": 76.0
+        },
+        {
+          "week": 118,
+          "action": "release",
+          "score": 81.0
+        },
+        {
+          "week": 124,
+          "action": "poach"
+        },
+        {
+          "week": 134,
+          "action": "release",
+          "score": 85.0
+        }
+      ]
+    }
   }
 }
