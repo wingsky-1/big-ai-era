@@ -1,25 +1,27 @@
 class_name MainScene
 extends Control
-## L3 主台骨架（#145；ui-ux-spec A.1 四主区 + architecture §2.1 main/）。
-## 装配职责：
-## - 四主区容器（工作区/员工区/资源栏/Dock）按视口形态切布局：竖屏=工作区
-##   上（永不折叠）+员工区横滑行+资源栏副行；横屏=工作区左宽栏+员工区右
-##   窄栏（LayoutPolicy 纯函数判定，零业务计算）；
-## - Dock 三键（任务板/科技树/暂停）=PanelStack.PanelId 冻结集（本骨架期
-##   只登记键+最小可点按钮；面板实体逐批装配，A8）；
-## - PanelStack 实例（z0-z3 栈语义；后续面板批 open/close 消费）；
-## - 工作区=WorkspaceView（#146：4 张任务槽卡；数据面由装配方 bind 注入）；
-## - 员工区=StaffAreaView（#147：员工卡横滑行/网格；折叠形态经 apply_shape 下发，
-##   判定仍只在 LayoutPolicy）。
-## 触控纪律（ui-ux B.5）：全部可点元素 custom_minimum_size ≥48px（灰点
-## ≥24）——Dock 三键按 ui.json ui_touch_min 声明（表断言锁定 48；本脚本
-## 常量=表值镜像，防 L3 读表违规——双通道由 GUT 断言锁一致）。
-## L3 禁读 L4/禁业务计算（ADR-0016/0027）；本脚本零 DataLoader。
+## L3 主台（批7.2 #189 从骨架落为可玩装配）：main._ready 组合根注入 GameWorld
+##（L2 门面，**经注入触达——本脚本零 L2 import/零 DataLoader**，ADR-0016/0027），
+## 四主区 bind 数据面，周结驱动喂墙钟，z2 门控挂命名待决。
+## 原有职责保留：#145 布局切形态（LayoutPolicy 纯函数判定）+ Dock 三键 +
+## PanelStack 栈语义（A8 逐批落地：Dock 三键接 z1 面板挂载）。
+## 纪律：L3 禁读 L4/禁业务计算；全部数据经注入对象的数据面 view 下发。
+
+## 世界脚本路径（动态 load 而非 import：L3 禁 import L2 红线——运行期解耦，
+## 装配方/测试可经 inject_world 覆盖；ADR-0016 经注入触达数据面）
+const WORLD_SCRIPT: String = "res://src/entities/game_world.gd"
 
 ## 触控下限（=ui.json ui_touch_min 48；装配镜像常量，测试断言两者一致）
 const MIN_TOUCH: float = 48.0
 
+## 刷新节流（0.5s 预算内；周内轮询兜底信号驱动）
+const REFRESH_INTERVAL: float = 0.5
+
 var _panel_stack: PanelStack = PanelStack.new()
+## 世界引用=Object 动态调用（L3 禁 import L2；装配方注入 L2 门面）
+var _world: Object = null
+var _z2_blocked: bool = false
+var _refresh_accum: float = 0.0
 
 @onready var _stage: Control = %MainStage
 @onready var _workspace: Control = %WorkspaceZone
@@ -40,33 +42,108 @@ func _ready() -> void:
 	for button: Button in [_dock_task, _dock_tree, _dock_pause]:
 		button.custom_minimum_size = Vector2(MIN_TOUCH, MIN_TOUCH)
 	get_viewport().size_changed.connect(_apply_layout)
+	# 组合根注入：构造世界并开局（装配批 #188 门面；动态 load 防 L3→L2
+	# import——测试/装配方可经 inject_world 覆盖）
+	_world = (load(WORLD_SCRIPT) as GDScript).new()
+	_world.start_new_game()
+	_bind_dashboard()
+	_bind_dock()
+	_refresh_all()
 
 
-## 竖屏/横屏布局切形态（LayoutPolicy 纯函数判定；工作区永不折叠=策略保证，
-## 装配不做业务判定）
-func _apply_layout() -> void:
-	var viewport := get_viewport()
-	if viewport == null:
-		return
-	var portrait := LayoutPolicy.is_portrait(viewport.size.x, viewport.size.y)
-	var staff_fold := LayoutPolicy.fold_shape(LayoutPolicy.ZONE_STAFF, portrait)
-	# 员工卡容器形态下发（横滑行/网格切换由 StaffAreaView 执行，判定在本层）
-	_staff_area_view.apply_shape(staff_fold)
-	# 资源栏副行折叠下发（B.5 副行第一折叠；判定在本层）
-	_resource_bar_view.apply_shape(
-		LayoutPolicy.fold_shape(LayoutPolicy.ZONE_RESOURCE_BAR, portrait)
+## 世界注入覆盖（测试/装配方用：注入 mock 或预构造世界；_ready 后调用）
+func inject_world(world: Object) -> void:
+	_world = world
+	_bind_dashboard()
+	_refresh_all()
+
+
+## ---------- 装配（组合根；四主区 bind 数据面） ----------
+
+
+func _bind_dashboard() -> void:
+	# 工作区：槽 view 源 + TaskBoard 变更信号（既有 bind 形状不变）
+	_workspace_view.bind(
+		func() -> Array: return _world.get_dashboard_view()["tasks"],
+		_world.get_task_board(),
+		"task_board_changed",
 	)
-	if staff_fold == LayoutPolicy.FOLD_HSCROLL:
-		# 竖屏：员工区折为横滑行单行（卡高 ≥48 由员工卡批声明）
-		_staff_area.custom_minimum_size = Vector2(0, 96.0)
-		_staff_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	else:
-		# 横屏：员工区右窄栏
-		_staff_area.custom_minimum_size = Vector2(280.0, 0.0)
-	_staff_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# 员工区：名册+槽双源（staff_area bind 五参形状）
+	_staff_area_view.bind(
+		func() -> Dictionary: return _world.get_dashboard_view()["staff"],
+		func() -> Array: return _world.get_dashboard_view()["tasks"],
+		_world.get_task_board(),
+		_world.get_roster(),
+	)
+	# 资源栏：resource view 源（presenter 兼容键集，L2 计算）
+	_resource_bar_view.bind(
+		func() -> Dictionary: return _world.get_dashboard_view()["resources"],
+		_world.get_task_board(),
+		"task_board_changed",
+	)
+	# 竞对灯：玩家 SOTA 纪录分数源（float；-1=未出分）
+	_rival_light.bind(
+		func() -> float: return _world.get_sota_record_score(),
+		_world.get_sota_board(),
+		"",
+	)
 
 
-## 数据面（测试/装配方读：当前形态与折叠态）
+func _bind_dock() -> void:
+	_dock_task.pressed.connect(func() -> void: _open_panel(PanelStack.PanelId.TASK_BOARD))
+	_dock_tree.pressed.connect(func() -> void: _open_panel(PanelStack.PanelId.TECH_TREE))
+	_dock_pause.pressed.connect(func() -> void: _open_panel(PanelStack.PanelId.PAUSE_MENU))
+
+
+## z1 面板打开（A8：未落地面板=防御拒绝不崩；已落地=装配方挂载渲染）
+func _open_panel(panel: PanelStack.PanelId) -> void:
+	var result: Dictionary = _panel_stack.open(panel)
+	if bool(result.get("ok", false)):
+		_show_panel(panel)
+
+
+## 面板渲染挂载（批7.2 最小：z1 面板实体=代码内建 Control，后续批逐落地）
+func _show_panel(panel: PanelStack.PanelId) -> void:
+	match panel:
+		PanelStack.PanelId.TASK_BOARD, PanelStack.PanelId.TECH_TREE, PanelStack.PanelId.PAUSE_MENU:
+			pass  # A8 逐批：栈语义+数据面已落，面板实体后批
+		_:
+			pass
+
+
+## ---------- 游戏循环（唯一墙钟喂入口） ----------
+
+
+func _process(delta: float) -> void:
+	if _world == null:
+		return
+	_world.tick(delta)
+	_sync_z2_gate()
+	_refresh_accum += delta
+	if _refresh_accum >= REFRESH_INTERVAL:
+		_refresh_accum = 0.0
+		_refresh_all()
+
+
+## z2 门控：命名待决=世界停+变速置灰（ceremony pending 与 Settlement 同源）
+func _sync_z2_gate() -> void:
+	var blocked: bool = bool(_world.has_naming_pending())
+	if blocked != _z2_blocked:
+		_z2_blocked = blocked
+		_world.set_z2_blocked(blocked)
+
+
+## 数据面全量刷新（信号驱动之外的节流轮询兜底；0.5s 预算内）
+func _refresh_all() -> void:
+	_workspace_view.refresh_now()
+	_staff_area_view.refresh_now()
+	_resource_bar_view.refresh_now()
+	_rival_light.refresh_now()
+
+
+## ---------- 数据面（测试/装配方读） ----------
+
+
 func get_layout_state() -> Dictionary:
 	var viewport := get_viewport()
 	var size: Vector2 = viewport.size if viewport != null else Vector2(1280, 720)
@@ -84,21 +161,43 @@ func get_panel_stack() -> PanelStack:
 	return _panel_stack
 
 
-## 工作区视图（测试/装配方绑数据面：workspace.bind(task_view_source, emitter, 信号)）
 func get_workspace_view() -> WorkspaceView:
 	return _workspace_view
 
 
-## 员工区视图（测试/装配方绑数据面：staff_area.bind(roster_source, task_source, …)）
 func get_staff_area_view() -> StaffAreaView:
 	return _staff_area_view
 
 
-## 资源栏视图（测试/装配方绑数据面：resource_bar.bind(data_source, emitter, 信号)）
 func get_resource_bar_view() -> ResourceBarView:
 	return _resource_bar_view
 
 
-## 竞对轻量入口（测试/装配方绑分数源：rival_light.bind(score_source, emitter, 信号)）
 func get_rival_light_entry() -> RivalLightEntry:
 	return _rival_light
+
+
+## 世界引用（测试/装配方读；生产只经 get_dashboard_view 动态取）
+func get_world() -> Object:
+	return _world
+
+
+## ---------- 私有（布局切形态；原 #145 语义保留） ----------
+
+
+func _apply_layout() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	var portrait := LayoutPolicy.is_portrait(viewport.size.x, viewport.size.y)
+	var staff_fold := LayoutPolicy.fold_shape(LayoutPolicy.ZONE_STAFF, portrait)
+	_staff_area_view.apply_shape(staff_fold)
+	_resource_bar_view.apply_shape(
+		LayoutPolicy.fold_shape(LayoutPolicy.ZONE_RESOURCE_BAR, portrait)
+	)
+	if staff_fold == LayoutPolicy.FOLD_HSCROLL:
+		_staff_area.custom_minimum_size = Vector2(0, 96.0)
+		_staff_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	else:
+		_staff_area.custom_minimum_size = Vector2(280.0, 0.0)
+	_staff_area.size_flags_vertical = Control.SIZE_EXPAND_FILL

@@ -38,6 +38,10 @@ const SUPPORTED_INTERP_VARS: Array[String] = [
 	"净流入",
 	"周亏",
 	"影响",
+	## 通用占位（texts.json 27 键裸占位对齐 `<X>` 契约形态后注册；X/Y 语义由
+	## 消费方传值——周数/金额/百分比等。批7.2 #189 首消费暴露的既有数据债收口）
+	"X",
+	"Y",
 ]
 
 static var _table: Dictionary = {}
