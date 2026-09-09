@@ -1,17 +1,18 @@
 extends GutTest
-## #140 models.json schema 断言（#128 data_schema 框架挂载）：
+## #140+#141 models.json schema 断言（#128 data_schema 框架挂载）：
 ## 键名/类型 + 表结构自检（六基座行/工期定值/卡时≤供给护栏/上限 1-4/
-## 画像 5 维/权重和=1/checkpoint 位置 0.5）。
-## models.json=容器表（model_bases dict-of-rows + model_ndim_set/weight +
-## model_ckpt_progress 顶层标量），无其他顶层标量 → 无顶层 _bounds
-## （仿 chips.json 容器表先例；数值护栏由结构测试手写断言，真源=
-## models-spec D.2 + chips-spec 供给护栏）。
+## 画像 5 维/权重和=1/checkpoint 位置 0.5/三源 drivers 合法）。
+## models.json=容器表（model_bases dict-of-rows + model_ndim_set/weight/
+## drivers + model_ckpt_progress 顶层标量），无其他顶层标量 → 无顶层
+## _bounds（仿 chips.json 容器表先例；数值护栏由结构测试手写断言，真源=
+## models-spec D.2 + chips-spec 供给护栏 + numerics-master §1.2）。
 
 const MODELS_PATH: String = "res://src/data/models.json"
 
 const MODELS_SCHEMA: Dictionary = {
 	"model_ndim_set": {"type": "array"},
 	"model_ndim_weight": {"type": "dict"},
+	"model_ndim_drivers": {"type": "dict"},
 	"model_ckpt_progress": {"type": "float"},
 	"model_bases": {"type": "dict"},
 }
@@ -30,11 +31,20 @@ func test_models_key_spelling_matches_source() -> void:
 	var expected: Array[String] = [
 		"model_ndim_set",
 		"model_ndim_weight",
+		"model_ndim_drivers",
 		"model_ckpt_progress",
 		"model_bases",
 	]
 	var result := DataSchema.validate_key_spelling(table, expected)
 	assert_true(result.ok, "models.json 键名拼写与真源一致: %s" % str(result.errors))
+
+
+func test_models_ndim_drivers_valid() -> void:
+	# 模型三源权重合法（numerics §1.2：员工 50%×树 25%×芯片 25%）
+	var table := DataLoader.load_json(MODELS_PATH)
+	var drivers: Dictionary = table["model_ndim_drivers"]
+	var check := NDims.validate_drivers(drivers)
+	assert_true(check.ok, "model_ndim_drivers 三源权重合法: %s" % str(check.errors))
 
 
 func test_models_base_rows_required_fields() -> void:

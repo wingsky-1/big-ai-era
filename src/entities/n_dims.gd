@@ -138,3 +138,88 @@ static func weights_sum_to_one(weights: Dictionary) -> bool:
 	for dim: Variant in weights.keys():
 		total += float(weights[dim])
 	return absf(total - 1.0) < 0.0001
+
+
+## ---------- #141 三源合成（architecture §4.2 compose 落点） ----------
+
+
+## 来源权重合法校验（numerics-master §1.2 护栏）：和=1 + 员工来源为最大
+## 单项且 ≥0.20（防员工被碾压成摆设，tech-tree 开放问题 6 收口）。
+## drivers={源键: 权重}（各产物表 drivers 块；源键=staff/tree/topic/chip）。
+## 论文=paper_quality_drivers{staff,tree,topic}；模型=model_ndim_drivers
+## {staff,tree,chip}；芯片=无外部源（空表=恒合法：不进三源合成）。
+## 返回 {ok, errors[]}。
+static func validate_drivers(drivers: Dictionary) -> Dictionary:
+	var errors: Array[String] = []
+	if drivers.is_empty():
+		# 空 drivers=产物无外部源（芯片档位画像自持）→ 合法
+		return {"ok": true, "errors": errors}
+	if not weights_sum_to_one(drivers):
+		errors.append("来源权重和≠1（%s）" % str(drivers))
+	var staff_wt := float(drivers.get("staff", 0.0))
+	if staff_wt < 0.2:
+		errors.append("员工来源权重 ≥0.20（护栏；当前 %s）" % str(staff_wt))
+	var max_wt := 0.0
+	for key: Variant in drivers.keys():
+		max_wt = maxf(max_wt, float(drivers[key]))
+	if not is_equal_approx(max_wt, staff_wt):
+		errors.append("员工来源须为最大单项（当前 staff=%s，max=%s）" % [str(staff_wt), str(max_wt)])
+	return {"ok": errors.is_empty(), "errors": errors}
+
+
+## 三源合成（architecture §4.2 compose 单一公式真源；#141 落位）：
+## 逐维合成值 = Σ_{源} 源对该维的原始值 × 源权重（drivers 表驱动）；
+## score = Σ(合成值 × 维权重)（加权和，复用 weighted_sum）。
+## 参数：
+## - drivers={源键: 源权重}（产物表 drivers 块；空=单源直通）
+## - sources={源键: {dim: 值}}：每源各维的**原始贡献值**（同尺度 0–100，
+##   由各系统提供：员工=staff_contribution 折算、树=TechTree 强化查询、
+##   芯片=ChipYard 档位画像发挥；本函数不发明源取值）
+## - weights={dim: 权重}（产物表 weight 块）
+## 返回 {values: {dim: 合成值}, score}：
+## - 逐维防御：某源缺该维=按 0 计（不抛错）；drivers 缺源=跳过该源；
+## - 合成值经 saturate_clamp 收口 ∈[0,100]（score 域护栏）。
+## 零硬编码：全部权重来自调用方传入表块。
+static func compose(drivers: Dictionary, sources: Dictionary, weights: Dictionary) -> Dictionary:
+	var values := {}
+	var max_dim := 100.0
+	var min_dim := 0.0
+	# 维集=全部源贡献维 + weights 维的并集（缺源维=按 0 计）
+	var dims: Array[String] = []
+	for source_key: Variant in sources.keys():
+		var per_source: Variant = sources[source_key]
+		if per_source is not Dictionary:
+			continue
+		for dim: Variant in (per_source as Dictionary).keys():
+			if str(dim) not in dims:
+				dims.append(str(dim))
+	for dim: Variant in weights.keys():
+		if str(dim) not in dims:
+			dims.append(str(dim))
+	for dim: String in dims:
+		var value := 0.0
+		if drivers.is_empty():
+			# 无外部源产物：单源直通（源值即合成值）
+			for source_key: Variant in sources.keys():
+				var per_source: Variant = sources[source_key]
+				if per_source is Dictionary:
+					value += float((per_source as Dictionary).get(dim, 0.0))
+		else:
+			for source_key: Variant in sources.keys():
+				var per_source: Variant = sources[source_key]
+				if per_source is not Dictionary:
+					continue
+				var src_wt := float(drivers.get(str(source_key), 0.0))
+				if src_wt <= 0.0:
+					continue
+				value += float((per_source as Dictionary).get(dim, 0.0)) * src_wt
+		values[dim] = clampf(value, min_dim, max_dim)
+	var score := weighted_sum(values, weights)
+	return {"values": values, "score": clampf(score, 0.0, 100.0)}
+
+
+## 饱和收口（#141 域护栏）：score 合成收口 ∈[0,100]（numerics-master
+## §1.4 ndim_dim_cap=100；饱和阈值 98 语义=#143 守卫带/迭代护栏同批联标，
+## 本函数只做分数域收口不做玩法饱和判定）。
+static func saturate_clamp(score: float) -> float:
+	return clampf(score, 0.0, 100.0)
