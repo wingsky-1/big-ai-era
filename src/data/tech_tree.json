@@ -1,0 +1,160 @@
+{
+  "_comment": "tech_tree.json v1.0.0 迷雾批（#137）。键名真源=tech-tree-spec.md D.2 公式与参数表；护栏跟键走（architecture-100 D6/ADR-0022）。本单只落迷雾/翻雾/pity 键（tree_fog_*/tree_insight_*）：五态规则/翻雾参数/pity + 14 节点表框架（10 域节点每域 2 + 3 交叉 + 1 传闻占位）；研究成本/效果键（tree_research_*）归 #138 同文件增量（键名前缀分区，git 自动合并）；树全亮/域文案键在 texts.json 总表不在此落。",
+  "tree_node_total": 14,
+  "tree_domain_nodes": 2,
+  "tree_insight_pity_max": 6,
+  "tree_reveal_cross": 1,
+  "tree_fog_reveal_rate": 0.25,
+  "tree_domains": {
+    "_order": ["align", "distill", "memory", "tool", "multimodal"]
+  },
+  "tree_nodes": {
+    "align": [
+      {
+        "id": "align_rlhf_align",
+        "domain": "align",
+        "name_key": "tree_nick_deep",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      },
+      {
+        "id": "align_pref_opt",
+        "domain": "align",
+        "name_key": "tree_nick_deep",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      }
+    ],
+    "distill": [
+      {
+        "id": "distill_weight_distill",
+        "domain": "distill",
+        "name_key": "tree_nick_dandelion",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": true
+      },
+      {
+        "id": "distill_token_distill",
+        "domain": "distill",
+        "name_key": "tree_nick_dandelion",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      }
+    ],
+    "memory": [
+      {
+        "id": "memory_ctx_longmem",
+        "domain": "memory",
+        "name_key": "tree_nick_longmem",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": true
+      },
+      {
+        "id": "memory_retrieval",
+        "domain": "memory",
+        "name_key": "tree_nick_longmem",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      }
+    ],
+    "tool": [
+      {
+        "id": "tool_agent_tool",
+        "domain": "tool",
+        "name_key": "tree_nick_utensil",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      },
+      {
+        "id": "tool_api_tool",
+        "domain": "tool",
+        "name_key": "tree_nick_utensil",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      }
+    ],
+    "multimodal": [
+      {
+        "id": "multimodal_vlm_base",
+        "domain": "multimodal",
+        "name_key": "tree_nick_synesthesia",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      },
+      {
+        "id": "multimodal_audio_base",
+        "domain": "multimodal",
+        "name_key": "tree_nick_synesthesia",
+        "fog_type": "domain",
+        "reveal_paths": ["weekly", "cross"],
+        "cross_from": [],
+        "spill_eligible": false
+      }
+    ]
+  },
+  "tree_cross_nodes": [
+    {
+      "id": "cross_paper_bridge",
+      "domain": "cross",
+      "name_key": "tree_nick_cross_paper",
+      "fog_type": "cross",
+      "reveal_paths": ["weekly", "cross"],
+      "cross_from": ["align", "distill"],
+      "spill_eligible": false
+    },
+    {
+      "id": "cross_eval_bridge",
+      "domain": "cross",
+      "name_key": "tree_nick_cross_eval",
+      "fog_type": "cross",
+      "reveal_paths": ["weekly", "cross"],
+      "cross_from": ["memory", "tool"],
+      "spill_eligible": false
+    },
+    {
+      "id": "cross_scale_bridge",
+      "domain": "cross",
+      "name_key": "tree_nick_cross_scale",
+      "fog_type": "cross",
+      "reveal_paths": ["weekly", "cross"],
+      "cross_from": ["tool", "multimodal"],
+      "spill_eligible": false
+    }
+  ],
+  "tree_rumor_nodes": [
+    {
+      "id": "rumor_other_path",
+      "domain": "rumor",
+      "name_key": "tree_fog_rumored",
+      "fog_type": "rumor",
+      "reveal_paths": [],
+      "cross_from": [],
+      "spill_eligible": false
+    }
+  ],
+  "_bounds": {
+    "tree_node_total": [14, 14],
+    "tree_domain_nodes": [2, 2],
+    "tree_insight_pity_max": [5, 8],
+    "tree_reveal_cross": [1, 1],
+    "tree_fog_reveal_rate": [0.15, 0.35]
+  }
+}
