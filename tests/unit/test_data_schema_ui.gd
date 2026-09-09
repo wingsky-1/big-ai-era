@@ -33,6 +33,9 @@ const UI_SCHEMA: Dictionary = {
 	"ui_ink2": {"type": "string"},
 	"ui_ink3": {"type": "string"},
 	"ui_accent": {"type": "string"},
+	"ui_danger": {"type": "string"},
+	"ui_danger_bg": {"type": "string"},
+	"ui_score_grade_threshold": {"type": "array"},
 	"ui_type_colors": {"type": "dict"},
 	"ui_type_icons": {"type": "dict"},
 	"ui_staff_state_colors": {"type": "dict"},
@@ -63,6 +66,9 @@ func test_ui_key_spelling_matches_source() -> void:
 		"ui_ink2",
 		"ui_ink3",
 		"ui_accent",
+		"ui_danger",
+		"ui_danger_bg",
+		"ui_score_grade_threshold",
 		"ui_type_colors",
 		"ui_type_icons",
 		"ui_staff_grid_columns",
@@ -137,3 +143,20 @@ func test_ui_staff_tokens_guardrails() -> void:
 		assert_true(state_colors.has(state_key), "状态色带 token 缺 %s" % state_key)
 		var color_text: String = str(state_colors[state_key])
 		assert_true(color_text.begins_with("#"), "%s 状态色须为 hex 字符串" % state_key)
+
+
+func test_ui_grade_threshold_guardrails() -> void:
+	# #148 档位标签阈值（ui-ux D.2：<10/10-30/30-60/60-85/85+ 五档逐升）
+	var table := DataLoader.load_json(UI_PATH)
+	var thresholds: Array = table["ui_score_grade_threshold"]
+	assert_eq(thresholds.size(), 4, "档位边界=4 个（5 档）")
+	var prev: float = -1.0
+	for threshold: Variant in thresholds:
+		var value := float(threshold)
+		assert_true(value > prev, "档位阈值严格递增（%s > %s）" % [str(value), str(prev)])
+		prev = value
+	# 首档边界=10（<10 起步档·榜外 的分界，OP-UX-04）
+	assert_eq(float(thresholds[0]), 10.0, "首档边界=10（<10 只显档位标签）")
+	# danger 色 token 为 hex
+	assert_true(str(table["ui_danger"]).begins_with("#"), "ui_danger 须为 hex")
+	assert_true(str(table["ui_danger_bg"]).begins_with("#"), "ui_danger_bg 须为 hex")
