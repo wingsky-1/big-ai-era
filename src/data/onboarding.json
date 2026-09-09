@@ -1,0 +1,15 @@
+{
+  "_comment": "onboarding.json v1.0.0（#152 六步目标卡引导链）。键名真源=onboarding-spec.md D.2 + numerics-master §〇教学节拍；只落引导状态机/目标卡/教学节拍断言真实消费的键（无消费方键不落——开局资金/警告线/首任务报酬等开局与经济键的真源在 economy.json/papers.json，由 World 装配批直接读权威表，禁双源复制）。跨表镜像纪律（防双源漂移，配对断言见 test_onboarding）：onb_first_task_duration==paper_duration_weeks.repro.min（2）、onb_first_node_duration==tree_research_weeks.shallow（2）、onb_first_train_duration==models.json 首个可训基座 duration_weeks（4）、onb_first_rival_week==rivals.json deep_alley.timeline[0].week（10）。教学节拍推导（周语义=numerics §〇事件周标签，W=开局锚 1）：lit=W1+node_duration=3∈[W2,W4]；排训练=结算(W1+task_duration)次周=4；出分=排训练周+train=8≤W10；首对手=10≥出分+2 ✓。已登记规格残留（#153 端到端对齐复核）：①numerics §〇 W9 出分行与'首对手≥出分+2'在 train_duration=5 时互斥（9+2>10），取共享表真值 4→W7 出分自洽；②spec D.2 首节点成本 ~12 与 tech_tree 首浅节点 30、开局影响力 15<30 的 W1 点树可行性缺口，属 economy/tree 数值域。",
+  "onb_goal_card_steps": 6,
+  "onb_first_task_duration": 2,
+  "onb_first_node_duration": 2,
+  "onb_first_train_duration": 4,
+  "onb_first_rival_week": 10,
+  "_bounds": {
+    "onb_goal_card_steps": [6, 6],
+    "onb_first_task_duration": [2, 3],
+    "onb_first_node_duration": [1, 3],
+    "onb_first_train_duration": [4, 6],
+    "onb_first_rival_week": [9, 12]
+  }
+}
