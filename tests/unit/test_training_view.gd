@@ -127,6 +127,50 @@ func test_workspace_training_visible() -> void:
 	)
 
 
+## #116 回归锁：训练冷启动死锁——全派任务时原因文案必须可行动（不误导），
+## 面板必须携带研发力分布摘要；重指派 1 人上训练位后低档基座解锁。
+func test_zero_eff_reason_actionable_and_eff_summary() -> void:
+	var world := GameWorld.new()
+	autofree(world)
+	world.start_new_game(SEED)
+	# 全员派任务（"打工"态）→ 训练全禁，原因文案可行动
+	var staff_ids: Array = world.staff.keys()
+	assert_eq(staff_ids.size(), 3, "开局三研究员")
+	for sid_variant: Variant in staff_ids:
+		world.assign_staff(str(sid_variant), StaffRoster.SLOT_TASK)
+	var view: Dictionary = world.get_training_view()
+	assert_true(
+		str(view["eff_summary"]).contains("训练位 0 人"), "摘要应显示训练位 0 人（%s）" % str(view["eff_summary"])
+	)
+	assert_true(
+		str(view["eff_summary"]).contains("任务位 3 人"), "摘要应显示任务位 3 人（%s）" % str(view["eff_summary"])
+	)
+	for row_variant: Variant in view["rows"]:
+		var row: Dictionary = row_variant
+		assert_false(bool(row["available"]), "全派任务时基座不可启动（%s）" % str(row["base_id"]))
+		assert_eq(str(row["reason"]), "zero_research_eff", "全派任务原因应为 zero_research_eff")
+		assert_true(
+			str(row["state_text"]).contains("指派模型训练"),
+			"zero_research_eff 原因必须含可行动指引（%s）" % str(row["state_text"])
+		)
+		assert_false(
+			str(row["state_text"]).contains("无在岗研究员（研发力为 0）"),
+			"旧误导文案（无在岗研究员）必须移除（%s）" % str(row["state_text"])
+		)
+	# 重指派 1 人上训练位 → 摘要更新 + 低档基座解锁
+	world.assign_staff(str(staff_ids[0]), StaffRoster.SLOT_TRAINING)
+	var view2: Dictionary = world.get_training_view()
+	assert_true(
+		str(view2["eff_summary"]).contains("训练位 1 人"),
+		"摘要应更新训练位 1 人（%s）" % str(view2["eff_summary"])
+	)
+	assert_true(
+		str(view2["eff_summary"]).contains("任务位 2 人"),
+		"摘要应更新任务位 2 人（%s）" % str(view2["eff_summary"])
+	)
+	assert_true(bool(_row_of(view2, FIRST_BASE)["available"]), "1 人上训练位后低档基座应可启动")
+
+
 func _row_of(view: Dictionary, base_id: String) -> Dictionary:
 	for row_variant: Variant in view.get("rows", []):
 		var row: Dictionary = row_variant

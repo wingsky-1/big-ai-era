@@ -15,6 +15,7 @@ var _view: Dictionary = {}
 
 @onready var title_label: Label = %TrainingTitle
 @onready var active_label: Label = %TrainingActive
+@onready var eff_summary_label: Label = %EffSummaryLabel
 @onready var rows_vbox: VBoxContainer = %TrainingRows
 @onready var close_btn: Button = %TrainingCloseBtn
 
@@ -37,6 +38,10 @@ func _render() -> void:
 	title_label.text = str(_view.get("title", ""))
 	close_btn.text = str(_view.get("close_label", ""))
 	active_label.text = _active_text()
+	# 研发力分布摘要（#116）：L2 已拼装 eff_summary 文案，本处只透传显隐。
+	var eff_text: String = str(_view.get("eff_summary", ""))
+	eff_summary_label.text = eff_text
+	eff_summary_label.visible = not eff_text.is_empty()
 	for child: Node in rows_vbox.get_children():
 		child.queue_free()
 	for row_variant: Variant in _view.get("rows", []):

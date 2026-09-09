@@ -190,3 +190,30 @@ func test_week_counter_consistency_with_clock() -> void:
 	# 权威周数（world.week）与触发器内部计数（clock.week）一致性锁定。
 	_world.simulate_weeks(5)
 	assert_eq(_world.week, _world.clock.week, "双周计数应一致（漂移=周结序 bug）")
+
+
+## #115 回归锁：研发失败必须有反馈（此前 start_research 失败分支零响应 →
+## 玩家点「研发」无任何反应，判定"科技没办法研究"）。失败必弹 toast（reason→键），成功零变化。
+func test_research_insufficient_rp_emits_feedback_toast() -> void:
+	# 开局声望 0 < silver_leash rp_cost 300 → insufficient_rp 分支必须弹 toast。
+	var toasts := _poured("toast_queued")
+	var before: int = toasts.size()
+	_world.start_research("silver_leash")
+	toasts = _poured("toast_queued")
+	assert_eq(toasts.size(), before + 1, "RP 不足应弹 1 次 toast（#115）")
+	var payload: Dictionary = toasts[-1][0]
+	assert_eq(
+		str(payload.get("text_key", "")), "tech_research_rp_shortfall", "reason 映射键应为 RP 不足文案"
+	)
+	assert_eq(_world.tech_fog.get_state("silver_leash"), TechFog.STATE_RESEARCHABLE, "研发失败不得点亮节点")
+
+
+func test_research_success_does_not_emit_feedback_toast() -> void:
+	# ok 路径零变化：注入足够声望后研究成功 → 无失败 toast、节点点亮、tech_bonus 重算。
+	_world.economy.apply_delta("influence", 300, "test")
+	var toasts := _poured("toast_queued")
+	var before: int = toasts.size()
+	_world.start_research("silver_leash")
+	assert_eq(_poured("toast_queued").size(), before, "成功路径不应弹失败 toast（#115）")
+	assert_eq(_world.tech_fog.get_state("silver_leash"), TechFog.STATE_LIT, "研究成功应点亮节点")
+	assert_gt(_world.tech_bonus, 0.0, "点亮后 tech_bonus 应重算为正")

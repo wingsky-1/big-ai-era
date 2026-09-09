@@ -77,6 +77,7 @@ var _freedom_panel_body: Label
 @onready var training_progress_bar: ProgressBar = %TrainingProgressBar
 @onready var staff_count_label: Label = %StaffCountLabel
 @onready var idle_staff_label: Label = %IdleStaffLabel
+@onready var staff_cards_vbox: VBoxContainer = %StaffCardsVBox
 @onready var toast_label: Label = %ToastLabel
 
 @onready var dock_tech_btn: Button = %DockTechBtn
@@ -768,6 +769,33 @@ func _update_views() -> void:
 	staff_count_label.text = "在岗研究员: %d/%d人" % [staff_assigned, staff_total]
 	idle_staff_label.text = "待命: %d人" % staff_idle
 	idle_staff_label.visible = staff_idle > 0
+	# 员工实体卡（#114 / V1-03 收口）：主台每名员工一卡（名字+岗位状态），
+	# 点击卡直达名册（≤2 击完成指派）；数据来自 L2 get_staff_view（ADR-0016）。
+	_render_staff_cards(ws_view.get("staff", []))
+
+
+## 主台员工卡渲染（#114）：只做表现层拼装，状态文案来自 L2 行数据（assigned 槽位）。
+## 点击卡 → 名册面板（既有 ROSTER 入口），指派动作仍走契约命令 assign_staff。
+func _render_staff_cards(staff_rows: Array) -> void:
+	for child: Node in staff_cards_vbox.get_children():
+		child.queue_free()
+	for row_variant: Variant in staff_rows:
+		var row: Dictionary = row_variant
+		var staff_name: String = str(row.get("name", ""))
+		if staff_name.is_empty():
+			continue
+		var slot: String = str(row.get("assigned", ""))
+		var state_text: String = "待命"
+		if slot == StaffRoster.SLOT_TRAINING:
+			state_text = "训练位"
+		elif slot == StaffRoster.SLOT_TASK:
+			state_text = "任务位"
+		var card: Button = Button.new()
+		card.text = "%s · %s（点击指派）" % [staff_name, state_text]
+		card.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		card.custom_minimum_size = Vector2(0, 32)  # num-ok: 触控热区（表现层）
+		card.pressed.connect(func() -> void: _stack.push_panel(PanelStack.PanelId.ROSTER))
+		staff_cards_vbox.add_child(card)
 
 	var rival_view: Dictionary = _presenter.get_rival_view()
 	rival_name_label.text = str(rival_view.get("rival_name", ""))

@@ -301,3 +301,38 @@ func test_app_shell_dock_and_staff_entry_opens_panels() -> void:
 	var dock_report_btn: Button = main.get_node("%DockReportBtn")
 	dock_report_btn.emit_signal("pressed")
 	assert_eq(stack.get_z1_panel(), PanelStack.PanelId.REPORT_ARCHIVE, "Dock 周报键应以 z1 打开历史周报")
+
+
+## #114 回归锁：主台员工实体卡（V1-03 收口）——W0 三名员工各一卡（名字+岗位状态），
+## 点击卡直达名册面板（≤2 击完成指派链路的前置：卡可见 + 一击可达）。
+func test_main_screen_staff_cards_render_and_open_roster() -> void:
+	var main := MAIN_SCENE.instantiate()
+	add_child_autofree(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var main_scene := main as MainScene
+	var stack: PanelStack = main_scene.get_stack()
+	var cards_vbox: VBoxContainer = main.get_node("%StaffCardsVBox")
+	assert_true(cards_vbox.get_child_count() >= 3, "主台应渲染至少 3 张员工卡（W0 三研究员）")
+
+	var names_found: Dictionary = {}
+	for child: Node in cards_vbox.get_children():
+		var btn := child as Button
+		if btn == null:
+			continue
+		var text: String = str(btn.text)
+		assert_false(text.is_empty(), "员工卡按钮文案非空")
+		assert_true(
+			text.contains("待命") or text.contains("训练位") or text.contains("任务位"),
+			"卡片应含岗位状态（%s）" % text
+		)
+		for staff_name: String in ["林拾光", "温若愚", "白鹿鸣"]:
+			if text.contains(staff_name):
+				names_found[staff_name] = true
+	assert_eq(names_found.size(), 3, "三名研究员的名字都应出现在卡片上")
+
+	# 点击第一张卡 → 名册以 z1 打开（≤2 击完成指派的前提：卡点击=1 击进名册）
+	var first_card := cards_vbox.get_child(0) as Button
+	first_card.emit_signal("pressed")
+	assert_eq(stack.get_z1_panel(), PanelStack.PanelId.ROSTER, "点击员工卡应直达名册面板")

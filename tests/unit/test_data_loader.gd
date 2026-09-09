@@ -11,7 +11,7 @@ const TEXTS_PATH: String = "res://src/data/texts.json"
 
 func test_load_texts_table_succeeds() -> void:
 	var texts := DataLoader.load_json(TEXTS_PATH)
-	assert_eq(texts.size(), 43, "文本起步集应包含 43 个键（批 1a 三键）")
+	assert_eq(texts.size(), 46, "文本起步集应包含 46 个键（批 1a 三键 + #115 研发反馈三键）")
 	assert_true(texts.has("opening_line_intro"), "应包含 opening_line_intro 条目")
 	var intro: Dictionary = texts.get("opening_line_intro", {})
 	assert_eq(int(intro.get("max_len", 0)), 60, "开场白 max_len 应为 60")

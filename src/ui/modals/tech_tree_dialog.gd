@@ -12,6 +12,7 @@ var _world: GameWorld
 @onready var title_label: Label = %TitleLabel
 @onready var close_btn: Button = %CloseBtn
 @onready var domain_summary_label: Label = %DomainSummaryLabel
+@onready var rp_status_label: Label = %RpStatusLabel
 @onready var tech_list_vbox: VBoxContainer = %TechListVBox
 
 
@@ -24,6 +25,7 @@ func setup(world: GameWorld) -> void:
 func _ready() -> void:
 	ModalSizing.apply(self)
 	domain_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rp_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	close_btn.pressed.connect(func() -> void: closed.emit())
 	_render()
 
@@ -31,6 +33,10 @@ func _ready() -> void:
 func _render() -> void:
 	if _world == null:
 		return
+
+	# 研发门槛可视（#115）：面板内常显当前影响力，让"点树要攒声望"在点按前可见。
+	# 数值经 L2 资源委托取数（ADR-0016：L3 不直读子系统/数据表），文案仅本行拼接。
+	rp_status_label.text = "当前影响力：%d（研发会消耗影响力，做任务可积攒）" % _world.get_influence()
 
 	# 域口径一律经 L2 数据面（ADR-0016 决策②：L3 禁读 L4 数据表）：
 	# progress.domains 同时供汇总行与列表行的"域显示名 + 是否可研"使用。

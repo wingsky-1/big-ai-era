@@ -37,7 +37,7 @@ func test_main_scene_instantiates_and_app_shell_unique_names() -> void:
 	assert_null(main.get_node_or_null("%DockEventBtn"), "Dock 严禁存在'事件'键（GDD §13 / 否决点 1）")
 
 	# 3. 验证向后兼容旧自检资产
-	assert_eq(main_scene.get_text_count(), 43, "文本管线应加载到 43 个键（批 1a 三键）")
+	assert_eq(main_scene.get_text_count(), 46, "文本管线应加载到 46 个键（批 1a 三键 + #115 研发反馈三键）")
 	assert_not_null(main_scene.get_world(), "AppShell 应初始化 GameWorld")
 	assert_not_null(main_scene.get_driver(), "AppShell 应初始化 GameLoopDriver")
 

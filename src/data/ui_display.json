@@ -168,9 +168,10 @@
 		"empty_active": "当前无进行中训练",
 		"meta_template": "工期 {weeks} 周 · 成本 {cost} · 质量 {quality} · 需算力档 {tier} · 上桌上限 {max_staff} 人 · 每周占卡时 {hours}",
 		"progress_template": "剩余 {weeks} 周",
+		"eff_summary_template": "研发力 {eff} · 训练位 {on_training} 人 · 任务位 {on_task} 人",
 		"reason_texts": {
 			"already_training": "已有训练进行中",
-			"zero_research_eff": "无在岗研究员（研发力为 0）",
+			"zero_research_eff": "暂无研究员在训练位（研发力 0）——主台『在岗研究员』→名册→『指派模型训练』",
 			"insufficient_compute_tier": "算力档不足",
 			"insufficient_money": "资金不足",
 			"headcount_exceeds_base_limit": "上桌人数超过该基座上限",
@@ -179,6 +180,6 @@
 			"invalid_base_config": "基座配置不完整",
 			"deduct_failed": "扣款失败"
 		},
-		"_comment": "出处：issue #104（P0 玩家入口，训练侧）+ 需求 §3.3/§8.3（Σeff 与出分）+ DR-031/B2（max_staff 上桌上限；min_staff 本版不启用故不展示）。L2 依本表拼装 meta_text/state_text（ADR-0016 R3）。"
+		"_comment": "出处：issue #104（P0 玩家入口，训练侧）+ 需求 §3.3/§8.3（Σeff 与出分）+ DR-031/B2（max_staff 上桌上限；min_staff 本版不启用故不展示）。L2 依本表拼装 meta_text/state_text（ADR-0016 R3）。#116：zero_research_eff 改为可行动指引（原文案『无在岗研究员』误导——玩家有在岗员工，缺的是训练位）+ 新增 eff_summary_template 研发力分布摘要。"
 	}
 }

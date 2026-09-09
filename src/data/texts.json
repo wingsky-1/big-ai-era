@@ -213,5 +213,20 @@
 		"text": "继续经营",
 		"max_len": 8,
 		"vars": []
+	},
+	"tech_research_rp_shortfall": {
+		"text": "声望不足：科研消耗声望，先做任务攒声望",
+		"max_len": 30,
+		"vars": []
+	},
+	"tech_research_money_shortfall": {
+		"text": "资金不足：先做任务攒钱，再来研发",
+		"max_len": 30,
+		"vars": []
+	},
+	"tech_research_unavailable": {
+		"text": "当前节点暂不可研究",
+		"max_len": 20,
+		"vars": []
 	}
 }

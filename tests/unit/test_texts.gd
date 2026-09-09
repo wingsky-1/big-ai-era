@@ -56,6 +56,9 @@ const TEST_KEYS: Dictionary = {
 	"report_quiet_week": "周报兜底——批 1a 周报 UI 修复接入",
 	"compute_upgrade_button": "买卡入口——批 1c 资源栏按钮接入",
 	"compute_upgrade_maxed": "买卡入口——批 1c 顶档提示接入",
+	"tech_research_rp_shortfall": "科技研发——#115 研发失败 toast（RP 不足）接入",
+	"tech_research_money_shortfall": "科技研发——#115 研发失败 toast（资金不足）接入",
+	"tech_research_unavailable": "科技研发——#115 研发失败 toast（兜底）接入",
 }
 
 ## 各插值变量的引用样例值（PR 消费点的最长口径；{var} 按 0 字计，长度断言用）。
@@ -77,7 +80,7 @@ const REFERENCE_VALUES: Dictionary = {
 func test_texts_table_shape_is_valid() -> void:
 	assert_true(TextService.is_enabled(), "TextService 静态初始化应成功（熔断即全断言空洞通过）")
 	var texts: Dictionary = DataLoader.load_json(TEXTS_PATH)
-	assert_eq(texts.size(), 43, "起步集应为 43 键（DR-010 起步集约定 + 批 1a 三键）")
+	assert_eq(texts.size(), 46, "起步集应为 46 键（DR-010 起步集约定 + 批 1a 三键 + #115 研发反馈三键）")
 	for key: String in texts:
 		var entry: Variant = texts[key]
 		assert_true(entry is Dictionary, "键 %s 应为对象条目" % key)

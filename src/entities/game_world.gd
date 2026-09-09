@@ -751,6 +751,16 @@ func start_research(tech_id: String) -> void:
 		freedom.record_research(week, tech_id)  # 关键决策回溯②（RF-03）
 		_recalculate_tech_bonus()
 		_emit_resources()
+	else:
+		# 研发失败必须有反馈（#115）：此前失败分支零响应 → 玩家判定"科技没办法研究"。
+		# 文案键随 reason 映射（techs.json 键由本方法单点消费，TEST_KEYS 已登记）。
+		var reason: String = str(res.get("reason", ""))
+		var text_key: String = "tech_research_unavailable"
+		if reason == "insufficient_rp":
+			text_key = "tech_research_rp_shortfall"
+		elif reason == "insufficient_money":
+			text_key = "tech_research_money_shortfall"
+		toast_queued.emit({"text_key": text_key})
 
 
 ## 启动训练（契约命令；#104 PR-B 起返回 bool 供 UI 反馈，调用方不依赖返回值亦兼容）。
@@ -817,12 +827,31 @@ func get_training_view() -> Dictionary:
 				"{weeks}", str(int(active.get("weeks_left", 0)))
 			),
 		}
+	# 研发力分布摘要（#116）：训练位/任务位计数来自 roster 只读快照（L2 委托），
+	# 让"训练为何全禁"（zero_research_eff）在面板顶部可见，并指向解法（把研究员派到训练位）。
+	var snap_rows: Array = roster.to_snapshot()
+	var on_training: int = 0
+	var on_task: int = 0
+	for srow_variant: Variant in snap_rows:
+		var srow: Dictionary = srow_variant
+		var assigned: String = str(srow.get("assigned", ""))
+		if assigned == StaffRoster.SLOT_TRAINING:
+			on_training += 1
+		elif assigned == StaffRoster.SLOT_TASK:
+			on_task += 1
+	var eff_summary_text: String = (
+		str(cfg.get("eff_summary_template", ""))
+		. replace("{eff}", str(int(context.get("research_eff", 0))))
+		. replace("{on_training}", str(on_training))
+		. replace("{on_task}", str(on_task))
+	)
 	return {
 		"title": str(cfg.get("title", "")),
 		"entry_label": str(cfg.get("entry_label", "")),
 		"start_label": str(cfg.get("start_label", "")),
 		"close_label": str(cfg.get("close_label", "")),
 		"empty_active": str(cfg.get("empty_active", "")),
+		"eff_summary": eff_summary_text,
 		"rows": rows,
 		"active": active_view,
 	}
