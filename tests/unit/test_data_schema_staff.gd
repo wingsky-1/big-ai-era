@@ -15,7 +15,12 @@ const SOURCE_KEYS: Array[String] = [
 	"staff_state_modifier",
 	"staff_observation_pool",
 	"staff_roles",
+	"staff_ndim_map",
 	"staff_initial_roster",
+	"staff_collab_same",
+	"staff_collab_adjacent",
+	"staff_collab_complement",
+	"staff_collab_adjacent_table",
 ]
 ## 数值键（须全带内嵌护栏 _bounds 声明）
 const NUMERIC_KEYS: Array[String] = [
@@ -23,6 +28,9 @@ const NUMERIC_KEYS: Array[String] = [
 	"staff_attr_base_min",
 	"staff_attr_base_max",
 	"staff_attr_growth_per_project",
+	"staff_collab_same",
+	"staff_collab_adjacent",
+	"staff_collab_complement",
 ]
 
 const STAFF_SCHEMA: Dictionary = {
@@ -34,7 +42,12 @@ const STAFF_SCHEMA: Dictionary = {
 	"staff_state_modifier": {"type": "dict"},
 	"staff_observation_pool": {"type": "array"},
 	"staff_roles": {"type": "dict"},
+	"staff_ndim_map": {"type": "dict"},
 	"staff_initial_roster": {"type": "dict"},
+	"staff_collab_same": {"type": "float"},
+	"staff_collab_adjacent": {"type": "float"},
+	"staff_collab_complement": {"type": "float"},
+	"staff_collab_adjacent_table": {"type": "dict"},
 }
 
 ## 岗位矩阵真源键（numerics-master §五：research/eval/data/engineering 四岗）
@@ -191,3 +204,45 @@ func test_staff_guardrail_values_follow_spec() -> void:
 	# 基础属性建议区间 40–70（按稀有度 35–75）；初始两强两中由 test_staff 行为断言
 	assert_almost_eq(float(bounds["staff_attr_base_min"][0]), 35.0, 0.0001, "属性带下限护栏 ≥35")
 	assert_almost_eq(float(bounds["staff_attr_base_max"][1]), 75.0, 0.0001, "属性带上限护栏 ≤75")
+
+
+func test_staff_collab_keys_structure_and_guardrails() -> void:
+	# #132 协作表结构（staff-spec D.2 三系数 G4 冻结值 + staff_collab_adjacent_table
+	# 岗位相邻表 + staff_ndim_map 员工→产物维映射表（numerics §1.3））
+	var table := DataLoader.load_json(STAFF_PATH)
+	assert_almost_eq(float(table["staff_collab_same"]), 1.0, 0.0001, "同岗组合效率=1.0（恒基准）")
+	var bounds: Dictionary = table[DataSchema.BOUNDS_KEY]
+	assert_almost_eq(float(bounds["staff_collab_same"][0]), 1.0, 0.0001, "同岗护栏下限=1.0")
+	assert_almost_eq(float(bounds["staff_collab_same"][1]), 1.0, 0.0001, "同岗护栏上限=1.0")
+	var adjacent := float(table["staff_collab_adjacent"])
+	var complement := float(table["staff_collab_complement"])
+	# 表内数值序=严格序真源（护栏区间与 staff-spec D.2 建议行一致）
+	assert_true(1.0 < adjacent and adjacent < complement, "表值序：同岗1.0<相邻<互补")
+	assert_true(adjacent >= 1.06 and adjacent <= 1.10, "相邻系数 ∈[1.06,1.10]（表值 %.3f）" % adjacent)
+	assert_true(
+		complement >= 1.15 and complement <= 1.20, "互补系数 ∈[1.15,1.20]（表值 %.3f）" % complement
+	)
+	assert_almost_eq(float(bounds["staff_collab_adjacent"][0]), 1.06, 0.0001, "相邻护栏下限 1.06")
+	assert_almost_eq(float(bounds["staff_collab_adjacent"][1]), 1.10, 0.0001, "相邻护栏上限 1.10")
+	assert_almost_eq(float(bounds["staff_collab_complement"][0]), 1.15, 0.0001, "互补护栏下限 1.15")
+	assert_almost_eq(float(bounds["staff_collab_complement"][1]), 1.20, 0.0001, "互补护栏上限 1.20")
+	# 岗位相邻表：四岗行齐（键=staff_roles 同源）+ 对称 + 无自环（全连通由
+	# CollabFactor.validate_adjacent_table + test_collab_order_strict 双断言）
+	var adjacent_errors: Array = CollabFactor.validate_adjacent_table(table)
+	assert_eq(adjacent_errors, [], "岗位相邻表结构合法（%s）" % str(adjacent_errors))
+	# staff_ndim_map：属性四维行齐、每行含 paper/model、维名 ∈ architecture §4.2
+	# 冻结 dim_ids（论文 4 维 novelty/rigor/impact/repro；模型 5 维
+	# reasoning/knowledge/chat/speed/cost）——n_dims 测试面详细数值断言在
+	# test_collab.gd::test_ndim_staff_source_mapping
+	var ndim_map: Dictionary = table["staff_ndim_map"]
+	var paper_dims: Array[String] = ["novelty", "rigor", "impact", "repro"]
+	var model_dims: Array[String] = ["reasoning", "knowledge", "chat", "speed", "cost"]
+	for attr_key: String in ATTR_KEYS:
+		assert_true(ndim_map.has(attr_key), "staff_ndim_map 缺属性行 %s" % attr_key)
+		var per_product: Dictionary = ndim_map[attr_key]
+		assert_true(per_product.has("paper"), "staff_ndim_map 属性 %s 缺论文列" % attr_key)
+		assert_true(per_product.has("model"), "staff_ndim_map 属性 %s 缺模型列" % attr_key)
+		for dim: Variant in per_product["paper"] as Array:
+			assert_true(paper_dims.has(str(dim)), "论文维 %s 非法（%s）" % [str(dim), attr_key])
+		for dim: Variant in per_product["model"] as Array:
+			assert_true(model_dims.has(str(dim)), "模型维 %s 非法（%s）" % [str(dim), attr_key])

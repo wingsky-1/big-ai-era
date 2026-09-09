@@ -16,6 +16,13 @@ extends RefCounted
 ##   注释注明后续批替换为表驱动读取；上桌上限同样构造传入，不读不存在的表）；
 ## - 数值禁硬编码（本类零数值常量，工期/周耗/上限全部构造注入）；
 ## - 数据面 get_project_view() 只读深拷贝；进度=周内刻级单调不倒退、完成即冻结。
+## #132 协作加速语义：周推进=工作量当量（float）驱动——week_tick 每 tick 扣
+##   collab_factor 当量工作量；同岗 1.0 时与原整周语义逐位一致（factor=1.0 ⇔
+##   每周恰 1 单位）。多人协作（互补 ×1.18/相邻 ×1.08）→ 周内工作量 >1 → 剩余周
+##   数可见缩短（"两人一起做快 1 天"体感，staff-spec A.5）。显示剩余周=当量
+##   ceil 派生（get_weeks_remaining 语义="保守承诺剩余周"；week_tick 完成判定=
+##   当量 ≤0 冻结完成，见 _tick_work_units）。系数写入方=TaskBoard（按槽成员
+##   组合经 CollabFactor 表驱动计算后调 set_collab_factor；本类不发明算法）。
 ## 双向引用纪律：本类不反向持有 TaskBoard/员工对象，上桌员工=字符串 id 列表由
 ## TaskBoard 持有（本类不存），无 weakref 需求（引用单向无环）。
 
@@ -30,6 +37,9 @@ var _card_hours_per_week: int = 0
 var _seat_limit: int = 0
 var _progress: float = 0.0
 var _weeks_remaining: int = 0
+## 剩余工作量当量（float；#132 协作加速载体：collab_factor>1 → 每周扣 >1 当量 →
+## 实际剩余周 < 表定剩余周）。非持久字段，由 _initialize 按工期复位。
+var _work_units_remaining: float = 0.0
 var _collab_factor: float = 1.0
 var _state: CoreEnums.ProjectState = CoreEnums.ProjectState.IN_PROGRESS
 var _on_table_staff_ids: Array[String] = []
@@ -58,6 +68,7 @@ func _initialize(
 	_card_hours_per_week = card_hours_per_week
 	_seat_limit = seat_limit
 	_weeks_remaining = duration_weeks
+	_work_units_remaining = float(duration_weeks)
 	_progress = 0.0
 	_collab_factor = 1.0
 	_state = CoreEnums.ProjectState.IN_PROGRESS
@@ -72,16 +83,20 @@ func _initialize(
 
 ## 周结推进一次（架构 §5.3 phase 2：for slot in TaskBoard: project.week_tick()）。
 ## final 语义：TaskBoard 依赖"推进/完成判定"确定性，子类不得覆写本方法，
-## 只可覆写 _on_week_tick（每类各自的"推进"内幕）。推进序=先扣剩余周再让
-## 子类按新剩余周算进度（子类 _on_week_tick 读 _weeks_remaining 已减后值）。
+## 只可覆写 _on_week_tick（每类各自的"推进"内幕）。
+## #132 协作当量推进：先扣剩余周（_weeks_remaining -= 1）再按协作系数折算
+## 当量（_tick_work_units：协作 >1.0 → 周内工作量 >1，扣到 0 即提前完成——
+## "两人一起做快 1 天"），随后子类 _on_week_tick 读扣减后的剩余周/进度。
 ## 返回 false=不可推进（非法实例/已完成——已完成项目不再推进，等 #135 消费）。
 func week_tick() -> bool:
 	if not is_running():
 		return false
 	_weeks_remaining -= 1
+	_tick_work_units()
 	_on_week_tick()
-	if _weeks_remaining <= 0:
+	if _work_units_remaining <= 0.0:
 		_weeks_remaining = 0
+		_work_units_remaining = 0.0
 		_progress = 1.0
 		_state = CoreEnums.ProjectState.FINISHED_PENDING
 	return true
@@ -152,6 +167,11 @@ func get_weeks_remaining() -> int:
 	return _weeks_remaining
 
 
+## 显示剩余周（视图"保守承诺"值；#132 起由当量 ceil 派生，见 _tick_work_units）
+func get_weeks_remaining_display() -> int:
+	return int(ceilf(maxf(_work_units_remaining, 0.0)))
+
+
 func get_card_hours_per_week() -> int:
 	return _card_hours_per_week
 
@@ -167,6 +187,9 @@ func get_progress() -> float:
 
 ## 协作系数接口位（#132 由 TaskBoard 按槽成员组合计算后调用写入；本层默认 1.0）
 func set_collab_factor(factor: float) -> void:
+	if not is_finite(factor) or factor < 0.0:
+		push_error("Project: 协作系数非法（factor=%s，须有限且 ≥0）" % str(factor))
+		return
 	_collab_factor = factor
 
 
@@ -174,7 +197,7 @@ func get_collab_factor() -> float:
 	return _collab_factor
 
 
-## 预计结账周（数据面核心：当前进度下的到达周；在跑=按当前剩余周乐观预判，
+## 预计结账周（数据面核心：当前进度下的到达周；在跑=按当前当量保守周乐观预判，
 ## 墙钟表现=Wx 常显同源。completed=view 的 weeks_left=0）
 func get_eta_weeks() -> int:
 	if not is_running():
@@ -183,6 +206,15 @@ func get_eta_weeks() -> int:
 
 
 ## ---------- 私有 ----------
+
+
+## 当量推进（#132 协作乘数应用点）：每 tick 扣 1 当量 × 协作系数。
+## 协作系数=1.0（同岗/单人）→ 每 tick 恰扣 1.0，与整周推进语义逐位一致；
+## 协作系数 >1.0 → 当量提前耗尽（可能中途越过 0），完成周冻结由 week_tick
+## 收口。显示剩余周（视图 ceil 派生）与实际完成周解耦：factor>1 时显示
+## 剩余周比 _weeks_remaining 少——"两人一起做快 1 天"的体感可见来源。
+func _tick_work_units() -> void:
+	_work_units_remaining -= maxf(_collab_factor, 0.0)
 
 
 ## enum→表内稳定字符串的唯一集中映射（单向；跨模块字典同源派生防线，

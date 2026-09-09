@@ -1,9 +1,18 @@
 {
-  "_comment": "staff.json v1.0.0 首批（#130 员工实体+Roster 名册）。键名真源=staff-spec.md D.1/D.2 + C.4（初始 4 人/岗位矩阵/状态带/观察句绑定）；护栏跟键走（architecture-100 D6/ADR-0022）：_bounds 内嵌声明，数值键必带。观察句文案键在 texts.json（#124 已落 staff_observation_pool_01…06），本表只存 id 绑定（静态种子，生成时确定性绑定永不轮转）。岗位/状态文案键引用 texts.json 既有键（staff_role_*/staff_state_*），不新建键。员工姓名=玩法配置行内数据（texts-keys.md 无员工姓名键位，非 i18n 字典内容，行内直存豁免文案键纪律，见 PR 说明）。未纳入本单：培训课程/抗药性/协作相邻表/招募参数（P2 后续批次表增量）。",
+  "_comment": "staff.json v1.0.0 首批+批1.3（#130 员工实体+Roster；#132 协作系数表/岗位相邻表/员工→产物维映射表）。键名真源=staff-spec.md D.1/D.2 + numerics-master §1.3/§五 + architecture-100 §4.2（dim_ids 冻结）；护栏跟键走（architecture-100 D6/ADR-0022）：_bounds 内嵌声明，数值键必带。协作三系数=数值席 G4 修正冻结值（staff-spec D.2 行：同岗恒 1.0 基准/相邻 1.06–1.10/互补 1.15–1.20，互补>相邻>同岗严格序由表结构+测试断言）；staff_collab_adjacent_table=岗位相邻矩阵（research×eval、research×engineering、eval×data、data×engineering 四条边；两岗同岗=同岗组合、表内直连=相邻组合、其余（对角）=互补组合——相邻表全连通，任何两岗可构成某组合效率）；staff_ndim_map=员工 4 属性→产物 n 维映射（numerics-master §1.3 表；论文/模型维 id 按 architecture-100 §4.2 冻结 dim_ids，产品键稳定字符串 paper/model；芯片发挥列因 chip 产物 P2+利用率维落点待数值席核对，#141 n_dims 合成批补齐，本单不含）。未纳入本单：培训课程/抗药性/招募参数（P2 后续批次表增量）+≥3 人协作组合语义（#140/#141 真源收口后表增量）。",
   "staff_start_count": 4,
   "staff_attr_base_min": 40,
   "staff_attr_base_max": 60,
   "staff_attr_growth_per_project": 1,
+  "staff_collab_same": 1.0,
+  "staff_collab_adjacent": 1.08,
+  "staff_collab_complement": 1.18,
+  "staff_collab_adjacent_table": {
+    "research": ["eval", "data"],
+    "eval": ["research", "engineering"],
+    "data": ["research", "engineering"],
+    "engineering": ["data", "eval"]
+  },
   "staff_state_weights": {
     "focus": 0.6,
     "slacking": 0.25,
@@ -69,6 +78,24 @@
       }
     }
   },
+  "staff_ndim_map": {
+    "theory": {
+      "paper": ["novelty", "impact"],
+      "model": ["reasoning", "knowledge"]
+    },
+    "engineering": {
+      "paper": ["repro", "rigor"],
+      "model": ["speed", "cost"]
+    },
+    "data": {
+      "paper": ["rigor", "repro"],
+      "model": ["knowledge", "cost"]
+    },
+    "communication": {
+      "paper": ["impact"],
+      "model": ["chat"]
+    }
+  },
   "staff_initial_roster": {
     "_order": ["s1", "s2", "s3", "s4"],
     "s1": {
@@ -120,6 +147,9 @@
     "staff_start_count": [4, 4],
     "staff_attr_base_min": [35, 40],
     "staff_attr_base_max": [60, 75],
-    "staff_attr_growth_per_project": [0.5, 1.5]
+    "staff_attr_growth_per_project": [0.5, 1.5],
+    "staff_collab_same": [1.0, 1.0],
+    "staff_collab_adjacent": [1.06, 1.10],
+    "staff_collab_complement": [1.15, 1.20]
   }
 }
