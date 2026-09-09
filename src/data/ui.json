@@ -1,7 +1,35 @@
 {
-  "_comment": "ui.json v1.0.0（#145 四主区骨架首落：触控目标/进度条主视觉/L1 动画时长）。键名真源=ui-ux-spec.md D.2（ui_touch_min=48 硬约束灰点例外 ≥24/ui_progress_visual 10-14/ui_anim_l1_dur ≤0.6s）。呈现参数（L2 出数只格式化不触碰玩法数值，ADR-0016 决策①）；触控纪律=可点 ≥48px 灰点 ≥24px（ui-ux B.5/触屏纪律）。显示分级/金框/toast/骨架等键归 #150/#149 同文件增量（键名前缀分区）。",
+  "_comment": "ui.json v1.0.0（#145 四主区骨架 + #146 任务槽卡：类型色/图标/0.5s 槽卡键/主题色板 token）。键名真源=ui-ux-spec.md D.2（ui_touch_min=48 硬约束灰点例外 ≥24/ui_progress_visual 10-14/ui_anim_l1_dur ≤0.6s；#146 增 ui_slot_refresh_dur/ui_slot_finish_anim_dur L1 预算窗 + ui_type_colors/ui_type_icons 双通道 + ui_ink_*/ui_accent 主题色板 B.1 落盘 + ui_slot_empty_dim 空槽置灰强度）。呈现参数（L2 出数只格式化不触碰玩法数值，ADR-0016 决策①）；触控纪律=可点 ≥48px 灰点 ≥24px（ui-ux B.5/触屏纪律）。颜色=hex 字符串 token，L3 经镜像常量取用（防 L3 读表违规，GUT 断言镜像=表值）；显示分级/金框/toast/骨架等键归 #149/#150 同文件增量（键名前缀分区）。",
+  "_bounds": {
+    "ui_touch_min": [48, 48],
+    "ui_touch_min_dot": [24, 24],
+    "ui_progress_visual": [10, 14],
+    "ui_anim_l1_dur": [0.15, 0.6],
+    "ui_slot_refresh_dur": [0.3, 0.6],
+    "ui_slot_finish_anim_dur": [0.3, 0.6],
+    "ui_slot_empty_dim": [0.3, 0.8]
+  },
   "ui_touch_min": 48,
   "ui_touch_min_dot": 24,
   "ui_progress_visual": 12,
-  "ui_anim_l1_dur": 0.4
+  "ui_anim_l1_dur": 0.4,
+  "ui_slot_refresh_dur": 0.5,
+  "ui_slot_finish_anim_dur": 0.5,
+  "ui_slot_empty_dim": 0.55,
+  "ui_ink_bg": "#F7F8FA",
+  "ui_ink_panel": "#FFFFFF",
+  "ui_ink1": "#1A1D24",
+  "ui_ink2": "#4A5160",
+  "ui_ink3": "#8A93A6",
+  "ui_accent": "#2563EB",
+  "ui_type_colors": {
+    "paper": "#7C3AED",
+    "model": "#2563EB",
+    "compute": "#0D9488"
+  },
+  "ui_type_icons": {
+    "paper": "文",
+    "model": "训",
+    "compute": "算"
+  }
 }

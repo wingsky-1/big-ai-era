@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/ui/main/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://src/ui/dashboard/workspace_view.gd" id="2_workspace"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -29,10 +30,11 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="WorkspacePlaceholder" type="Label" parent="MainStage/MiddleRow/WorkspaceZone"]
+[node name="Workspace" type="VBoxContainer" parent="MainStage/MiddleRow/WorkspaceZone"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "工作区（任务槽 ×4）"
-horizontal_alignment = 1
+size_flags_horizontal = 3
+script = ExtResource("2_workspace")
 
 [node name="StaffZone" type="HBoxContainer" parent="MainStage/MiddleRow"]
 unique_name_in_owner = true

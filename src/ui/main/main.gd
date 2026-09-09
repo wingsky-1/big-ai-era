@@ -7,7 +7,8 @@ extends Control
 ##   窄栏（LayoutPolicy 纯函数判定，零业务计算）；
 ## - Dock 三键（任务板/科技树/暂停）=PanelStack.PanelId 冻结集（本骨架期
 ##   只登记键+最小可点按钮；面板实体逐批装配，A8）；
-## - PanelStack 实例（z0-z3 栈语义；后续面板批 open/close 消费）。
+## - PanelStack 实例（z0-z3 栈语义；后续面板批 open/close 消费）；
+## - 工作区=WorkspaceView（#146：4 张任务槽卡；数据面由装配方 bind 注入）。
 ## 触控纪律（ui-ux B.5）：全部可点元素 custom_minimum_size ≥48px（灰点
 ## ≥24）——Dock 三键按 ui.json ui_touch_min 声明（表断言锁定 48；本脚本
 ## 常量=表值镜像，防 L3 读表违规——双通道由 GUT 断言锁一致）。
@@ -20,6 +21,7 @@ var _panel_stack: PanelStack = PanelStack.new()
 
 @onready var _stage: Control = %MainStage
 @onready var _workspace: Control = %WorkspaceZone
+@onready var _workspace_view: WorkspaceView = %Workspace
 @onready var _staff_area: Control = %StaffZone
 @onready var _resource_bar: Control = %ResourceBarZone
 @onready var _dock: Control = %DockZone
@@ -69,3 +71,8 @@ func get_layout_state() -> Dictionary:
 
 func get_panel_stack() -> PanelStack:
 	return _panel_stack
+
+
+## 工作区视图（测试/装配方绑数据面：workspace.bind(task_view_source, emitter, 信号)）
+func get_workspace_view() -> WorkspaceView:
+	return _workspace_view
