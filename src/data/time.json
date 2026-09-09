@@ -12,6 +12,11 @@
   "time_focus_loss_pause": 0.5,
   "time_settle_seq_dur": 2.0,
   "time_bland_threshold": 5,
+  "time_ritual_no_overlap": {
+    "quarter_award_weeks": [13, 26, 39, 52, 65, 78, 91, 104, 117, 130, 143, 156],
+    "annual_rank_weeks": [52, 104, 156],
+    "rival_release_weeks": []
+  },
   "_bounds": {
     "time_wall_clock_1x": [18, 30],
     "time_wall_clock_2x": [2, 2],
