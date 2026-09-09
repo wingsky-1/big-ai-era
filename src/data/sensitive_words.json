@@ -1,0 +1,28 @@
+{
+  "_comment": "sensitive_words.json v1.0.0（#143 命名三层过滤词表首落）。键名真源=onboarding-spec.md C.5（name_filter_whitelist/blocklist/homophone_map 三层）+ architecture-100 §9.1（sensitive_words.json=三层配置表，全局共用，内容席维护）+ onboarding-spec D.2（name_filter_max_len 登记行）。白名单=字符类别开关（CJK/拉丁/数字/空格 + 常用标点串）；blocklist=侮辱/政治敏感/广告示例条目（内容席维护扩表）；homophone_map=防真人近音串（组合近音/全拼/拼音首字母变体，输入含任一即拒）。示例词表保最小可测，正式词库由内容席评审扩表（[P] 留真人）。",
+  "name_filter_max_len": 12,
+  "name_filter_whitelist": {
+    "cjk": true,
+    "latin": true,
+    "digit": true,
+    "space": true,
+    "extra": "-_.·"
+  },
+  "name_filter_blocklist": [
+    "习近平",
+    "毛主席",
+    "法轮功",
+    "傻逼"
+  ],
+  "name_filter_homophone_map": [
+    "习近",
+    "席近",
+    "近平",
+    "平近",
+    "xijinping",
+    "xjp",
+    "泽东",
+    "zedong",
+    "zd"
+  ]
+}
