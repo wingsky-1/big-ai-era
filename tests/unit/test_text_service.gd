@@ -37,7 +37,7 @@ func _load_table() -> Dictionary:
 func test_text_keys_unique() -> void:
 	var table := _load_table()
 	var expected := TextKeysFixture.source_keys()
-	assert_eq(expected.size(), 336, "texts-keys.md §二 全表键数=336（展开/排除/占位处理）")
+	assert_eq(expected.size(), 337, "texts-keys.md §二 全表键数=337（展开/排除/占位处理）")
 	var data_keys := _data_keys(table)
 	assert_eq(
 		data_keys.size(),

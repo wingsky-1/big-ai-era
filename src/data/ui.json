@@ -1,5 +1,5 @@
 {
-  "_comment": "ui.json v1.0.0（#145 四主区骨架 + #146 任务槽卡：类型色/图标/0.5s 槽卡键/主题色板 token）。键名真源=ui-ux-spec.md D.2（ui_touch_min=48 硬约束灰点例外 ≥24/ui_progress_visual 10-14/ui_anim_l1_dur ≤0.6s；#146 增 ui_slot_refresh_dur/ui_slot_finish_anim_dur L1 预算窗 + ui_type_colors/ui_type_icons 双通道 + ui_ink_*/ui_accent 主题色板 B.1 落盘 + ui_slot_empty_dim 空槽置灰强度）。呈现参数（L2 出数只格式化不触碰玩法数值，ADR-0016 决策①）；触控纪律=可点 ≥48px 灰点 ≥24px（ui-ux B.5/触屏纪律）。颜色=hex 字符串 token，L3 经镜像常量取用（防 L3 读表违规，GUT 断言镜像=表值）；显示分级/金框/toast/骨架等键归 #149/#150 同文件增量（键名前缀分区）。；#147 增 ui_staff_state_colors（B.1 状态色带行：专注蓝/摸鱼灰/灵感金，色+字样双通道）+ ui_staff_grid_columns（B.5 横屏网格 2-3 列）；#148 落盘 ui_score_grade_threshold（ui-ux D.2 档位标签阈值：<10 榜外/10-30 新星/30-60 中坚/60-85 第一梯队/85+ 登顶，仅显示分级口径与 SOTA 守卫带不冲突）；并落盘 ui_danger/ui_danger_bg（B.1 danger 语义：负值/预警文本通道+浅底，L3 镜像=表值）。",
+  "_comment": "ui.json v1.0.0（#145 四主区骨架 + #146 任务槽卡：类型色/图标/0.5s 槽卡键/主题色板 token）。键名真源=ui-ux-spec.md D.2（ui_touch_min=48 硬约束灰点例外 ≥24/ui_progress_visual 10-14/ui_anim_l1_dur ≤0.6s；#146 增 ui_slot_refresh_dur/ui_slot_finish_anim_dur L1 预算窗 + ui_type_colors/ui_type_icons 双通道 + ui_ink_*/ui_accent 主题色板 B.1 落盘 + ui_slot_empty_dim 空槽置灰强度）。呈现参数（L2 出数只格式化不触碰玩法数值，ADR-0016 决策①）；触控纪律=可点 ≥48px 灰点 ≥24px（ui-ux B.5/触屏纪律）。颜色=hex 字符串 token，L3 经镜像常量取用（防 L3 读表违规，GUT 断言镜像=表值）；显示分级/金框/toast/骨架等键归 #149/#150 同文件增量（键名前缀分区）。；#147 增 ui_staff_state_colors（B.1 状态色带行：专注蓝/摸鱼灰/灵感金，色+字样双通道）+ ui_staff_grid_columns（B.5 横屏网格 2-3 列）；#148 落盘 ui_score_grade_threshold（ui-ux D.2 档位标签阈值：<10 榜外/10-30 新星/30-60 中坚/60-85 第一梯队/85+ 登顶，仅显示分级口径与 SOTA 守卫带不冲突）；并落盘 ui_danger/ui_danger_bg（B.1 danger 语义：负值/预警文本通道+浅底，L3 镜像=表值）；#149 落盘 ui_report_significant（ui-ux D.2 周报显著阈值 ≥5% 或符号翻转；与 time.json time_bland_threshold 同源镜像，GUT 断言两表一致）。",
   "_bounds": {
     "ui_touch_min": [
       48,
@@ -32,6 +32,10 @@
     "ui_staff_grid_columns": [
       2,
       3
+    ],
+    "ui_report_significant": [
+      1,
+      10
     ]
   },
   "ui_touch_min": 48,
@@ -70,5 +74,6 @@
     85
   ],
   "ui_danger": "#DC2626",
-  "ui_danger_bg": "#FEF2F2"
+  "ui_danger_bg": "#FEF2F2",
+  "ui_report_significant": 5
 }

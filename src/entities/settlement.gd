@@ -30,6 +30,7 @@ var _resources: Resources
 var _economy: Economy
 var _task_board: Object = null  # 弱引用语义：经装配方注入（防环）
 var _paper_archive: Object = null
+var _weekly_report: Object = null  # #149 周报构建（可选注入：未注入=跳过周报行）
 var _week: int = 1
 
 
@@ -39,12 +40,14 @@ func _init(
 	economy: Economy,
 	task_board: Object = null,
 	paper_archive: Object = null,
+	weekly_report: Object = null,
 ) -> void:
 	_ledger = ledger
 	_resources = resources
 	_economy = economy
 	_task_board = task_board
 	_paper_archive = paper_archive
+	_weekly_report = weekly_report
 
 
 ## 周结主入口（装配方按墙钟/倍率喂 tick；phase 0-6 本批实落，7-10 接口）。
@@ -58,6 +61,9 @@ func run_settle(week: int) -> Dictionary:
 	# phase 0：z2 门控
 	if z2_blocked.call():
 		return {"ok": true, "skipped": true, "bankrupt": false, "week": week}
+	# #149 周报周起始（z2 阻塞跳过周不 begin——跳过的周不产生周报）
+	if _weekly_report != null:
+		_weekly_report.begin_week(week)
 	# phase 1：卡时重置 + 预算重占（#140：重置后对在跑训练项目扣本周周耗）
 	_resources.reset_weekly_card_hours()
 	if _task_board != null:
@@ -139,6 +145,9 @@ func _settle_projects() -> Array[Dictionary]:
 			CoreEnums.ProjectType.PAPER:
 				var result := _route_paper_finished(project)
 				finished.append(result)
+				# #149 论文完成槽释放（防 4 槽死局；#143 模型侧=仪式命名后释放，
+				# 论文侧=本批收口：路由已取完产出数据，槽即回收可复用）
+				_task_board.release_finished_slot(int(info.get("slot_index", -1)))
 			_:
 				# 模型/算力：#140/#141 接线（本批不路由，项目留 FINISHED_PENDING）
 				finished.append({"type": project_type, "routed": false})
@@ -174,6 +183,12 @@ func _route_paper_finished(project: Object) -> Dictionary:
 	if paper_view.has("ndim"):
 		ndim = paper_view["ndim"]
 	_paper_archive.add_paper(title_key, domain, ndim, 0.0, influence)
+	# #149 周报行（账本对账行：论文影响力 +X；显著=谓词 0→influence，防零值噪声）
+	if _weekly_report != null and influence != 0:
+		var report_text := TextService.format("paper_impact_row", {"影响": str(influence)})
+		_weekly_report.add_delta_row(
+			WeeklyReport.RowKind.LEDGER, report_text, 0.0, float(influence)
+		)
 	route["routed"] = true
 	route["influence"] = influence
 	route["income"] = income

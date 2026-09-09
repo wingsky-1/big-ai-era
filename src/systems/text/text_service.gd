@@ -37,6 +37,7 @@ const SUPPORTED_INTERP_VARS: Array[String] = [
 	"项目名",
 	"净流入",
 	"周亏",
+	"影响",
 ]
 
 static var _table: Dictionary = {}
