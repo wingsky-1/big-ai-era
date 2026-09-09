@@ -145,7 +145,7 @@ func test_train_blocked_single_reason_source() -> void:
 	assert_eq(
 		board.assign_staff("s1", 3),
 		CoreEnums.SlotRejectReason.NO_RUNNING_PROJECT,
-		"已完成槽不可指派=NO_RUNNING_PROJECT（FINISHED_PENDING 归 #135 释放）",
+		"已完成槽不可指派=NO_RUNNING_PROJECT（FINISHED_PENDING 归 #143 仪式消费释放）",
 	)
 
 
@@ -256,8 +256,9 @@ func test_assign_single_write_point() -> void:
 
 
 func test_task_board_week_tick_advances_and_pins_finished() -> void:
-	# 周结推进：TaskBoard.week_tick 逐槽驱动；完成→FINISHED_PENDING 且槽不释放
-	# （释放/结算归 #135；本批不发明接口）——架构 §5.3 phase 2 落点
+	# 周结推进：TaskBoard.week_tick 逐槽驱动；完成→FINISHED_PENDING 且槽不自动
+	# 释放（显式 release_finished_slot 归消费方：#143 模型仪式/#149 论文批）——
+	# 架构 §5.3 phase 2 落点
 	var board := _make_board()
 	board.start_training(_make_model(2, 1), 0)
 	board.start_paper(_make_paper(3, 1), 1)
@@ -276,12 +277,12 @@ func test_task_board_week_tick_advances_and_pins_finished() -> void:
 	assert_eq(
 		board.get_slot_state(0),
 		CoreEnums.ProjectState.FINISHED_PENDING,
-		"完成槽状态=FINISHED_PENDING（未释放，#135 消费后回 EMPTY）",
+		"完成槽状态=FINISHED_PENDING（未释放，等待仪式消费 #143）",
 	)
 	assert_false(board.is_slot_empty(0), "FINISHED_PENDING 槽不可复用（防结算前覆写）")
 	assert_true(
 		(board.get_slot_view(0)["assigned_staff"] as Array).is_empty(),
-		"本批完成槽成员为空（无指派发生；#135 载荷透出由该批处理）",
+		"本批完成槽成员为空（无指派发生；载荷透出由仪式批 #143 接）",
 	)
 	assert_eq(board.get_empty_slot_count(), 2, "推进不增减槽（恒 4：2 跑 1 完 1 空）")
 	assert_eq(board.get_slot_count(), 4, "周推进后槽恒 4")
@@ -426,7 +427,29 @@ func _make_compute(duration_weeks: int, card_hours_per_week: int) -> ComputeStub
 	return ComputeStub.new("compute_demo", duration_weeks, card_hours_per_week, 2)
 
 
-## 员工定义（模拟 staff.json 行：无在岗字段——断言面 B 用）
+func test_release_finished_slot_only_after_settle() -> void:
+	# #143 release_finished_slot：完成槽经结算消费后回 EMPTY 可复用（防 4 槽
+	# 死局）；运行中/空槽拒绝释放（防结算前覆写语义=cancel 区分）
+	var board := _make_board()
+	board.start_training(_make_model(2, 1), 0)
+	# 运行中槽=拒绝释放（release 只对 FINISHED_PENDING）
+	assert_false(board.release_finished_slot(0), "运行中槽拒绝释放")
+	board.week_tick()
+	board.week_tick()
+	assert_eq(
+		board.get_slot_state(0), CoreEnums.ProjectState.FINISHED_PENDING, "完成后=FINISHED_PENDING"
+	)
+	# 空槽释放=拒绝
+	assert_false(board.release_finished_slot(2), "空槽拒绝释放")
+	assert_false(board.release_finished_slot(9), "越界槽拒绝释放")
+	# 完成槽释放成功=回 EMPTY 可复用
+	assert_true(board.release_finished_slot(0), "完成槽释放成功")
+	assert_true(board.is_slot_empty(0), "释放后槽回 EMPTY 可复用")
+	assert_eq(board.get_empty_slot_count(), 4, "释放后空槽恢复 4（防死局）")
+	# 再释放已完成释放的槽=拒绝（非 FINISHED_PENDING）
+	assert_false(board.release_finished_slot(0), "已释放槽再释放=拒绝")
+
+
 func _staff_definition() -> Dictionary:
 	return {
 		"id": "s1",

@@ -26,7 +26,8 @@ extends RefCounted
 ##   0.5s 刷新语义=task_board_changed 信号发射 + 槽视图随查随新（#131 已有信号，
 ##   本批指派载荷不变；L3 消费信号重查 get_task_view，见架构 §5.2）；
 ## - week_tick 驱动各槽项目推进（架构 §5.3 phase 2；完成→FINISHED_PENDING，
-##   槽不自动释放——结算/释放归 Settlement #135，本批不发明接口）；
+##   槽不自动释放——释放归消费方：#143 起模型完成槽由 ModelCeremony 定名后
+##   调 release_finished_slot 回收（防 4 槽死局）；论文完成槽归 #149 周报批）；
 ## - 信号（架构 §5.2）：task_board_changed（槽态变）真实发射点+消费点（测试）；
 ##   project_finished 载荷需 kind_view（Settlement 路由产物），#135 随结算管线
 ##   一并发射，本批不提前发射（防零载荷死信号，§5.2 纪律）；
@@ -35,7 +36,8 @@ extends RefCounted
 ##   含协作系数/协作分类/上桌者角色键（协作角标数据面同源）；
 ## - 数值零硬编码：唯一数值=槽数 4（架构真源固定，见上）；协作系数值零代码
 ##   硬编码（读注入的 staff.json，见 CollabFactor）。
-## 行数预算：≤500（architecture §8 严控）；超限拆子状态类（当前未超）。
+## 行数预算：≤500（architecture §8 严控）；历史超限债（#135 结算路由批前
+## 555 行）登记随门面拆分单处理（#145 批重构，不随本单扩大债务面）。
 
 signal task_board_changed(change: Dictionary)
 
@@ -216,6 +218,23 @@ func cancel_project(slot_index: int) -> CoreEnums.SlotRejectReason:
 	_slot_states[slot] = CoreEnums.ProjectState.EMPTY
 	_emit_changed({"kind": "cancelled", "slot_index": slot})
 	return CoreEnums.SlotRejectReason.NONE
+
+
+## 释放完成槽（#143 模型出分仪式消费完成项目后调；架构 §5.3 phase 2"完成=
+## 结算对象"落点）。仅 FINISHED_PENDING 槽可释放（防结算前覆写语义
+## 与 cancel 区分：cancel=运行中撤台，本方法=结算后回收）。论文完成槽
+## 释放归 #149 周报批接（本单只落模型侧仪式消费）。
+func release_finished_slot(slot_index: int) -> bool:
+	var slot: int = _resolve_target_slot(slot_index)
+	if slot == INVALID_SLOT_INDEX:
+		return false
+	if _slot_states[slot] != CoreEnums.ProjectState.FINISHED_PENDING:
+		return false
+	_slot_projects[slot] = null
+	_slot_staff_ids[slot] = []
+	_slot_states[slot] = CoreEnums.ProjectState.EMPTY
+	_emit_changed({"kind": "released", "slot_index": slot})
+	return true
 
 
 ## 周结预算扣减（#140；Settlement phase1 卡时重置后调用）：对全部在跑
