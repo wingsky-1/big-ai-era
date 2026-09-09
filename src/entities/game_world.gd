@@ -22,6 +22,7 @@ var _machine: TutorialMachine = null
 var _card: GoalCard = null
 var _pipeline: WeeklyPipeline = null
 var _settlement: Settlement = null
+var _commands: WorldCommands = null
 var _started: bool = false
 
 
@@ -29,6 +30,7 @@ func _init(seed: int = 0) -> void:
 	_parts = WorldFactory.assemble(seed)
 	_machine = TutorialMachine.new()
 	_card = GoalCard.new(_machine)
+	_commands = WorldCommands.new(_parts)
 	_bind_machine_predicates()
 	_build_pipeline()
 
@@ -42,6 +44,7 @@ func start_new_game(seed: int = 0) -> Dictionary:
 	_parts = WorldFactory.assemble(seed)
 	_machine = TutorialMachine.new()
 	_card = GoalCard.new(_machine)
+	_commands = WorldCommands.new(_parts)
 	_bind_machine_predicates()
 	_build_pipeline()
 	var board: TaskBoard = _parts["board"]
@@ -61,52 +64,10 @@ func start_new_game(seed: int = 0) -> Dictionary:
 	return {"ok": true}
 
 
-## 接单（L3 任务板消费）：选题 id → PaperProject.from_topic 入槽。
-func accept_paper(topic_id: String) -> Dictionary:
-	var pool := PaperPool.new()
-	var topic := pool.get_topic_by_id(topic_id)
-	if topic.is_empty():
-		return {"ok": false, "reason": "unknown_topic"}
-	return (_parts["board"] as TaskBoard).start_paper(PaperProject.from_topic(topic))
-
-
-## 排训练（L3 训练页消费）：基座 id → ModelProject.from_base 入槽。
-func start_training(base_id: String) -> Dictionary:
-	var models_table := DataLoader.load_json("res://src/data/models.json")
-	var bases: Dictionary = models_table["model_bases"]
-	if not bases.has(base_id):
-		return {"ok": false, "reason": "unknown_base"}
-	return (_parts["board"] as TaskBoard).start_training(ModelProject.from_base(bases[base_id]))
-
-
-## 指派上桌（L3 员工卡消费）；返回 SlotRejectReason（NONE=成功）。
-func assign_staff(staff_id: String, slot_index: int) -> CoreEnums.SlotRejectReason:
-	return (_parts["board"] as TaskBoard).assign_staff(staff_id, slot_index)
-
-
-## 研究启动（L3 迷雾面板消费）；返回 TreeResearch/TechTree 结果字典。
-func start_research(node_id: String) -> Dictionary:
-	return (_parts["tree"] as TechTree).start_research(node_id)
-
-
-## 命名确认（L3 命名框消费）；返回 {ok, reason, entry}。
-func submit_name(name: String) -> Dictionary:
-	return (_parts["ceremony"] as ModelCeremony).submit_name(name)
-
-
-## 跳过命名（"交给命运"；首模型无跳过路径——返回 first_mandatory 拒绝）。
-func skip_naming() -> Dictionary:
-	return (_parts["ceremony"] as ModelCeremony).skip_naming()
-
-
-## 变速（1x→2x→4x→1x；z2 阻塞拒绝）。返回新档位索引。
-func cycle_speed() -> int:
-	return (_parts["clock"] as GameClock).cycle_speed()
-
-
-## 暂停/继续（永不禁用）。
-func set_paused(paused: bool) -> void:
-	(_parts["clock"] as GameClock).set_paused(paused)
+## 命令委托访问器（L3 面板消费：接单/排训练/指派/研究/命名/变速/暂停——
+## 命令语义在 WorldCommands 委托层，本类保持门面不膨胀，gdlint 20 方法上限）
+func get_commands() -> WorldCommands:
+	return _commands
 
 
 ## 失焦谓词注入（L3/main 在 OS 失焦时切换；time_focus_loss_pause 阈值内）
@@ -159,6 +120,8 @@ func get_dashboard_view() -> Dictionary:
 	var board: TaskBoard = _parts["board"]
 	var roster: Roster = _parts["roster"]
 	var resources: Resources = _parts["resources"]
+	var ledger: Ledger = _parts["ledger"]
+	var economy: Economy = _parts["economy"]
 	var clock: GameClock = _parts["clock"]
 	var pack: RivalPack = _parts["pack"]
 	var ceremony: ModelCeremony = _parts["ceremony"]
@@ -175,6 +138,11 @@ func get_dashboard_view() -> Dictionary:
 			"card_hours_used": resources.get_card_hours_used(),
 			"card_hours_remaining": resources.get_card_hours_remaining(),
 			"card_hours_supply": resources.get_card_hours_supply(),
+			# 资源栏完整字段（L2 计算 L3 只画；presenter 兼容键集，ADR-0016）
+			"weekly_net": ledger.get_week_net(),
+			"warning_line": economy.get_warning_line(_weekly_expense()),
+			"solvency_weeks": economy.get_solvency_weeks(resources.get_cash(), _weekly_expense()),
+			"relief": {},
 		},
 		"rival_light": pack.get_highest_warn(int(clock_view["week"])),
 		"goal_card": _card.get_goal_card_view(int(clock_view["week"])),
@@ -204,6 +172,24 @@ func get_goal_card() -> GoalCard:
 ## 命名待决谓词（L3 命名框可见性；周结内 z2 门控同源）
 func has_naming_pending() -> bool:
 	return (_parts["ceremony"] as ModelCeremony).has_pending()
+
+
+## 系统访问器（L3 装配方 bind 数据面用；L3 禁直取业务对象做计算，仅作
+## 信号发射器/数据源传引用——ADR-0016 契约面）
+func get_task_board() -> TaskBoard:
+	return _parts["board"]
+
+
+func get_roster() -> Roster:
+	return _parts["roster"]
+
+
+func get_sota_board() -> SotaBoard:
+	return _parts["sota"]
+
+
+func get_sota_record_score() -> float:
+	return (_parts["sota"] as SotaBoard).get_record_score()
 
 
 ## ---------- 存档（12 域编解码唯一映射点；SnapshotCodec 承诺） ----------
@@ -279,6 +265,16 @@ func restore_from_save(save: Dictionary) -> Dictionary:
 
 
 ## ---------- 私有 ----------
+
+
+## 周支出估算（资源栏"还能撑 X 周"分母：工资×阶段+运维×档位；economy
+## 表驱动零硬编码——预警/清偿口径与 Settlement phase3 同源）
+func _weekly_expense() -> int:
+	var economy: Economy = _parts["economy"]
+	var clock: GameClock = _parts["clock"]
+	var week := clock.get_week()
+	var stage := economy.get_stage(week)
+	return economy.get_weekly_salary(stage) + economy.get_weekly_ops_cost()
 
 
 func _bind_machine_predicates() -> void:

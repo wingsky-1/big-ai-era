@@ -50,10 +50,10 @@ func test_world_commands() -> void:
 	# 先推进一周：卡时预算周结重置（budget_met 依赖 remaining，首结前=0）
 	_tick_weeks(1.0)
 	# 接单（accept_paper 选题 id；首任务已在槽，再入空槽）
-	var paper_result: Dictionary = _world.accept_paper("lora_align")
+	var paper_result: Dictionary = _world.get_commands().accept_paper("lora_align")
 	assert_eq(bool(paper_result.get("ok", false)), true, "accept_paper 入槽")
 	# 排训练（mini 基座；预算已重置=T0 供给 8 ≥ 1）
-	var train_result: Dictionary = _world.start_training("mini")
+	var train_result: Dictionary = _world.get_commands().start_training("mini")
 	assert_eq(
 		bool(train_result.get("ok", false)),
 		true,
@@ -61,24 +61,24 @@ func test_world_commands() -> void:
 	)
 	# 指派（s1 上桌）
 	assert_eq(
-		_world.assign_staff("s1", int(train_result["slot_index"])),
+		_world.get_commands().assign_staff("s1", int(train_result["slot_index"])),
 		CoreEnums.SlotRejectReason.NONE,
 		"assign_staff 上桌成功",
 	)
 	# 研究（首节点；开局已启动→再启动=拒绝不崩，防御面）
-	var research_result: Dictionary = _world.start_research(FIRST_NODE_ID)
+	var research_result: Dictionary = _world.get_commands().start_research(FIRST_NODE_ID)
 	assert_true(research_result.has("ok"), "start_research 返回结果（防御路径不崩）")
 	# 命名（无待定名=拒绝不崩）
-	var naming_result: Dictionary = _world.submit_name("灵犀初号")
+	var naming_result: Dictionary = _world.get_commands().submit_name("灵犀初号")
 	assert_eq(bool(naming_result.get("ok", false)), false, "无待命名时 submit_name 拒绝")
 	# 变速/暂停/存档
-	var speed := _world.cycle_speed()
+	var speed := _world.get_commands().cycle_speed()
 	assert_true(
 		speed >= GameClock.SpeedIndex.ONE_X and speed <= GameClock.SpeedIndex.FOUR_X,
 		"cycle_speed 循环 1x→2x",
 	)
-	_world.set_paused(true)
-	_world.set_paused(false)
+	_world.get_commands().set_paused(true)
+	_world.get_commands().set_paused(false)
 	assert_true(_world.manual_save(), "manual_save 原子写成功")
 
 
@@ -105,11 +105,13 @@ func test_world_first_loop() -> void:
 		_tick_weeks(1.0)
 		if week == 3:
 			# W3 结算后（=W4 周界）：首任务完成释放槽 → 排训练+指派
-			var train_result: Dictionary = _world.start_training("mini")
+			var train_result: Dictionary = _world.get_commands().start_training("mini")
 			if bool(train_result.get("ok", false)):
-				_world.assign_staff("s1", int(train_result["slot_index"]))
+				_world.get_commands().assign_staff("s1", int(train_result["slot_index"]))
 		if _world.has_naming_pending():
-			assert_eq(bool(_world.submit_name("灵犀初号").get("ok", false)), true, "命名入册")
+			assert_eq(
+				bool(_world.get_commands().submit_name("灵犀初号").get("ok", false)), true, "命名入册"
+			)
 	# 六步全达成
 	assert_eq(int(_world.get_machine().get_progress()["completed_count"]), 6, "六步全达成")
 	assert_signal_emit_count(machine, "chain_completed", 1, "链完成恰一次")
