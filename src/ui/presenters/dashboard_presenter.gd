@@ -47,6 +47,9 @@ const KEY_GRADE: Array[String] = [
 ## 档位标签阈值镜像（ui.json ui_score_grade_threshold：<10 榜外/10-30 新星/
 ## 30-60 中坚/60-85 第一梯队/85+ 登顶；仅显示分级口径，与 SOTA 守卫带不冲突）
 const GRADE_THRESHOLD: Array = [10.0, 30.0, 60.0, 85.0]
+## 显示分级呈现面（#150：主台=阈下档位标签/周报=恒显真值）
+const SURFACE_MAIN: String = "main"
+const SURFACE_REPORT: String = "report"
 
 
 ## 槽 view → 槽卡字段（单点适配；空槽=状态句 + 其余留空，防假数据"A.5 空态"）。
@@ -213,6 +216,44 @@ static func rival_light_view(score: float) -> Dictionary:
 	}
 
 
+## 显示分级适配（#150；ui-ux B.2 显示分级/OP-UX-04「score<10 主台不显裸数字
+## 只显档位标签，≥10 显真值，周报恒显」）。surface=见 SURFACE_MAIN/REPORT。
+
+
+static func score_display(score: float, surface: String) -> Dictionary:
+	var has_data := score >= 0.0
+	var show_number := false
+	if has_data:
+		show_number = surface == SURFACE_REPORT or score >= float(GRADE_THRESHOLD[0])
+	var grade_index := _grade_index_of(score)
+	return {
+		"has_data": has_data,
+		"show_number": show_number,
+		"number": str(int(round(score))) if show_number else "",
+		"grade_text":
+		(
+			TextService.text(KEY_GRADE[grade_index])
+			if has_data and not show_number and grade_index >= 0 and grade_index < KEY_GRADE.size()
+			else ""
+		),
+	}
+
+
+## n 维条形数据适配（#150；L2 ndim 视图{文本键:数值}→条形行 [{label,value}]，
+## 标签=TextService 解析（paper_ndim_*/model_ndim_* 键面）；数值降序=揭晓序。
+static func ndim_bars_view(ndim_data: Dictionary) -> Array:
+	var bars: Array = []
+	for key: String in ndim_data.keys():
+		var label := _resolve_key(key)
+		if label.is_empty():
+			continue
+		bars.append({"label": label, "value": float(ndim_data[key])})
+	bars.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool: return float(a["value"]) > float(b["value"])
+	)
+	return bars
+
+
 ## 文案键安全解析（空键=直接留空，防 TextService 对空键 push_error 熔断）
 static func _resolve_key(text_key: String) -> String:
 	if text_key.is_empty():
@@ -229,3 +270,15 @@ static func _money(amount: int) -> String:
 static func _signed_money(amount: int) -> String:
 	var prefix: String = "+¥" if amount >= 0 else "-¥"
 	return "%s%d" % [prefix, absi(amount)]
+
+
+## 分数→档位下标（<10=0/10-30=1/30-60=2/60-85=3/≥85=4；score<0=-1 未出分）
+static func _grade_index_of(score: float) -> int:
+	if score < 0.0:
+		return -1
+	var index := GRADE_THRESHOLD.size()
+	for i: int in GRADE_THRESHOLD.size():
+		if score < float(GRADE_THRESHOLD[i]):
+			index = i
+			break
+	return index
