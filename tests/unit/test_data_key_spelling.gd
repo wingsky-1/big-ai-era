@@ -13,6 +13,8 @@ const SOURCE_KEYS: Array[String] = [
 	"time_week_per_year",
 	"time_quarters_in_game",
 	"time_ritual_density",
+	"time_autosave_point",
+	"time_manual_save",
 	"time_focus_loss_pause",
 	"time_settle_seq_dur",
 	"time_bland_threshold",
