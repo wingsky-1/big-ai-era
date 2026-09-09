@@ -1,0 +1,125 @@
+{
+  "_comment": "staff.json v1.0.0 首批（#130 员工实体+Roster 名册）。键名真源=staff-spec.md D.1/D.2 + C.4（初始 4 人/岗位矩阵/状态带/观察句绑定）；护栏跟键走（architecture-100 D6/ADR-0022）：_bounds 内嵌声明，数值键必带。观察句文案键在 texts.json（#124 已落 staff_observation_pool_01…06），本表只存 id 绑定（静态种子，生成时确定性绑定永不轮转）。岗位/状态文案键引用 texts.json 既有键（staff_role_*/staff_state_*），不新建键。员工姓名=玩法配置行内数据（texts-keys.md 无员工姓名键位，非 i18n 字典内容，行内直存豁免文案键纪律，见 PR 说明）。未纳入本单：培训课程/抗药性/协作相邻表/招募参数（P2 后续批次表增量）。",
+  "staff_start_count": 4,
+  "staff_attr_base_min": 40,
+  "staff_attr_base_max": 60,
+  "staff_attr_growth_per_project": 1,
+  "staff_state_weights": {
+    "focus": 0.6,
+    "slacking": 0.25,
+    "inspired": 0.15
+  },
+  "staff_state_modifier": {
+    "focus": {
+      "min": 1.0,
+      "max": 1.08
+    },
+    "slacking": {
+      "min": 0.9,
+      "max": 1.0
+    },
+    "inspired": {
+      "min": 0.92,
+      "max": 1.08
+    }
+  },
+  "staff_observation_pool": [
+    "staff_observation_pool_01",
+    "staff_observation_pool_02",
+    "staff_observation_pool_03",
+    "staff_observation_pool_04",
+    "staff_observation_pool_05",
+    "staff_observation_pool_06"
+  ],
+  "staff_roles": {
+    "research": {
+      "name_key": "staff_role_research",
+      "attr_coef": {
+        "theory": 1.2,
+        "engineering": 0.9,
+        "data": 0.9,
+        "communication": 1.0
+      }
+    },
+    "eval": {
+      "name_key": "staff_role_eval",
+      "attr_coef": {
+        "theory": 0.9,
+        "engineering": 1.0,
+        "data": 1.0,
+        "communication": 1.2
+      }
+    },
+    "data": {
+      "name_key": "staff_role_data",
+      "attr_coef": {
+        "theory": 0.8,
+        "engineering": 1.1,
+        "data": 1.25,
+        "communication": 0.9
+      }
+    },
+    "engineering": {
+      "name_key": "staff_role_engineering",
+      "attr_coef": {
+        "theory": 0.9,
+        "engineering": 1.2,
+        "data": 1.1,
+        "communication": 0.8
+      }
+    }
+  },
+  "staff_initial_roster": {
+    "_order": ["s1", "s2", "s3", "s4"],
+    "s1": {
+      "name": "林以川",
+      "role": "research",
+      "attrs": {
+        "theory": 56,
+        "engineering": 46,
+        "data": 44,
+        "communication": 50
+      },
+      "observation_pool_index": 0
+    },
+    "s2": {
+      "name": "苏予安",
+      "role": "eval",
+      "attrs": {
+        "theory": 46,
+        "engineering": 50,
+        "data": 44,
+        "communication": 56
+      },
+      "observation_pool_index": 1
+    },
+    "s3": {
+      "name": "陆青禾",
+      "role": "data",
+      "attrs": {
+        "theory": 46,
+        "engineering": 44,
+        "data": 60,
+        "communication": 48
+      },
+      "observation_pool_index": 2
+    },
+    "s4": {
+      "name": "陈既明",
+      "role": "engineering",
+      "attrs": {
+        "theory": 44,
+        "engineering": 62,
+        "data": 46,
+        "communication": 42
+      },
+      "observation_pool_index": 3
+    }
+  },
+  "_bounds": {
+    "staff_start_count": [4, 4],
+    "staff_attr_base_min": [35, 40],
+    "staff_attr_base_max": [60, 75],
+    "staff_attr_growth_per_project": [0.5, 1.5]
+  }
+}
