@@ -90,6 +90,9 @@ var _fog_reveal_rate: float = 0.0
 var _cross_reveal_max: int = 0
 ## tree_domain_nodes：每域节点数（D.2 表值，视图/断言与表同源）
 var _domain_node_count: int = 0
+## #138 研究状态机（独立类承载：成本/前置/周数/升级/效果——本类只做迷雾，
+## 研究=TreeResearch 组合；拆分方向 architecture §8"按子状态机拆"）
+var _research: TreeResearch = null
 
 
 func _init(tree_table: Dictionary = {}, rng_stream: RngStream = null) -> void:
@@ -114,6 +117,7 @@ func _init(tree_table: Dictionary = {}, rng_stream: RngStream = null) -> void:
 	else:
 		## 无 rng 注入：pity 视图用 tech_tree.json 上限兜底（周推进命令拒绝）
 		_rng_pity_max = _tree_pity_max
+	_bind_research(table)
 
 
 func _assemble_table(table: Dictionary) -> void:
@@ -269,15 +273,42 @@ func is_researchable_ready(node_id: String) -> bool:
 	return _fog[node_id] == FogState.VISIBLE
 
 
-## 研究开始（#138 只出接口与态判定，不落成本/进度）：visible → researchable。
+## 研究开始（#138 委托 TreeResearch：成本/前置/周数；迷雾门禁本层先判，
+## 成功后 visible→researchable=研究中态，#137 占位语义保留）。
 func start_research(node_id: String) -> Dictionary:
 	if not _node_rows.has(node_id):
-		return _fail(ERR_RESEARCH, REASON_UNKNOWN_NODE)
+		return {"ok": false, "code": ERR_RESEARCH, "reason": REASON_UNKNOWN_NODE}
 	if _fog[node_id] != FogState.VISIBLE:
-		return _fail(ERR_RESEARCH, REASON_NOT_VISIBLE)
-	if advance_fog(node_id):
-		return _ok(node_id, "research")
-	return _fail(ERR_RESEARCH, REASON_NOT_VISIBLE)
+		return {"ok": false, "code": ERR_RESEARCH, "reason": REASON_NOT_VISIBLE}
+	if _research == null:
+		return {"ok": false, "code": ERR_RESEARCH, "reason": "研究组件未装配"}
+	var result := _research.start_research(node_id)
+	if result.ok:
+		# 研究开始成功 → visible→researchable（研究中态；#137 语义保留）
+		_fog[node_id] = FogState.RESEARCHABLE
+		# 研究周数在 TreeResearch 侧推进；本层 fog 已置研究中态
+	return result
+
+
+## 周结研究推进（Settlement phase 7c 调；委托 TreeResearch）
+func research_tick() -> Array[Dictionary]:
+	if _research == null:
+		return []
+	return _research.research_tick()
+
+
+## 节点升级（委托 TreeResearch）
+func upgrade_node(node_id: String) -> Dictionary:
+	if _research == null:
+		return {"ok": false, "code": ERR_RESEARCH, "reason": "研究组件未装配"}
+	return _research.upgrade_node(node_id)
+
+
+## 研究组件访问器（#138 效果查询/预算护栏/研究视图经 TreeResearch 直取——
+## 防 TechTree 公有方法膨胀超 gdlint max-public-methods；装配方注入谓词后
+## TreeResearch 与 TechTree 同生命周期）。
+func get_research() -> TreeResearch:
+	return _research
 
 
 ## ---------- 数据面（只读契约，深拷贝） ----------
@@ -509,3 +540,23 @@ func _ok(node_id: String, path: String) -> Dictionary:
 
 func _fail(code: String, reason: String) -> Dictionary:
 	return {"ok": false, "code": code, "reason": reason}
+
+
+## #138：装配 TreeResearch 并注入迷雾谓词（单向依赖零环——研究类不持有
+## fog 字典，经本类谓词读写；advance_to_lit=researchable→lit 直推）。
+func _bind_research(table: Dictionary) -> void:
+	_research = TreeResearch.new(table)
+	_research.is_visible = func(node_id: String) -> bool:
+		return _fog.get(node_id, FogState.HIDDEN) == FogState.VISIBLE
+	_research.is_lit = func(node_id: String) -> bool:
+		return _fog.get(node_id, FogState.HIDDEN) == FogState.LIT
+	_research.advance_to_lit = func(node_id: String) -> bool:
+		if _fog.get(node_id, FogState.HIDDEN) != FogState.RESEARCHABLE:
+			return false
+		_fog[node_id] = FogState.LIT
+		return true
+	_research.domain_of = func(node_id: String) -> String:
+		var row: Variant = _node_rows.get(node_id, {})
+		if row is Dictionary:
+			return str((row as Dictionary).get("domain", ""))
+		return ""
