@@ -1,0 +1,89 @@
+{
+  "_comment": "chips.json v1.0.0（#139 档位/周预算首落：T0-T2 实数据 + T3/T4 数据表占位 P1）。键名真源=chips-spec.md D.1（档位表：价格/供给/画像/解锁面）+ D.2（chip_tier_supply/price/ndim/unlock_node 行）+ numerics-master.md §1.1（芯片维集与权重，G13 拍板 0.50/0.15/0.15/0.20）；表内结构仿 tech_tree.json tree_nodes / papers.json paper_topics（dict-of-rows + _order）。周运维真源=economy.json eco_ops_cost_week_t*（#135 已锁，Settlement 过账走 economy——本表不放运维防双源）；出售折价真源=economy.json eco_sell_back_rate（#136 Relief 已表驱动）。画像=刻意 trade-off（G13/蓝图开放问题 4：低档能效高/高档算力猛费电）：算力维跨档严格递增、稳定性 T3/T4 45-55 低而不废；品质分=Σ(维×权)，算力权重 0.50 保跨档单调护栏（GUT test_tier_quality_monotonic 断言）。unlock_node：T0/T1/T2=空串=初始可购（升档链 t0→t1→t2 直接购）；T3/T4=树解锁节点占位 id（树增量批补表行后接谓词，本单不接线）。",
+  "chip_tiers": {
+    "_order": [
+      "t0",
+      "t1",
+      "t2",
+      "t3",
+      "t4"
+    ],
+    "t0": {
+      "id": "t0",
+      "name_key": "chip_tier_t0",
+      "supply": 8,
+      "price": 0,
+      "unlock_node": "",
+      "ndim": {
+        "compute": 20,
+        "eff": 85,
+        "cost": 80,
+        "stability": 70
+      }
+    },
+    "t1": {
+      "id": "t1",
+      "name_key": "chip_tier_t1",
+      "supply": 16,
+      "price": 120000,
+      "unlock_node": "",
+      "ndim": {
+        "compute": 35,
+        "eff": 75,
+        "cost": 65,
+        "stability": 62
+      }
+    },
+    "t2": {
+      "id": "t2",
+      "name_key": "chip_tier_t2",
+      "supply": 32,
+      "price": 400000,
+      "unlock_node": "",
+      "ndim": {
+        "compute": 55,
+        "eff": 65,
+        "cost": 55,
+        "stability": 55
+      }
+    },
+    "t3": {
+      "id": "t3",
+      "name_key": "chip_tier_t3",
+      "supply": 64,
+      "price": 1200000,
+      "unlock_node": "chip_tier_t3_unlock",
+      "ndim": {
+        "compute": 78,
+        "eff": 50,
+        "cost": 42,
+        "stability": 50
+      }
+    },
+    "t4": {
+      "id": "t4",
+      "name_key": "chip_tier_t4",
+      "supply": 128,
+      "price": 3500000,
+      "unlock_node": "chip_tier_t4_unlock",
+      "ndim": {
+        "compute": 100,
+        "eff": 40,
+        "cost": 30,
+        "stability": 45
+      }
+    }
+  },
+  "chip_ndim_set": [
+    "compute",
+    "eff",
+    "cost",
+    "stability"
+  ],
+  "chip_ndim_weight": {
+    "compute": 0.5,
+    "eff": 0.15,
+    "cost": 0.15,
+    "stability": 0.2
+  }
+}
