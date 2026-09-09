@@ -4,7 +4,7 @@ extends GutTest
 
 const TIME_PATH: String = "res://src/data/time.json"
 
-## 真源键集合（time-spec D.2 公式与参数表行 + _bounds 内嵌护栏块）
+## 真源键集合（time-spec D.2 公式与参数表行 + #127 节拍错峰日历容器 + _bounds 内嵌护栏块）
 const SOURCE_KEYS: Array[String] = [
 	"time_wall_clock_1x",
 	"time_wall_clock_2x",
@@ -13,6 +13,7 @@ const SOURCE_KEYS: Array[String] = [
 	"time_week_per_year",
 	"time_quarters_in_game",
 	"time_ritual_density",
+	"time_ritual_no_overlap",
 	"time_autosave_point",
 	"time_manual_save",
 	"time_focus_loss_pause",

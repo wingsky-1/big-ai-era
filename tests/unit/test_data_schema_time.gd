@@ -5,6 +5,7 @@ extends GutTest
 const TIME_PATH: String = "res://src/data/time.json"
 
 ## time.json schema 描述（键名真源 time-spec D.2；护栏=同表 _bounds 内嵌）
+## time_ritual_no_overlap=节拍错峰日历容器（#127，dict 非数值键，不占数值护栏行）
 const TIME_SCHEMA: Dictionary = {
 	"time_wall_clock_1x": {"type": "int"},
 	"time_wall_clock_2x": {"type": "int"},
@@ -13,6 +14,7 @@ const TIME_SCHEMA: Dictionary = {
 	"time_week_per_year": {"type": "int"},
 	"time_quarters_in_game": {"type": "int"},
 	"time_ritual_density": {"type": "int"},
+	"time_ritual_no_overlap": {"type": "dict"},
 	"time_autosave_point": {"type": "int"},
 	"time_manual_save": {"type": "int"},
 	"time_focus_loss_pause": {"type": "float"},
