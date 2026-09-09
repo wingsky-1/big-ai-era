@@ -129,8 +129,8 @@
 | eco_stage_labor | 劳务期 · 接单维生 | 9 | 标题 12 ✓ |
 | eco_stage_product | 产品期 · 模型变现 | 9 | 标题 12 ✓ |
 | eco_stage_capital | 资本期 · 走向上市 | 9 | 标题 12 ✓ |
-| eco_warning_banner | 本周亏 X，还能撑 X 周 | 11 | 正文 ✓ |
-| eco_net_inflow | 下周净流入 ~±¥X | 9 | 周报 30 ✓ |
+| eco_warning_banner | 本周亏 <周亏>，还能撑 <周数> 周 | 18 | 正文 60 ✓（#148 起插值化：周亏/周数由 L3 按 L2 数值注入） |
+| eco_net_inflow | 下周净流入 ~<净流入> | 10 | 周报 30 ✓（#148 起插值化：净流入=±¥数值由 L3 注入） |
 | eco_income_detail_title | 收支结构 | 4 | 标题 12 ✓ |
 | eco_loan_title | 实验室贷款 | 5 | 标题 12 ✓ |
 | eco_loan_terms | 额度 ¥X · 宽限 Y 周 · 分 Z 期 · 年息 W% | 19 | 正文 60 ✓ |

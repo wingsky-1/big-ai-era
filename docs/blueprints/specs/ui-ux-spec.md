@@ -274,6 +274,8 @@ UI 文案禁"正在加载科技力量"式空话；加载态文案只用于真实
 | ui_accent | 主色 token | #2563EB | 恒值 | 交互/焦点/进行中（B.1 浅色主题） |
 | ui_staff_state_colors | 状态色带 token（B.1 状态色带行） | 专注#3B82F6/摸鱼#6B7280/灵感#D97706 | 表驱动 | 色+文字双通道（色盲安全）；L3 镜像=表值 |
 | ui_staff_grid_columns | 横屏员工区网格列数 | 3 | 2–3 | B.5「网格 2–3 列」；竖屏横滑行单行不受影响 |
+| ui_danger | danger 色 token（B.1 红绿灯） | #DC2626 | 恒值 | 跌/预警文本通道（负值净流入/横幅）；L3 镜像=表值 |
+| ui_danger_bg | danger 浅底 token | #FEF2F2 | 恒值 | 预警横幅底（深字浅板；与 ui_danger 文本同通道） |
 | ui_report_significant | 周报显著变化阈值 | ≥5% 或符号翻转 | 表驱动 | 单一谓词源（time-spec 同标） |
 
 ### D.3 蓝图内部一致性对账（本模块）

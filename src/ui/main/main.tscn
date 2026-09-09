@@ -1,8 +1,10 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/ui/main/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://src/ui/dashboard/workspace_view.gd" id="2_workspace"]
 [ext_resource type="Script" path="res://src/ui/staff_area/staff_area_view.gd" id="3_staff_area"]
+[ext_resource type="Script" path="res://src/ui/resource_bar/resource_bar_view.gd" id="4_rbar"]
+[ext_resource type="Script" path="res://src/ui/resource_bar/rival_light_entry.gd" id="5_rival"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -52,10 +54,23 @@ script = ExtResource("3_staff_area")
 [node name="BottomBar" type="VBoxContainer" parent="MainStage"]
 layout_mode = 2
 
-[node name="ResourceBarZone" type="Label" parent="MainStage/BottomBar"]
+[node name="ResourceBarZone" type="VBoxContainer" parent="MainStage/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "资源栏：现金 ¥0 · 影响力 0 · 卡时 0/32"
+script = ExtResource("4_rbar")
+
+[node name="RivalLight" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -64.0
+offset_top = 8.0
+offset_right = -16.0
+offset_bottom = 56.0
+grow_horizontal = 0
+script = ExtResource("5_rival")
 
 [node name="DockZone" type="HBoxContainer" parent="MainStage/BottomBar"]
 unique_name_in_owner = true

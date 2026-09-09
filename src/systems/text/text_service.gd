@@ -35,6 +35,8 @@ const SUPPORTED_INTERP_VARS: Array[String] = [
 	"下限",
 	"上限",
 	"项目名",
+	"净流入",
+	"周亏",
 ]
 
 static var _table: Dictionary = {}

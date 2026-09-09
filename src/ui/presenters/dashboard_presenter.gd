@@ -34,6 +34,19 @@ const EMPTY_SLOT_TYPE: int = -1
 ## 员工卡句键（产出区间=状态数值带同源插值化；在岗=<项目名>）
 const KEY_OUTPUT_HINT: String = "staff_state_output_hint"
 const KEY_ONTABLE: String = "staff_ontable_project"
+## 资源栏/竞对入口句键（净流入/警告横幅 #148 起插值化；档位标签=ui_grade_*）
+const KEY_NET_INFLOW: String = "eco_net_inflow"
+const KEY_WARNING_BANNER: String = "eco_warning_banner"
+const KEY_GRADE: Array[String] = [
+	"ui_grade_0",
+	"ui_grade_1",
+	"ui_grade_2",
+	"ui_grade_3",
+	"ui_grade_4",
+]
+## 档位标签阈值镜像（ui.json ui_score_grade_threshold：<10 榜外/10-30 新星/
+## 30-60 中坚/60-85 第一梯队/85+ 登顶；仅显示分级口径，与 SOTA 守卫带不冲突）
+const GRADE_THRESHOLD: Array = [10.0, 30.0, 60.0, 85.0]
 
 
 ## 槽 view → 槽卡字段（单点适配；空槽=状态句 + 其余留空，防假数据"A.5 空态"）。
@@ -139,8 +152,80 @@ static func staff_card_view(staff_view: Dictionary, task_views: Array) -> Dictio
 	return fields
 
 
+## 资源栏/预警适配（#148）：L2 聚合数据 → 显示字段（三主资源/净流入预告副行/
+## 警告横幅+救济三键）。净流入=周净（ledger 同源口径）；负值=forecast_negative
+## 文本通道（负值非单色，economy-spec A.1）；警告=现金<警告线且周净为负（亏钱
+## 才预警，"还能撑 X 周"公式 eco_solvency_weeks：cash÷周净流出，上限 99）。
+static func resource_bar_view(data: Dictionary) -> Dictionary:
+	var cash := int(data.get("cash", 0))
+	var weekly_net := int(data.get("weekly_net", 0))
+	var warning_line := int(data.get("warning_line", 0))
+	var solvency_weeks := int(data.get("solvency_weeks", 0))
+	var warning_active: bool = cash < warning_line and weekly_net < 0
+	var fields := {
+		"cash_text": _money(cash),
+		"influence_text": str(int(data.get("influence", 0))),
+		"card_hours_text":
+		(
+			"%d/%d"
+			% [
+				int(data.get("card_hours_used", 0)),
+				int(data.get("card_hours_supply", 0)),
+			]
+		),
+		"forecast_text": TextService.format(KEY_NET_INFLOW, {"净流入": _signed_money(weekly_net)}),
+		"forecast_negative": weekly_net < 0,
+		"warning_active": warning_active,
+		"warning_text": "",
+		"solvency_weeks": solvency_weeks,
+	}
+	if warning_active:
+		fields["warning_text"] = (
+			TextService
+			. format(
+				KEY_WARNING_BANNER,
+				{"周亏": _money(-weekly_net), "周数": str(solvency_weeks)},
+			)
+		)
+	return fields
+
+
+## 竞对轻量入口适配（#148；OP-UX-04：无数字无红点；<10 只显档位标签，
+## ≥10 不显任何数字——真值在周报/曲线面板，周报恒显）。score<0=未出分（不渲染）。
+static func rival_light_view(score: float) -> Dictionary:
+	var grade_index := -1
+	if score >= 0.0:
+		grade_index = GRADE_THRESHOLD.size()  # 默认最高档（≥85 登顶档）
+		for i: int in GRADE_THRESHOLD.size():
+			if score < float(GRADE_THRESHOLD[i]):
+				grade_index = i
+				break
+	return {
+		"has_data": score >= 0.0,
+		"show_badge": score >= 0.0 and score < float(GRADE_THRESHOLD[0]),
+		"grade_index": grade_index,
+		"grade_text":
+		(
+			TextService.text(KEY_GRADE[grade_index])
+			if grade_index >= 0 and grade_index < KEY_GRADE.size()
+			else ""
+		),
+	}
+
+
 ## 文案键安全解析（空键=直接留空，防 TextService 对空键 push_error 熔断）
 static func _resolve_key(text_key: String) -> String:
 	if text_key.is_empty():
 		return ""
 	return TextService.text(text_key)
+
+
+## 金额显示（¥前缀整数；无千分位——移动端紧凑口径）
+static func _money(amount: int) -> String:
+	return "¥%d" % amount
+
+
+## 带符号金额（净流入预告：+¥120 / -¥45；负值走文本通道非单色）
+static func _signed_money(amount: int) -> String:
+	var prefix: String = "+¥" if amount >= 0 else "-¥"
+	return "%s%d" % [prefix, absi(amount)]

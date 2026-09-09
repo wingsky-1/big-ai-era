@@ -27,6 +27,8 @@ var _panel_stack: PanelStack = PanelStack.new()
 @onready var _staff_area: Control = %StaffZone
 @onready var _staff_area_view: StaffAreaView = %StaffArea
 @onready var _resource_bar: Control = %ResourceBarZone
+@onready var _resource_bar_view: ResourceBarView = %ResourceBarZone
+@onready var _rival_light: RivalLightEntry = %RivalLight
 @onready var _dock: Control = %DockZone
 @onready var _dock_task: Button = %DockTask
 @onready var _dock_tree: Button = %DockTree
@@ -50,6 +52,10 @@ func _apply_layout() -> void:
 	var staff_fold := LayoutPolicy.fold_shape(LayoutPolicy.ZONE_STAFF, portrait)
 	# 员工卡容器形态下发（横滑行/网格切换由 StaffAreaView 执行，判定在本层）
 	_staff_area_view.apply_shape(staff_fold)
+	# 资源栏副行折叠下发（B.5 副行第一折叠；判定在本层）
+	_resource_bar_view.apply_shape(
+		LayoutPolicy.fold_shape(LayoutPolicy.ZONE_RESOURCE_BAR, portrait)
+	)
 	if staff_fold == LayoutPolicy.FOLD_HSCROLL:
 		# 竖屏：员工区折为横滑行单行（卡高 ≥48 由员工卡批声明）
 		_staff_area.custom_minimum_size = Vector2(0, 96.0)
@@ -86,3 +92,13 @@ func get_workspace_view() -> WorkspaceView:
 ## 员工区视图（测试/装配方绑数据面：staff_area.bind(roster_source, task_source, …)）
 func get_staff_area_view() -> StaffAreaView:
 	return _staff_area_view
+
+
+## 资源栏视图（测试/装配方绑数据面：resource_bar.bind(data_source, emitter, 信号)）
+func get_resource_bar_view() -> ResourceBarView:
+	return _resource_bar_view
+
+
+## 竞对轻量入口（测试/装配方绑分数源：rival_light.bind(score_source, emitter, 信号)）
+func get_rival_light_entry() -> RivalLightEntry:
+	return _rival_light
