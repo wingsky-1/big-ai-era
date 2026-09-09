@@ -1,6 +1,6 @@
 class_name TextKeysFixture
 extends RefCounted
-## #124 键名真源复刻夹具（texts-keys.md §二 全表 336 键 + 类别分组 + 禁用原因家族）。
+## #124 键名真源复刻夹具（texts-keys.md §二 全表 337 键 + 类别分组 + 禁用原因家族）。
 ## 独立文件承载常量（tests 单文件 ≤400 行预算，architecture-100 §8）；
 ## 非 test_ 前缀，GUT 不收集；仅被 test_text_service.gd preload 引用。
 ## 键名真源=texts-keys.md；类别=键表预算列（未标注行按键名后缀语义归类）；
@@ -191,6 +191,7 @@ const KEYS_TITLE: Array[String] = [
 	"ui_ipo_end",
 	"ui_task_slot_empty",
 	"ui_task_finished",
+	"ui_report_title",
 ]
 
 const KEYS_REPORT: Array[String] = [
@@ -392,7 +393,7 @@ const REASON_KEYS: Array[String] = [
 ]
 
 
-## 全表键聚合（336 键，用于唯一性/缺键断言）
+## 全表键聚合（337 键，用于唯一性/缺键断言）
 static func source_keys() -> Array[String]:
 	var all: Array[String] = []
 	all.append_array(KEYS_OPTION)

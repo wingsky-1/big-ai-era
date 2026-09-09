@@ -194,7 +194,7 @@
   "paper_accept_headline": "论文被顶会接收！",
   "paper_accept_body": "<标题> 获审稿人好评，影响力大涨。",
   "paper_reject_row": "<标题> 被拒稿，改投下家",
-  "paper_impact_row": "论文影响力 +X",
+  "paper_impact_row": "论文影响力 +<影响>",
   "paper_quality_title": "论文质量分 XX.X",
   "paper_repro_mission": "复现 <论文名>",
   "paper_domain_tag": "[域] <域标签>",
@@ -335,5 +335,6 @@
   "chip_term_super": "租国家超算机时=一次性大投入换高峰算力。",
   "chip_term_cluster": "多机并行训练=「集群」；后期多基座并行形态。",
   "name_filter_reason": "这个名字不合规，换一个吧",
-  "name_filter_rules": "名字 ≤12 字，仅限中英文数字与 -_.·"
+  "name_filter_rules": "名字 ≤12 字，仅限中英文数字与 -_.·",
+  "ui_report_title": "第<周数>周 · 周报"
 }

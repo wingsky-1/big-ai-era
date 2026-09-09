@@ -16,6 +16,7 @@ const UI_NUMERIC_KEYS: Array[String] = [
 	"ui_slot_finish_anim_dur",
 	"ui_slot_empty_dim",
 	"ui_staff_grid_columns",
+	"ui_report_significant",
 ]
 
 const UI_SCHEMA: Dictionary = {
@@ -27,6 +28,7 @@ const UI_SCHEMA: Dictionary = {
 	"ui_slot_finish_anim_dur": {"type": "number"},
 	"ui_slot_empty_dim": {"type": "number"},
 	"ui_staff_grid_columns": {"type": "number"},
+	"ui_report_significant": {"type": "number"},
 	"ui_ink_bg": {"type": "string"},
 	"ui_ink_panel": {"type": "string"},
 	"ui_ink1": {"type": "string"},
@@ -72,6 +74,7 @@ func test_ui_key_spelling_matches_source() -> void:
 		"ui_type_colors",
 		"ui_type_icons",
 		"ui_staff_grid_columns",
+		"ui_report_significant",
 		"ui_staff_state_colors",
 	]
 	var result := DataSchema.validate_key_spelling(table, expected)
@@ -160,3 +163,22 @@ func test_ui_grade_threshold_guardrails() -> void:
 	# danger 色 token 为 hex
 	assert_true(str(table["ui_danger"]).begins_with("#"), "ui_danger 须为 hex")
 	assert_true(str(table["ui_danger_bg"]).begins_with("#"), "ui_danger_bg 须为 hex")
+
+
+func test_ui_report_significant_single_source() -> void:
+	# #149 周报显著阈值（ui-ux D.2「单一谓词源（time-spec 同标）」）：
+	# ui.json 镜像 == time.json time_bland_threshold（两表一致防双源漂移）
+	var ui_table := DataLoader.load_json(UI_PATH)
+	var time_table := DataLoader.load_json("res://src/data/time.json")
+	assert_eq(
+		int(ui_table["ui_report_significant"]),
+		int(time_table["time_bland_threshold"]),
+		"ui_report_significant == time_bland_threshold（同源镜像）",
+	)
+	assert_true(
+		(
+			int(ui_table["ui_report_significant"]) >= 1
+			and int(ui_table["ui_report_significant"]) <= 10
+		),
+		"显著阈值 1-10（time-spec D.2 变化<5%为平淡周）",
+	)
