@@ -1,0 +1,130 @@
+{
+  "_comment": "models.json v1.0.0（#140 基座表首落：训练项目入槽数据源）。键名真源=models-spec.md D.2（model_ndim_set/weight/model_base_tier_req/model_train_duration/model_card_hours_week/model_on_table_cap/model_ckpt_week/model_base_profile）+ D.1（models.json：基座表 域/档位要求/工期/卡时/上桌上限/画像倾向）；表内结构仿 chips.json chip_tiers / tech_tree.json tree_nodes（dict-of-rows + _order）。P0 可训=迷你/灵犀-1/轻羽-1（unlock_node 空=初始可训，issue 实施提示）；长河-1/执笔-1/通感-1=数据表占位行（unlock_node=树解锁节点 id；树点亮接线 #144，本单不接树效果——占位=缺省锁）。训练时长=定值（rng 红线不随随机波动）；卡时周耗≤档位供给护栏由#139 预算账本断言；checkpoint=50% 确定性事件（model_ckpt_progress=0.5，零掷骰零数值掉落）。基座 n 维画像=选型依据（读表胜天；最终分=#141 出分合成，本单只存画像倾向）。",
+  "model_ndim_set": [
+    "reasoning",
+    "knowledge",
+    "chat",
+    "speed",
+    "cost"
+  ],
+  "model_ndim_weight": {
+    "reasoning": 0.25,
+    "knowledge": 0.2,
+    "chat": 0.15,
+    "speed": 0.2,
+    "cost": 0.2
+  },
+  "model_ckpt_progress": 0.5,
+  "model_bases": {
+    "_order": [
+      "mini",
+      "lingxi_1",
+      "qingyu_1",
+      "changhe_1",
+      "zhibi_1",
+      "tonggan_1"
+    ],
+    "mini": {
+      "id": "mini",
+      "name_key": "model_base_mini",
+      "domain": "",
+      "tier_required": "",
+      "duration_weeks": 4,
+      "card_hours_week": 1,
+      "on_table_cap": 1,
+      "unlock_node": "",
+      "ndim_profile": {
+        "reasoning": 40,
+        "knowledge": 40,
+        "chat": 40,
+        "speed": 40,
+        "cost": 40
+      }
+    },
+    "lingxi_1": {
+      "id": "lingxi_1",
+      "name_key": "model_base_lingxi_1",
+      "domain": "align",
+      "tier_required": "t1",
+      "duration_weeks": 6,
+      "card_hours_week": 3,
+      "on_table_cap": 2,
+      "unlock_node": "",
+      "ndim_profile": {
+        "reasoning": 62,
+        "knowledge": 50,
+        "chat": 60,
+        "speed": 45,
+        "cost": 48
+      }
+    },
+    "qingyu_1": {
+      "id": "qingyu_1",
+      "name_key": "model_base_qingyu_1",
+      "domain": "distill",
+      "tier_required": "t1",
+      "duration_weeks": 6,
+      "card_hours_week": 3,
+      "on_table_cap": 2,
+      "unlock_node": "",
+      "ndim_profile": {
+        "reasoning": 45,
+        "knowledge": 45,
+        "chat": 42,
+        "speed": 64,
+        "cost": 62
+      }
+    },
+    "changhe_1": {
+      "id": "changhe_1",
+      "name_key": "model_base_changhe_1",
+      "domain": "memory",
+      "tier_required": "t2",
+      "duration_weeks": 8,
+      "card_hours_week": 6,
+      "on_table_cap": 3,
+      "unlock_node": "memory_ctx_longmem",
+      "ndim_profile": {
+        "reasoning": 52,
+        "knowledge": 68,
+        "chat": 50,
+        "speed": 46,
+        "cost": 48
+      }
+    },
+    "zhibi_1": {
+      "id": "zhibi_1",
+      "name_key": "model_base_zhibi_1",
+      "domain": "tool",
+      "tier_required": "t2",
+      "duration_weeks": 8,
+      "card_hours_week": 6,
+      "on_table_cap": 3,
+      "unlock_node": "tool_agent_tool",
+      "ndim_profile": {
+        "reasoning": 58,
+        "knowledge": 48,
+        "chat": 52,
+        "speed": 52,
+        "cost": 46
+      }
+    },
+    "tonggan_1": {
+      "id": "tonggan_1",
+      "name_key": "model_base_tonggan_1",
+      "domain": "multimodal",
+      "tier_required": "t3",
+      "duration_weeks": 10,
+      "card_hours_week": 10,
+      "on_table_cap": 4,
+      "unlock_node": "multimodal_vlm_base",
+      "ndim_profile": {
+        "reasoning": 54,
+        "knowledge": 60,
+        "chat": 56,
+        "speed": 48,
+        "cost": 44
+      }
+    }
+  }
+}

@@ -58,8 +58,10 @@ func run_settle(week: int) -> Dictionary:
 	# phase 0：z2 门控
 	if z2_blocked.call():
 		return {"ok": true, "skipped": true, "bankrupt": false, "week": week}
-	# phase 1：卡时重置
+	# phase 1：卡时重置 + 预算重占（#140：重置后对在跑训练项目扣本周周耗）
 	_resources.reset_weekly_card_hours()
+	if _task_board != null:
+		_task_board.consume_weekly_budget()
 	# phase 2：经营收入结算（项目推进+完成路由）
 	var finished := _settle_projects()
 	# phase 3：固定支出（工资+运维）

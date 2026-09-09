@@ -62,6 +62,20 @@ var get_staff_role_key: Callable = func(_staff_id: String) -> String: return ""
 ## 本类不自读文件（单测可注入假表/真表）。空=防御回退同岗 1.0 档不抛错）
 var staff_table: Dictionary = {}
 
+## 训练启动资源校验谓词（#140 注入；**默认=宽松通过**——与员工谓词默认全拒
+## 相反：员工写点安全须缺省拒，资源校验无装配=无资源语义（测试桩/无 World），
+## 缺省放行不误伤 #131 容器测试。装配方注入真实判定：
+## - tier_met(tier_required: String) -> bool：档位门槛谓词（接 ChipYard
+##   .get_tier_eligibility(...).ok；空门槛恒过）
+## - budget_met(card_hours_per_week: int) -> bool：本周卡时谓词（接
+##   Resources 剩余 ≥ 周耗）
+var tier_met: Callable = func(_tier_required: String) -> bool: return true
+var budget_met: Callable = func(_card_hours_per_week: int) -> bool: return true
+## 周结预算扣减钩子（#140 注入；Settlement phase1 重置后调本类
+## consume_weekly_budget() 时对在跑项目逐项扣本周周耗。装配方接
+## Resources.consume_card_hours(周耗).ok；返回扣减成功与否汇总。
+var consume_card_hours: Callable = func(_hours: int) -> bool: return true
+
 var _slot_projects: Array = []
 var _slot_staff_ids: Array = []
 var _slot_states: Array = []
@@ -84,7 +98,29 @@ func start_paper(project: PaperProject, prefer_slot: int = INVALID_SLOT_INDEX) -
 
 
 ## 训练项目入槽（start_training；#140 起由基座装配方构造 ModelProject 传入）。
+## #140 六因校验收口：入槽前先过资源双因（档位门槛 + 本周卡时），再走统一
+## 入槽（槽满因在 _start_project 内）。models-spec 六因=槽满(ALL_SLOTS_FULL)/
+## 档位不足(TIER_REQUIRED_NOT_MET)/卡时不足(CARD_HOURS_INSUFFICIENT)/
+## 无研究员/上桌超限(指派阶段 SEAT_LIMIT_REACHED)/资金(购买档位阶段)——
+## 命令层判两资源因 + 槽满，其余因归各阶段单一原因源。校验序固定：档位先、
+## 卡时次、槽满最后（命中即返单因不拼接）。谓词默认宽松=无装配不误伤测试。
 func start_training(project: ModelProject, prefer_slot: int = INVALID_SLOT_INDEX) -> Dictionary:
+	if project == null or not project.is_running():
+		return {"ok": false, "reason": CoreEnums.SlotRejectReason.NO_RUNNING_PROJECT}
+	var tier := project.get_tier_required()
+	if not tier.is_empty() and not tier_met.call(tier):
+		return {
+			"ok": false,
+			"reason": CoreEnums.SlotRejectReason.TIER_REQUIRED_NOT_MET,
+			"tier_required": tier,
+		}
+	var hours := project.get_card_hours_per_week()
+	if hours > 0 and not budget_met.call(hours):
+		return {
+			"ok": false,
+			"reason": CoreEnums.SlotRejectReason.CARD_HOURS_INSUFFICIENT,
+			"card_hours_per_week": hours,
+		}
 	return _start_project(project, prefer_slot)
 
 
@@ -180,6 +216,25 @@ func cancel_project(slot_index: int) -> CoreEnums.SlotRejectReason:
 	_slot_states[slot] = CoreEnums.ProjectState.EMPTY
 	_emit_changed({"kind": "cancelled", "slot_index": slot})
 	return CoreEnums.SlotRejectReason.NONE
+
+
+## 周结预算扣减（#140；Settlement phase1 卡时重置后调用）：对全部在跑
+## **训练型**项目逐项扣本周周耗（consume_card_hours 注入谓词，装配方接
+## Resources.consume_card_hours；扣减失败=预算异常返回 false——供得上护栏
+## 下不应发生，防御语义）。论文型周耗扣减归 #141 出分批接线（chips-spec
+## 账本"Σ训练+Σ论文实验"，本单只落训练侧）。
+func consume_weekly_budget() -> bool:
+	var ok := true
+	for slot: int in TASK_SLOT_COUNT:
+		if not is_running(slot):
+			continue
+		var project := get_project(slot)
+		if project == null or project.get_type() != CoreEnums.ProjectType.MODEL:
+			continue
+		var hours := project.get_card_hours_per_week()
+		if hours > 0 and not consume_card_hours.call(hours):
+			ok = false
+	return ok
 
 
 ## ---------- 周结推进（架构 §5.3 phase 2 槽推进落点；Settlement #135 调用） ----------
@@ -327,6 +382,9 @@ func _slot_view(slot: int) -> Dictionary:
 		"assigned_roles": {},
 		"collab_kind": CollabFactor.KIND_NONE,
 		"collab_factor": 1.0,
+		"base_id": "",
+		"checkpoint_hit": false,
+		"checkpoint_progress": 0.0,
 	}
 	if project == null:
 		return base
@@ -342,6 +400,13 @@ func _slot_view(slot: int) -> Dictionary:
 	base["assigned_roles"] = _slot_assigned_roles(slot)
 	base["collab_kind"] = _slot_collab_kind(slot)
 	base["collab_factor"] = project.get_collab_factor()
+	# 模型训练槽：基座元数据 + checkpoint 标（[P] 训练等待段"快好了"钩子
+	# 数据面：50% 位置/是否已过——L3 训练卡预告同源）
+	if project.get_type() == CoreEnums.ProjectType.MODEL and project is ModelProject:
+		var model_view := (project as ModelProject).get_model_view()
+		base["base_id"] = model_view.get("base_id", "")
+		base["checkpoint_hit"] = bool(model_view.get("checkpoint_hit", false))
+		base["checkpoint_progress"] = float(model_view.get("checkpoint_progress", 0.0))
 	return base
 
 
