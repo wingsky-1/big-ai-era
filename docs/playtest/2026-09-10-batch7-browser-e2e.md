@@ -1,9 +1,9 @@
-# 批7.3 浏览器实测取证记录（issue #190）
+# 批7 浏览器实测取证记录（issue #190 批7.3 + #194 批7.4）
 
 - 日期：2026-09-10 ｜ 执行：Agent（gd-lead-programmer 席 + agent-browser v0.37.1 CDP 真实鼠标）
 - 构建：`bash scripts/export_html_check.sh build/web` 全过（三件套+信标就绪）
 - 环境：本地 http://127.0.0.1:8971（python http.server）+ headless Chromium；WASM 冷启动 ~10s
-- 驱动方式：信标（`?shot=main_path` 门控 `window.__DSH_PANEL_STATE__`）+ `agent-browser mouse move/down/up`
+- 驱动方式：信标（`?shot=` 门控 `window.__DSH_PANEL_STATE__`）+ `agent-browser mouse move/down/up`
   （CDP 真实输入，经 Godot 输入管线驱动 GUI，非直调命令）；命名提交经 `window.__DSH_TEST__` 队列
   （等价键入，仍走 NamingDialogLogic→NameFilter→WorldCommands 全链）
 
@@ -39,6 +39,21 @@
 4. 观察（不修，登记）：z1 面板开着时 Dock 键被遮罩盖住（点外关闭语义 ui-ux A.2），
    面板间切换需先点外关再点 Dock=两击——符合 z1 轻遮罩语义，若试玩反馈繁琐再议
    Dock 直切。
+
+## 批7.4 追加取证（#194 z2 通道：决策卡/周报，ADR-0028）
+
+| 截图 | 锚点 | 周 | 证据 |
+|---|---|---|---|
+| PT-131B_W4.png | 决策卡自动弹 | W4 | 事件「横向课题到账」z2 自动弹；两选项带预览句（接｜+¥15000 / 不接｜无额外效果）；世界停流（week 冻结+flowing=false 采样确认） |
+| PT-131C_W4.png | 决策选择闭环 | W4 | 点「接」→选项禁用+结果句「横向课题到账 15000」（绿）+确认钮；现金 182000→197000（预览==入账）；资源栏副行对账预告 +¥15000 |
+| PT-131D_W4.png | 确认收层恢复 | W4 | 「知道了」→z2 收层→flowing=true 恢复流动 |
+| PT-149_W3.png | 周报自动弹 | W3 | 显著周（论文影响力行）z2 自动弹「第3周 · 周报」+显著行蓝色高亮+「知道了」收层 |
+| PT-145B_W4.png | 竖屏现状 | W4 | 390×844：画面可用不炸、决策卡居中可点；字小如蚁=ADR-0010 D2 基准切换未实现（P1 登记） |
+
+**批7.4 实测暴露并修复**：①确认钮被选项禁用循环误禁（disabled 吃事件不响应；
+GUT emit 直发盲区——修复+补可用断言）；②weekly_report 装配遗漏（批7.1 债，
+周报通道全死）+出分行/决策行生产者接线；③双标题。调度序实证：决策卡插队
+命名流=DECISION>NAMING>REPORT 秩序设计生效。
 
 ## 红线声明
 
