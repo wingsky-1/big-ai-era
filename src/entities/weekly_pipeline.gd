@@ -25,6 +25,8 @@ var tree: Object = null  # TechTree
 var pack: Object = null  # RivalPack
 var roster: Object = null  # Roster
 var weekly_report: Object = null  # WeeklyReport（可空=不建周报行）
+## 事件壳注入（批7.4 #194 phase11：周结事件判定；可空=不判定——空态静默）
+var event_shell: Object = null  # EventShell
 ## 出分合成器注入（默认=ScoreComposer.compose_base_profile；三源合成为后续
 ## 数值批替换，同签名）
 var compose_score: Callable = func(project: Object) -> Dictionary:
@@ -72,6 +74,10 @@ func run(week: int) -> Dictionary:
 	# 7d 员工状态带掷点（周粒度一次；rng.staff 登记域消费）
 	if roster != null:
 		result["rolled"] = (roster as Roster).roll_weekly_states().size()
+	# 11 事件判定（批7.4 phase11：hit 率门+决策级 pending 置位；管线不挂起——
+	# 只判定+置 pending，选择/入账在管线外 UI 回调时点，ADR-0015 补登记）
+	if event_shell != null:
+		result["event"] = (event_shell as EventShell).roll_week()
 	# 8 周报收口（Begin 已在 phase 前；模型出分/竞对行由周报构建方自行消费
 	# 信号——本类不发明行）
 	# 9 自动存档（周结后原子写；GameWorld 组装 12 域）
@@ -107,6 +113,16 @@ func _phase_score(week: int) -> Array:
 		var submit_result: Dictionary = (ceremony as ModelCeremony).settle_finished(payload)
 		if bool(submit_result.get("ok", false)):
 			scored.append(payload)
+			if weekly_report != null:
+				var score_text := str(TextService.text("model_score_title"))
+				(
+					(weekly_report as WeeklyReport)
+					. add_row(
+						WeeklyReport.RowKind.RITUAL,
+						score_text.replace("XX.X", "%.1f" % float(payload["score"])),
+						true,
+					)
+				)
 	return scored
 
 

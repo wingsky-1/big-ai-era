@@ -81,3 +81,39 @@ func get_base_options() -> Array:
 		if not base.is_empty():
 			options.append({"id": base_id, "name_key": str(base.get("name_key", ""))})
 	return options
+
+
+## ---------- 决策卡（批7.4 #194：事件壳命令通道；ADR-0028） ----------
+
+
+## 决策待决数据面（L3 决策卡渲染；无 pending=空字典）
+func get_decision_view() -> Dictionary:
+	return (_parts["events"] as EventShell).get_pending_view()
+
+
+## 提交决策（选项索引）：效果入账（Ledger 过账+Resources 变更，对账闭合）。
+## 返回 {ok, row_text, effect_type, amount}；无 pending/越界=防御拒绝。
+func submit_decision(choice_index: int) -> Dictionary:
+	var events := _parts["events"] as EventShell
+	var resources := _parts["resources"] as Resources
+	var ledger := _parts["ledger"] as Ledger
+	var apply_cash := func(amount: int) -> void:
+		if amount == 0:
+			return
+		var category := (
+			Ledger.Category.INCOME_OTHER if amount > 0 else Ledger.Category.EXPENSE_OTHER
+		)
+		ledger.record(category, amount, "event")
+		resources.apply_change(amount)
+	var apply_influence := func(amount: int) -> void:
+		if amount > 0:
+			resources.gain_influence(amount)
+		elif amount < 0:
+			resources.spend_influence(-amount)
+	var result: Dictionary = events.submit_choice(choice_index, apply_cash, apply_influence)
+	if bool(result.get("ok", false)) and not str(result.get("row_text", "")).is_empty():
+		var report: Object = _parts.get("weekly_report")
+		if report != null:
+			var weekly := report as WeeklyReport
+			weekly.add_row(WeeklyReport.RowKind.EVENT, str(result["row_text"]), true)
+	return result

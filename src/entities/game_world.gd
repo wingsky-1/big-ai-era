@@ -28,6 +28,7 @@ var _started: bool = false
 
 func _init(seed: int = 0) -> void:
 	_parts = WorldFactory.assemble(seed)
+	_parts["events"] = EventShell.new(_parts["rng"] as RngStream)
 	_machine = TutorialMachine.new()
 	_card = GoalCard.new(_machine)
 	_commands = WorldCommands.new(_parts)
@@ -42,6 +43,7 @@ func _init(seed: int = 0) -> void:
 ## seed=开局种子（同种子=同局可复现，#125）。
 func start_new_game(seed: int = 0) -> Dictionary:
 	_parts = WorldFactory.assemble(seed)
+	_parts["events"] = EventShell.new(_parts["rng"] as RngStream)
 	_machine = TutorialMachine.new()
 	_card = GoalCard.new(_machine)
 	_commands = WorldCommands.new(_parts)
@@ -243,7 +245,7 @@ func get_save_state() -> Dictionary:
 		},
 		"economy": {},
 		"flags": _machine.get_save_view(),
-		"events": {},
+		"events": (_parts["events"] as EventShell).to_save(),
 		"reports": {},
 	}
 
@@ -266,6 +268,10 @@ func restore_from_save(save: Dictionary) -> Dictionary:
 	var products: Variant = state.get("products", {})
 	if products is Dictionary:
 		_restore_products(products as Dictionary)
+	# 反写事件壳（决策 pending+已见集合；旧档无此域=空游标初始态兼容，#194）
+	var events: Variant = state.get("events", {})
+	if events is Dictionary:
+		(_parts["events"] as EventShell).restore_from_save(events as Dictionary)
 	_started = true
 	return {"ok": true, "errors": []}
 
@@ -311,11 +317,26 @@ func _build_pipeline() -> void:
 			_parts["economy"],
 			_parts["board"],
 			_parts["archive"],
+			_parts["weekly_report"],
 		)
 	)
 	_pipeline = WeeklyPipeline.new(
 		_parts["board"], _parts["ceremony"], _parts["tree"], _parts["pack"], _parts["roster"]
 	)
+	_pipeline.event_shell = _parts["events"]
+	# 事件对账行文本（L2 组装：键渲染经 TextService 单点——L2→L1 合法下行
+	# 依赖；对账闭合口径=选项即承诺，行文本与入账值同源，ADR-0028）
+	(_parts["events"] as EventShell).text_for_event_row = func(
+		title_key: String, effect_type: int, amount: int
+	) -> String:
+		var title := TextService.text(title_key)
+		match effect_type:
+			EventShell.EffectType.CASH:
+				return "%s %s" % [title, str(amount)]
+			EventShell.EffectType.INFLUENCE:
+				return "%s 影响力 +%d" % [title, amount]
+			_:
+				return title
 	# 周结内命名待决=z2 阻塞（跨周门控；ModalScheduler 消费 pending 呈现）
 	_settlement.z2_blocked = func() -> bool:
 		return (_parts["ceremony"] as ModelCeremony).has_pending()

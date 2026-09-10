@@ -11,16 +11,20 @@ extends RefCounted
 enum ModalKind {
 	DECISION,  # z2 决策卡（事件/危机/融资/价格战/挖人）
 	REPORT,  # z2 周报自动弹（显著周）
+	NAMING,  # z2 出分命名（#194 显式入表：DECISION>NAMING>REPORT——决策=强迫
+	# 处理即时性最强；周报=显著周对账主内容；命名=玩家主动期待的收尾仪式，
+	# 可容忍同帧排队；ADR-0028 契约演进：REPORT 秩 1→2）
 	UNLOCK,  # z2 解锁弹卡（轻量自动收，≤3s）
 	TOAST,  # z3 toast（同屏 ≤3）
 }
 
-## 呈现优先级（秩小=先出；决策先于周报=ui-ux A.2 硬序）
+## 呈现优先级（秩小=先出；决策先于周报=ui-ux A.2 硬序；NAMING 位置=ADR-0028）
 const KIND_PRIORITY: Dictionary = {
 	ModalKind.DECISION: 0,
-	ModalKind.REPORT: 1,
-	ModalKind.UNLOCK: 2,
-	ModalKind.TOAST: 3,
+	ModalKind.REPORT: 2,
+	ModalKind.NAMING: 1,
+	ModalKind.UNLOCK: 3,
+	ModalKind.TOAST: 4,
 }
 
 var _queue: Array[Dictionary] = []

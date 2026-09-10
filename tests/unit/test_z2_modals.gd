@@ -54,7 +54,11 @@ func test_z2_modal_blocking() -> void:
 func test_decision_before_report_order() -> void:
 	# 优先级：决策(0)>周报(1)>解锁(2)>toast(3)
 	assert_eq(int(ModalScheduler.KIND_PRIORITY[ModalScheduler.ModalKind.DECISION]), 0, "决策最高优先")
-	assert_eq(int(ModalScheduler.KIND_PRIORITY[ModalScheduler.ModalKind.REPORT]), 1, "周报次之")
+	assert_eq(
+		int(ModalScheduler.KIND_PRIORITY[ModalScheduler.ModalKind.REPORT]),
+		2,
+		"周报第三（#194 ADR-0028 契约演进：NAMING 插入秩 1）"
+	)
 	var scheduler := ModalScheduler.new()
 	# 同帧并发：week_settled 先到、decision_pending 后到 → 决策仍先出
 	scheduler.push(ModalScheduler.ModalKind.REPORT, {"week": 3})

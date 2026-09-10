@@ -44,6 +44,9 @@ static func assemble(seed: int) -> Dictionary:
 	var archive := PaperArchive.new()
 	var library := ModelLibrary.new()
 	var sota := SotaBoard.new()
+	# 周报构建（批7.4 #194 补装配：批7.1 遗漏致周报通道全死——begin_week/
+	# 行写入/自动弹判定均依赖本实例；begin_week 由 Settlement 周结驱动）
+	var weekly_report := WeeklyReport.new()
 
 	var board := TaskBoard.new()
 	board.is_staff_known = func(staff_id: String) -> bool: return roster.is_assignable(staff_id)
@@ -81,5 +84,6 @@ static func assemble(seed: int) -> Dictionary:
 		"tree": tree,
 		"ceremony": ceremony,
 		"pack": pack,
+		"weekly_report": weekly_report,
 		"chips": chips_table,
 	}

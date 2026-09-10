@@ -27,6 +27,8 @@ const PANEL_SCRIPTS: Dictionary = {
 	PanelStack.PanelId.STAFF_DETAIL: "res://src/ui/panels/assign_sheet_panel.gd",
 	PanelStack.PanelId.TARGET_CARD: "res://src/ui/panels/target_card_panel.gd",
 	PanelStack.PanelId.NAMING_DIALOG: "res://src/ui/panels/naming_dialog_panel.gd",
+	PanelStack.PanelId.DECISION_CARD: "res://src/ui/panels/decision_card_panel.gd",
+	PanelStack.PanelId.WEEKLY_REPORT: "res://src/ui/panels/weekly_report_panel.gd",
 }
 
 var _panel_stack: PanelStack = PanelStack.new()
@@ -38,12 +40,19 @@ var _panels: Dictionary = {}  # PanelId → 面板实例缓存（mount 同源）
 var _naming_logic: NamingDialogLogic = null
 var _web_shot: String = ""
 var _web_hooks_installed: bool = false
+## z2 消费循环状态（批7.4：scheduler 只管待弹序，PanelStack 只管在屏互斥——
+## 单向流 pop→呈现→源清 pop 下一个；presenting 防重入=同卡不弹两次）
+var _presenting: PanelStack.PanelId = PanelStack.PanelId.MAIN_STAGE
+var _report_dual: ReportDual = ReportDual.new()
+var _last_handled_week: int = 0
+var _auto_pop_requested: bool = false
 ## 数据面源（面板 bind；lambda 捕 self——inject_world 重绑后仍动态取新世界）
 var _dash_source: Callable = func() -> Dictionary:
 	return _world.get_dashboard_view() if _world != null else {}
 var _pending_source: Callable = func() -> Dictionary:
 	return _world.get_pending_view() if _world != null else {}
 
+@onready var _report_dot: Button = %ReportDot
 @onready var _stage: Control = %MainStage
 @onready var _workspace: Control = %WorkspaceZone
 @onready var _workspace_view: WorkspaceView = %Workspace
@@ -242,6 +251,18 @@ func _bind_entries() -> void:
 	_staff_area_view.staff_card_clicked.connect(_on_staff_card_clicked)
 	_goal_band.band_clicked.connect(func() -> void: _open_panel(PanelStack.PanelId.TARGET_CARD))
 	_panel_host.z1_backdrop_pressed.connect(_on_z1_backdrop_pressed)
+	# 周报灰点（z1 指示器→点击开 z2 周报面板=同一停流语义，ADR-0028）
+	_report_dot.visible = false
+	_report_dot.pressed.connect(_on_report_dot_pressed)
+
+
+## 灰点手开周报（与自动弹同一面板/同一确认路径；非自动弹语境不占 presenting——
+## 直接呈现并置位，玩家"知道了"经 _finish_z2 复位）
+func _on_report_dot_pressed() -> void:
+	if _presenting != PanelStack.PanelId.MAIN_STAGE or _panel_stack.has_blocking_top():
+		return
+	_presenting = PanelStack.PanelId.WEEKLY_REPORT
+	_show_panel(PanelStack.PanelId.WEEKLY_REPORT)
 
 
 ## 面板数据面 bind（构造时+inject_world 重绑；Callable 捕 self——重绑幂等）
@@ -282,6 +303,12 @@ func _bind_panel(panel_id: PanelStack.PanelId, panel: ZPanel) -> void:
 				)
 			)
 			(panel as NamingDialogPanel).bind(_naming_logic, _pending_source)
+		PanelStack.PanelId.DECISION_CARD:
+			(panel as DecisionCardPanel).bind(
+				Callable(commands, "submit_decision"), Callable(commands, "get_decision_view")
+			)
+		PanelStack.PanelId.WEEKLY_REPORT:
+			(panel as WeeklyReportPanel).bind(_world.get_report_view)
 		_:
 			pass
 
@@ -301,6 +328,9 @@ func _ensure_panel(panel_id: PanelStack.PanelId) -> ZPanel:
 
 
 func _on_panel_close_requested(panel_id: PanelStack.PanelId) -> void:
+	if _is_z2_panel(panel_id):
+		_finish_z2(panel_id)
+		return
 	_panel_stack.close(panel_id)
 	_panel_host.close_z1()
 	_refresh_web_beacon()
@@ -328,13 +358,24 @@ func _show_panel(panel_id: PanelStack.PanelId) -> void:
 	if panel == null:
 		return
 	panel.refresh()
-	if panel_id == PanelStack.PanelId.NAMING_DIALOG:
+	if _is_z2_panel(panel_id):
+		# z2 入栈（同层互斥=栈语义；z2 在位=has_blocking_top→停流判定生效）
+		_panel_stack.open(panel_id)
 		panel.set_close_visible(false)
 		_panel_host.show_z2(panel)
 	else:
 		_panel_host.show_z1(panel)
 		_panel_stack.mount(panel_id, panel)
 	_refresh_web_beacon()
+
+
+## z2 面板判定（决策卡/命名/周报=阻塞层；其余=z1 轻遮罩——ADR-0028 单向流）
+func _is_z2_panel(panel_id: PanelStack.PanelId) -> bool:
+	return (
+		panel_id == PanelStack.PanelId.NAMING_DIALOG
+		or panel_id == PanelStack.PanelId.DECISION_CARD
+		or panel_id == PanelStack.PanelId.WEEKLY_REPORT
+	)
 
 
 func _on_staff_card_clicked(staff_id: String) -> void:
@@ -371,16 +412,52 @@ func _process(delta: float) -> void:
 ## z2 门控：命名待决=世界停+变速置灰；命名弹层随 pending 翻转开收
 ##（ceremony pending 与 Settlement 同源；z2 遮罩点击不关=强迫处理）
 func _sync_z2_gate() -> void:
-	var blocked: bool = _world != null and bool(_world.has_naming_pending())
+	if _world == null:
+		return
+	var sources := _active_z2_sources()
+	# 呈现中面板源已清=玩家已处理：命名流自动收（提交即清 pending）；决策卡/
+	# 周报由确认钮 close_requested 走 _on_panel_close_requested 收层
+	if _presenting != PanelStack.PanelId.MAIN_STAGE:
+		if _presenting == PanelStack.PanelId.NAMING_DIALOG and not sources.has(_presenting):
+			_finish_z2(_presenting)
+	# 无呈现且无 z2 在屏→呈现最高优先源（ModalScheduler 秩序：决策>周报>命名
+	# —— append 序即优先级序；同帧并发=同帧按序串行呈现）
+	if _presenting == PanelStack.PanelId.MAIN_STAGE and not sources.is_empty():
+		_presenting = sources[0]
+		_show_panel(_presenting)
+	# 停流=f(任意 z2 在屏 或 任一 pending 源活跃)——与触发源解耦（ADR-0028）：
+	# 自动弹周报与灰点手开周报同一停流语义
+	var blocked := _panel_stack.has_blocking_top() or not sources.is_empty()
 	if blocked != _z2_blocked:
 		_z2_blocked = blocked
 		_world.set_z2_blocked(blocked)
-	if blocked and not _panel_host.is_z2_open():
-		_show_panel(PanelStack.PanelId.NAMING_DIALOG)
-	elif not blocked and _panel_host.is_z2_open():
-		_panel_stack.close(PanelStack.PanelId.NAMING_DIALOG)
-		_panel_host.close_z2()
-		_refresh_web_beacon()
+
+
+## 活跃 z2 源（ModalScheduler 秩序：DECISION(0)>NAMING(1)>REPORT(2)；
+## append 序=优先级序）。报告源=显著周未消费（自动弹/灰点打开后消费）。
+func _active_z2_sources() -> Array[PanelStack.PanelId]:
+	var sources: Array[PanelStack.PanelId] = []
+	if _world == null:
+		return sources
+	var commands: Object = _world.get_commands()
+	if not (commands.get_decision_view() as Dictionary).is_empty():
+		sources.append(PanelStack.PanelId.DECISION_CARD)
+	if bool(_world.has_naming_pending()):
+		sources.append(PanelStack.PanelId.NAMING_DIALOG)
+	if _auto_pop_requested:
+		sources.append(PanelStack.PanelId.WEEKLY_REPORT)
+	return sources
+
+
+## z2 面板完成收层（确认钮/pending 清驱动；栈回退+遮罩收起+呈现位复位）
+func _finish_z2(panel_id: PanelStack.PanelId) -> void:
+	_panel_stack.close(panel_id)
+	_panel_host.close_z2()
+	if panel_id == PanelStack.PanelId.WEEKLY_REPORT:
+		_auto_pop_requested = false  # 报告已消费（自动弹与灰点手开共用）
+		_report_dot.visible = false
+	_presenting = PanelStack.PanelId.MAIN_STAGE
+	_refresh_web_beacon()
 
 
 ## 数据面全量刷新（信号驱动之外的节流轮询兜底；0.5s 预算内）
@@ -391,12 +468,30 @@ func _refresh_all() -> void:
 	_staff_area_view.refresh_now()
 	_resource_bar_view.refresh_now()
 	_rival_light.refresh_now()
-	_goal_band.refresh(_world.get_dashboard_view()["goal_card"])
+	var dashboard: Dictionary = _world.get_dashboard_view()
+	_goal_band.refresh(dashboard["goal_card"])
+	_sync_report_channel(dashboard)
 	var z1: Control = _panel_host.get_z1_panel()
 	if _panel_host.is_z1_open() and z1 is ZPanel:
 		(z1 as ZPanel).refresh()
 	_drain_web_hooks()
 	_refresh_web_beacon()
+
+
+## 周报双通道同步（批7.4：周号翻动→ReportDual.ingest 挂载决策——显著+1x=自动
+## 弹请求；其余=灰点亮（dot）。ReportDual 为 #149 已交付挂载决策纯函数组件）
+func _sync_report_channel(dashboard: Dictionary) -> void:
+	var clock: Dictionary = dashboard.get("clock", {})
+	var week := int(clock.get("week", 0))
+	if week == _last_handled_week:
+		return
+	_last_handled_week = week
+	var report_view: Dictionary = _world.get_report_view()
+	if report_view.is_empty():
+		return
+	var decision: Dictionary = _report_dual.ingest(report_view, int(clock.get("speed_index", 0)))
+	_auto_pop_requested = bool(decision.get("pop", false))
+	_report_dot.visible = bool(decision.get("dot", false))
 
 
 ## ---------- 数据面（测试/装配方读） ----------
