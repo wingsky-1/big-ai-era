@@ -32,6 +32,10 @@ static func assemble(seed: int) -> Dictionary:
 	var chips_table := DataLoader.load_json(CHIPS_PATH)
 	var t0_supply := int(((chips_table["chip_tiers"] as Dictionary)["t0"] as Dictionary)["supply"])
 	resources.weekly_supply_provider = func() -> int: return t0_supply
+	# 开局预算就位（W1 可排训练）：provider 注入后即 reset——对齐全部既有
+	# 消费方惯例（test_card_hours_budget before_each 等）；漏置时 W1 剩余=0，
+	# 首训练被 CARD_HOURS_INSUFFICIENT 拒（#190 浏览器实测暴露）
+	resources.reset_weekly_card_hours()
 
 	var clock := GameClock.new(DataLoader.load_json(TIME_PATH))
 	var ledger := Ledger.new(1)

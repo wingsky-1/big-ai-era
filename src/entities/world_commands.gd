@@ -58,3 +58,26 @@ func cycle_speed() -> int:
 ## 暂停/继续（永不禁用）。
 func set_paused(paused: bool) -> void:
 	(_parts["clock"] as GameClock).set_paused(paused)
+
+
+## 选题池数据面（L3 任务板消费；只读视图，PaperPool 无状态可即取即用）
+func get_topic_options() -> Array:
+	var pool := PaperPool.new()
+	var topics: Array = []
+	for domain: String in ["align", "distill", "memory", "tool", "multimodal"]:
+		for topic: Dictionary in pool.get_topics_in_domain(domain):
+			topics.append(topic)
+	return topics
+
+
+## 基座池数据面（L3 任务板消费；models.json 表序= _order）
+func get_base_options() -> Array:
+	var models_table := DataLoader.load_json("res://src/data/models.json")
+	var bases: Dictionary = models_table["model_bases"]
+	var order: Array = bases.get("_order", bases.keys())
+	var options: Array = []
+	for base_id: String in order:
+		var base: Dictionary = bases.get(base_id, {})
+		if not base.is_empty():
+			options.append({"id": base_id, "name_key": str(base.get("name_key", ""))})
+	return options

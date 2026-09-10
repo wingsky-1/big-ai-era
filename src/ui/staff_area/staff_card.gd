@@ -10,6 +10,10 @@ extends PanelContainer
 ## 防线同 #145/#146 惯例）；颜色不建 .tres（theme 文件批归 #147+ 统一收）。
 ## 硬约束：L3 禁读 L4/禁 import L2（仅注入适配字段）；零业务计算（ADR-0016）。
 
+## 卡片点击（批7.3 #190：指派入口；装配方经 StaffAreaView 中继消费——
+## headless 输入模拟不可用，测试经信号直发驱动）
+signal card_clicked(staff_id: String)
+
 ## ---------- ui.json 镜像常量（GUT test_staff_card 断言与表值一致） ----------
 
 const MIN_CARD_SIZE: float = 48.0  # ui_touch_min（可点目标/横滑行卡高下限）
@@ -37,6 +41,9 @@ var _collab_badge: Label
 
 func _init() -> void:
 	custom_minimum_size = Vector2(0.0, MIN_CARD_SIZE)
+	# Container 默认 PASS——卡本体需 STOP 吃点击（指派入口），防穿透空点
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	gui_input.connect(_on_gui_input)
 	# 卡底：ink_panel + 8px 圆角 + 内边距（B.1 图形语言，同 #146 槽卡）
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = COLOR_INK_PANEL
@@ -140,6 +147,18 @@ func get_card_height() -> float:
 
 
 ## ---------- 私有 ----------
+
+
+func _on_gui_input(event: InputEvent) -> void:
+	# 左键/触摸按下即发射（Web/移动端触摸合成鼠标事件，双通道同入口）
+	var is_click := false
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		is_click = mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
+	elif event is InputEventScreenTouch:
+		is_click = (event as InputEventScreenTouch).pressed
+	if is_click:
+		card_clicked.emit(_staff_id)
 
 
 func _make_label(font_size: int, color: Color) -> Label:

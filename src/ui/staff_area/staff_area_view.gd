@@ -11,6 +11,9 @@ extends Control
 ## 卡片数随名册增减（E1 扩编 4→8→12：复用既有卡/补新卡，零装配改）。
 ## 硬约束：零业务计算（ADR-0016）；只读数据面；折叠形态判定不做在本类。
 
+## 员工卡点击中继（#190：卡→装配方指派面板；卡的 card_clicked 聚合透传）
+signal staff_card_clicked(staff_id: String)
+
 ## ---------- ui.json 镜像常量（GUT test_staff_area_responsive 断言=表值） ----------
 
 const REFRESH_DUR: float = 0.5  # ui_slot_refresh_dur（B.2 指派 0.5s 刷新预算）
@@ -79,6 +82,7 @@ func refresh_now() -> void:
 	# 卡片数随名册增减（E1 扩编：复用既有卡/补新卡/收尾移除）
 	while _cards.size() < staff_views.size():
 		var card := StaffCard.new()
+		card.card_clicked.connect(_on_card_clicked)
 		_cards.append(card)
 		_reparent(card)
 	while _cards.size() > staff_views.size():
@@ -92,6 +96,11 @@ func refresh_now() -> void:
 
 func _on_changed(_payload: Variant) -> void:
 	refresh_now()
+
+
+## 卡点击中继（新卡连接时即挂；存量卡在扩编循环里连接）
+func _on_card_clicked(staff_id: String) -> void:
+	staff_card_clicked.emit(staff_id)
 
 
 ## 折叠形态下发（MainScene 按 LayoutPolicy 判定后调用；本类只切容器）。

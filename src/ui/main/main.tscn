@@ -1,10 +1,13 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/ui/main/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://src/ui/dashboard/workspace_view.gd" id="2_workspace"]
 [ext_resource type="Script" path="res://src/ui/staff_area/staff_area_view.gd" id="3_staff_area"]
 [ext_resource type="Script" path="res://src/ui/resource_bar/resource_bar_view.gd" id="4_rbar"]
 [ext_resource type="Script" path="res://src/ui/resource_bar/rival_light_entry.gd" id="5_rival"]
+[ext_resource type="Script" path="res://src/ui/widgets/goal_card_band.gd" id="6_goal"]
+[ext_resource type="Script" path="res://src/ui/panels/panel_host.gd" id="7_host"]
+[ext_resource type="Theme" path="res://src/ui/theme/main_theme.tres" id="8_theme"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -13,6 +16,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("8_theme")
 script = ExtResource("1_main")
 
 [node name="MainStage" type="VBoxContainer" parent="."]
@@ -23,6 +27,11 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="GoalBand" type="Control" parent="MainStage"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("6_goal")
 
 [node name="MiddleRow" type="HBoxContainer" parent="MainStage"]
 layout_mode = 2
@@ -91,3 +100,14 @@ text = "科技树"
 unique_name_in_owner = true
 layout_mode = 2
 text = "暂停"
+
+[node name="PanelHost" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_host")
