@@ -2,6 +2,9 @@
 # 引擎生成的缓存与导入产物（.import 元数据文件需提交，此目录不需要）
 .godot/
 
+# 试玩截图取证目录（.gdignore 已阻断导入扫描；历史 .import 误产物不入库）
+docs/playtest/screenshots/**/*.import
+
 # Android 构建产物
 /android/
 

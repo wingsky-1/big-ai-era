@@ -21,7 +21,7 @@
 | ui_ | UI·UX 通用 | 33 |
 | term_ | 术语提示 | 28 |
 | name_filter_ | 敏感词三层 | 5 |
-| 总计 | | ~337（含池/占位） |
+| 总计 | | ~346（含池/占位；#194 +9） |
 
 ## 二、键名全表（冲突自检：前缀内与跨前缀均唯一）
 
@@ -180,6 +180,13 @@
 | rnd_event_share_body | CVPR 截稿在即，要投一篇短文吗？ | 17 | 正文 60 ✓ |
 | rnd_event_share_accept | 冲刺投稿 | 4 | 选项 ✓ |
 | rnd_event_share_decline | 不凑热闹 | 4 | 选项 ✓ |
+| rnd_event_visit_accept | 接待 | 2 | 选项 ✓ |
+| rnd_event_visit_decline | 婉拒 | 2 | 选项 ✓ |
+| rnd_event_sensor_accept | 忍一周 | 3 | 选项 ✓ |
+| rnd_event_sensor_decline | 加急维修 | 4 | 选项 ✓ |
+| rnd_event_cash_preview | +¥<X> | 3 | 选项 ✓ |
+| rnd_event_influence_preview | 影响力 +<X> | 6 | 选项 ✓ |
+| rnd_event_none_preview | 无额外效果 | 5 | 选项 ✓ |
 
 ### tree_ 科技树
 
@@ -346,6 +353,8 @@
 | ui_accept | 收下 | 2 | 选项 ✓ |
 | ui_dismiss | 知道了 | 3 | 选项 ✓ |
 | ui_more | 更多 | 2 | 选项 ✓ |
+| ui_report_dot | 周报 | 2 | 选项 ✓ |
+| ui_report_ack | 知道了 | 3 | 选项 ✓ |
 | ui_setting_reduce_motion | 减少动态 | 4 | 选项 ✓ |
 | ui_focus_hint | 当前选中：<面板名> | 9 | 辅助 ✓ |
 | ui_promote_8 | 实验室扩建：4 人→8 人！ | 12 | 标题 12 ✓ |

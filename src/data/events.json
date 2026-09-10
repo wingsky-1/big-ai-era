@@ -1,0 +1,38 @@
+{
+  "_comment": "events.json v1.0.0 批7.4（#194）。键名真源=randomness-spec.md OP-RND-01 事件卡（决策级）；效果类型真源=本表 _bounds 效果三型（cash/influence/none）——share 卡（工期/质量修正）效果超 P0 类面砍出卡组，文案键留存 texts.json 为池超集（P1 扩类面时上线）。金额语义=现实锚定事件静态绝对值（非玩家状态百分比），护栏=绝对区间（ADR-0022 跟键走 + ADR-0028 效果基准裁定）。轮转=确定性已见集合（同种子同序，零新 RNG：rnd_event_rate 率门在 rng.json）。",
+  "event_deck": [
+    {
+      "id": "grant",
+      "title_key": "rnd_event_grant_title",
+      "body_key": "rnd_event_grant_body",
+      "choices": [
+        { "key": "rnd_event_grant_accept", "effect": { "type": "cash", "amount": 15000 } },
+        { "key": "rnd_event_grant_decline", "effect": { "type": "none" } }
+      ]
+    },
+    {
+      "id": "visit",
+      "title_key": "rnd_event_visit_title",
+      "body_key": "rnd_event_visit_body",
+      "choices": [
+        { "key": "rnd_event_visit_accept", "effect": { "type": "influence", "amount": 6 } },
+        { "key": "rnd_event_visit_decline", "effect": { "type": "none" } }
+      ]
+    },
+    {
+      "id": "sensor",
+      "title_key": "rnd_event_sensor_title",
+      "body_key": "rnd_event_sensor_body",
+      "choices": [
+        { "key": "rnd_event_sensor_accept", "effect": { "type": "cash", "amount": -8000 } },
+        { "key": "rnd_event_sensor_decline", "effect": { "type": "none" } }
+      ]
+    }
+  ],
+  "_bounds": {
+    "event_deck": [3, 3],
+    "choices_per_card": [2, 2],
+    "cash_amount": [-10000, 20000],
+    "influence_amount": [1, 10]
+  }
+}

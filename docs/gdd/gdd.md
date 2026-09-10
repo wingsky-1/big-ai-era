@@ -98,6 +98,16 @@ RNG 消费点恰 3 处（grep 可验断言）：rival_jitter / inspiration / eve
 
 > **步序修正（DR-031/B-2，C1 改造的硬前置）**：现实现的**任务结算在步序 2（破产短路）之后**（`game_world.gd:456–490`）→ 改占槽口径后任务收入将**在破产判定之后到账**，导致"本周有 +42k 结算仍被判破产"。**修法**：任务结算并入步序 1，或把短路判定移到任务结算之后；**同步修订 `DR-021 B3`"判定写死在收支后"的契约表述**（"收支"的定义已随 C1 改变）。
 
+### 5.2a 事件卡实现状态（批7.4 #194，ADR-0028）
+
+决策级事件卡 P0 切片已落：周结 phase11 率门（rng.event，rnd_event_rate=0.25）
+→ 确定性轮转（已见频次最小优先，零新 RNG）→ 决策卡 z2 二选一（cash/influence/
+none 三型效果，静态绝对值+绝对区间护栏，预览即承诺）→ 效果入账走
+WorldCommands 命令通道（Ledger+Resources 对账闭合）→ EVENT 行入周报。
+调度序 DECISION>NAMING>REPORT（ModalScheduler 秩表），停流=f(任意 z2 在屏)；
+pending+已见集合入 events 存档域（刷新/崩溃恢复重弹）。share 卡与通知级
+toast 为 P1 增量（见 ADR-0028 D2/D4/D6）。
+
 ### 5.3 确定性随机（ADR-0008）
 
 分域 counter-based RNG（`src/systems/rng/rng_stream.gd`）：root_seed+各域独立计数器入档（rng{} 开放容器，新随机域=加键零迁移）；万周模拟同 seed 双跑哈希一致进 verify.sh，万局归 nightly。（DR-001 / DR-021 M2）

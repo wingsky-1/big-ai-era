@@ -13,6 +13,17 @@ const TICK_SECONDS: float = 20.0  # 一周（time_wall_clock_1x=20 表驱动）
 const MAX_TICKS: int = 12  # mini 4 周完成+周结缓冲；少 tick 防 autosave 写盘放大
 
 
+## 消费掉插队的决策卡（多源竞争=调度序设计：决策>命名——tick 期间事件命中时
+## 命名测试先处理决策卡，保持被测源唯一性）
+func _drain_decision(world: Object) -> void:
+	var commands: Object = world.get_commands()
+	for i: int in 8:
+		var view: Dictionary = commands.get_decision_view()
+		if view.is_empty():
+			return
+		commands.submit_decision(1)  # 恒选 declined（none 效果，不污染断言）
+
+
 func _open_main() -> MainScene:
 	var scene := MAIN_SCENE.instantiate()
 	add_child_autofree(scene)
@@ -53,6 +64,7 @@ func test_naming_dialog_z2_flow() -> void:
 	var main := await _open_main()
 	var world: Object = main.get_world()
 	var commands: Object = world.get_commands()
+	_drain_decision(world)
 	# 排训练（mini：4 周完成；命令经 UI 同款 WorldCommands 入口）
 	assert_true(bool(commands.start_training("mini").get("ok", false)), "mini 训练入槽")
 	# 墙钟推进至训练完成周结（z2 pending 出现即停流——有界循环防死等）
@@ -60,6 +72,7 @@ func test_naming_dialog_z2_flow() -> void:
 	while not bool(world.has_naming_pending()) and ticks < MAX_TICKS:
 		world.tick(TICK_SECONDS)
 		ticks += 1
+		_drain_decision(world)  # 周结可能再触发事件——保持被测源唯一
 	assert_true(world.has_naming_pending(), "训练完成→命名待决（%d tick）" % ticks)
 	# z2 门控：下一帧 main 侧弹层自开（命名框 z2 阻塞）
 	await get_tree().process_frame

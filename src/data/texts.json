@@ -336,5 +336,14 @@
   "chip_term_cluster": "多机并行训练=「集群」；后期多基座并行形态。",
   "name_filter_reason": "这个名字不合规，换一个吧",
   "name_filter_rules": "名字 ≤12 字，仅限中英文数字与 -_.·",
-  "ui_report_title": "第<周数>周 · 周报"
+  "ui_report_title": "第<周数>周 · 周报",
+  "rnd_event_visit_accept": "接待",
+  "rnd_event_visit_decline": "婉拒",
+  "rnd_event_sensor_accept": "忍一周",
+  "rnd_event_sensor_decline": "加急维修",
+  "rnd_event_cash_preview": "+¥<X>",
+  "rnd_event_influence_preview": "影响力 +<X>",
+  "rnd_event_none_preview": "无额外效果",
+  "ui_report_dot": "周报",
+  "ui_report_ack": "知道了"
 }

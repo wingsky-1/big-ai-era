@@ -101,6 +101,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "暂停"
 
+[node name="ReportDot" type="Button" parent="MainStage/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "周报"
+
 [node name="PanelHost" type="Control" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
