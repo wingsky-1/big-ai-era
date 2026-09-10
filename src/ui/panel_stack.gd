@@ -69,8 +69,19 @@ const PANEL_Z: Dictionary = {
 }
 
 ## 面板是否已落地实例（A8 逐批登记：enum 注册≠实例存在；本表随面板批增量
-## 置 true——未落地面板 open=防御拒绝，防死代码空壳）
-const PANEL_IMPLEMENTED: Dictionary = {}
+## 置 true——未落地面板 open=防御拒绝，防死代码空壳）。#190 落地 6 项：
+## Dock 三键（TASK_BOARD/TECH_TREE/PAUSE_MENU）+ STAFF_DETAIL（指派微弹层）
+## + TARGET_CARD（目标卡详情）+ NAMING_DIALOG（z2 命名弹层）。
+## 登记为呈现侧文档（栈语义通用：open() 不查本表——既有 #151 纯逻辑测试
+## 依赖未落地面板可入栈验证层级语义）。
+const PANEL_IMPLEMENTED: Dictionary = {
+	PanelId.TASK_BOARD: true,
+	PanelId.TECH_TREE: true,
+	PanelId.STAFF_DETAIL: true,
+	PanelId.PAUSE_MENU: true,
+	PanelId.TARGET_CARD: true,
+	PanelId.NAMING_DIALOG: true,
+}
 
 var _open_stack: Array[PanelId] = []
 var _panels: Dictionary = {}  # PanelId → 面板数据（装配方挂渲染句柄；空=未实例）

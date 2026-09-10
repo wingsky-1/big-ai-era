@@ -174,6 +174,12 @@ func has_naming_pending() -> bool:
 	return (_parts["ceremony"] as ModelCeremony).has_pending()
 
 
+## 命名待决视图（L3 命名弹层数据面；#190 新增——score/first 首模型标经
+## view 下发防 L3 直取 ceremony 对象，ADR-0016）
+func get_pending_view() -> Dictionary:
+	return (_parts["ceremony"] as ModelCeremony).peek_pending()
+
+
 ## 系统访问器（L3 装配方 bind 数据面用；L3 禁直取业务对象做计算，仅作
 ## 信号发射器/数据源传引用——ADR-0016 契约面）
 func get_task_board() -> TaskBoard:

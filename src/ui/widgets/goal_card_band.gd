@@ -8,6 +8,9 @@ extends Control
 ## 触控：整带可点（≥48px 高），L3 消费 PanelStack.TARGET_CARD 详情弹层
 ## （z1，批7.2 最小=点击带即 open，详情渲染后续批）。
 
+## 带体点击（#190：展开目标详情 z1 TARGET_CARD；装配方消费）
+signal band_clicked
+
 const MIN_BAND_HEIGHT: float = 48.0
 ## 周提示文案键（texts.json onb_week_hint="约再跑 X 周"；TextService 插值）
 const WEEK_HINT_KEY: String = "onb_week_hint"
@@ -21,6 +24,7 @@ var _hint_label: Label = null
 
 func _init() -> void:
 	custom_minimum_size = Vector2(0, MIN_BAND_HEIGHT)
+	gui_input.connect(_on_gui_input)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	add_child(row)
@@ -66,6 +70,18 @@ func refresh(view: Dictionary) -> void:
 
 func get_goal_key() -> String:
 	return _goal_key
+
+
+func _on_gui_input(event: InputEvent) -> void:
+	# 左键/触摸按下即开详情（整带可点 ≥48px；B.1 触控纪律）
+	var is_click := false
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		is_click = mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
+	elif event is InputEventScreenTouch:
+		is_click = (event as InputEventScreenTouch).pressed
+	if is_click:
+		band_clicked.emit()
 
 
 func _make_label(font_size: int) -> Label:
